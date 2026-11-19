@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
-type TreePerson = { id:string; display_name:string; life_status:string; birth_date_kind:string; birth_year:number|null };
+type TreePerson = { id:string; display_name:string; life_status:string; birth_date_kind:string; birth_exact_date:string|null; birth_year:number|null; birth_range_start_year:number|null; birth_range_end_year:number|null; birth_original_text:string|null };
+function birthLabel(p:TreePerson){if(p.birth_date_kind==="exact"&&p.birth_exact_date){const [y,m,d]=p.birth_exact_date.split("-").map(Number);return new Date(Date.UTC(y,m-1,d)).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"});}if(p.birth_date_kind==="year"&&p.birth_year)return String(p.birth_year);if(p.birth_date_kind==="approximate_year"&&p.birth_year)return `c. ${p.birth_year}`;if(p.birth_date_kind==="range"&&p.birth_range_start_year&&p.birth_range_end_year)return `${p.birth_range_start_year}–${p.birth_range_end_year}`;return p.birth_original_text||"Birth date unknown";}
 type TreeRelationship = { id:string; from_person_id:string; to_person_id:string; relationship_type:string };
 type Node = { person:TreePerson; generation:number; x:number; y:number };
 
@@ -36,10 +37,10 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
         <circle cx="23" cy="25" r="14" fill={node.person.life_status==="deceased"?"#e1ded4":"#e5eee2"}/>
         <text x="23" y="30" textAnchor="middle" fontSize="13" fill="#315b45" fontWeight="600">{node.person.display_name.charAt(0).toUpperCase()}</text>
         <text x="13" y="58" fontSize="12" fontWeight="600" fill="#29382f">{node.person.display_name.length>20?node.person.display_name.slice(0,18)+"…":node.person.display_name}</text>
-        <text x="13" y="78" fontSize="10" fill="#747c72">{node.person.birth_year?((node.person.birth_date_kind==="approximate_year"?"c. ":"")+node.person.birth_year):"Birth year unknown"}</text>
+        <text x="13" y="78" fontSize="10" fill="#747c72">{birthLabel(node.person)}</text>
         <text x="13" y="93" fontSize="9" fill={node.person.life_status==="deceased"?"#77776e":"#477454"}>{node.person.life_status==="deceased"?"DECEASED":"LIVING"}</text>
       </g>)}
     </svg></div>
-    {focused&&<div className="tree-person-detail"><strong>{focused.display_name}</strong><span>{focused.life_status==="deceased"?"Deceased":"Living"} · {focused.birth_year?focused.birth_year:"Birth date unknown"}</span><button className="button-secondary" onClick={()=>setSelected(null)}>Close details</button></div>}
+    {focused&&<div className="tree-person-detail"><strong>{focused.display_name}</strong><span>{focused.life_status==="deceased"?"Deceased":"Living"} · {birthLabel(focused)}</span><button className="button-secondary" onClick={()=>setSelected(null)}>Close details</button></div>}
   </section>;
 }
