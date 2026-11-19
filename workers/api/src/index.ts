@@ -108,7 +108,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     }
   }
 
-  const deceasedMatch=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/people\\/([^/]+)\\/deceased$/);
+  const deceasedMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/deceased$/);
   if (deceasedMatch && request.method === "POST") {
     const familyId=deceasedMatch[1], personId=deceasedMatch[2], role=await roleFor(env.DB,familyId);
     if (!role) return fail(404,"family_not_found","Family not found.");
