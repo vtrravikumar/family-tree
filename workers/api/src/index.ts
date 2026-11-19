@@ -113,9 +113,9 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const familyId=importMatch[1], role=await roleFor(env.DB,familyId);
     if (role !== "owner" && role !== "admin") return fail(role?403:404,"forbidden","Only a family owner or admin can import family records.");
     const input=await body(request);
-    if (input?.confirmed !== true || input?.confirmDeceasedRecords !== true || !Array.isArray(input.people) || !Array.isArray(input.relationships))
+    if (input?.confirmed !== true || input?.confirmDeceasedRecords !== true || !Array.isArray(input.people))
       return fail(400,"confirmation_required","Confirm the import and deceased records before proceeding.");
-    if (input.people.length > 100 || input.relationships.length > 300) return fail(400,"import_too_large","Import exceeds the supported record limit.");
+    if (input.people.length > 100) return fail(400,"import_too_large","Import exceeds the supported record limit.");
     const existing=await env.DB.prepare("SELECT id,display_name,given_name,family_name FROM persons WHERE family_id=?").bind(familyId).all<{id:string;display_name:string;given_name:string;family_name:string|null}>();
     const normalize=(value:string)=>value.toLocaleLowerCase().normalize("NFKD").replace(/[^\\p{L}\\p{N}]+/gu," ").trim().replace(/\\s+/g," ");
     const existingByName=new Map(existing.results.map(p=>[normalize(p.display_name||[p.given_name,p.family_name].filter(Boolean).join(" ")),p.id]));
@@ -151,8 +151,24 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
         .bind(id(),familyId,personId,JSON.stringify({source:"family-tree.xlsx",deathDate:death}),t).run();
       keyToId.set(key,personId);created.push(personId);existingByName.set(normalize(display),personId);
     }
+    const sourceKeys=new Map<string,string>();
+    for (const raw of input.people) if (isObject(raw)&&typeof raw.key==="string"&&typeof raw.sourceName==="string") sourceKeys.set(normalize(raw.sourceName),raw.key);
+    for (const raw of input.people) if (isObject(raw)&&typeof raw.key==="string"&&typeof raw.givenName==="string") {
+      sourceKeys.set(normalize(raw.givenName),raw.key);
+      sourceKeys.set(normalize([raw.givenName,textOrNull(raw.familyName)].filter(Boolean).join(" ")),raw.key);
+    }
+    const relationshipInputs:JsonObject[]=[];
+    const edgeSeen=new Set<string>();
+    for (const raw of input.people) if (isObject(raw)&&typeof raw.key==="string") {
+      if (Array.isArray(raw.parents)) for (const parent of raw.parents) if (typeof parent==="string") {
+        const from=sourceKeys.get(normalize(parent)); if(from&&from!==raw.key){const k=from+"|"+raw.key+"|biological_parent";if(!edgeSeen.has(k)){edgeSeen.add(k);relationshipInputs.push({from,to:raw.key,type:"biological_parent"});}}
+      }
+      if (Array.isArray(raw.partners)) for (const partner of raw.partners) if (typeof partner==="string") {
+        const to=sourceKeys.get(normalize(partner)); if(to&&to!==raw.key){const [a,b]=[raw.key,to].sort();const k=a+"|"+b+"|spouse";if(!edgeSeen.has(k)){edgeSeen.add(k);relationshipInputs.push({from:a,to:b,type:"spouse"});}}
+      }
+    }
     let relationshipsCreated=0, relationshipsSkipped=0;
-    for (const raw of input.relationships) {
+    for (const raw of relationshipInputs) {
       if (!isObject(raw)||typeof raw.from!=="string"||typeof raw.to!=="string"||!["biological_parent","spouse"].includes(String(raw.type))) continue;
       const fromId=keyToId.get(raw.from),toId=keyToId.get(raw.to),type=String(raw.type);
       if (!fromId||!toId||fromId===toId) { relationshipsSkipped++;continue; }
