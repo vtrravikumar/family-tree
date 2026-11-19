@@ -1,14 +1,16 @@
 name = "family-tree-api"
 main = "src/index.ts"
 compatibility_date = "2025-01-15"
-workers_dev = true
+# Keep workers.dev disabled until the account subdomain is configured.
+# The Worker can still be uploaded; attach a custom domain before exposing it.
+workers_dev = false
 
 [vars]
 APP_ENV = "development"
 
 [env.dev]
 name = "family-tree-api-dev"
-workers_dev = true
+workers_dev = false
 
 [env.dev.vars]
 APP_ENV = "development"
