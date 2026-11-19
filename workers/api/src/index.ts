@@ -108,7 +108,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     }
   }
 
-  const importMatch=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/import$/);
+  const importMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/import$/);
   if (importMatch && request.method === "POST") {
     const familyId=importMatch[1], role=await roleFor(env.DB,familyId);
     if (role !== "owner" && role !== "admin") return fail(role?403:404,"forbidden","Only a family owner or admin can import family records.");
