@@ -58,10 +58,34 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
         return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:Number.MAX_SAFE_INTEGER;
       };
       list.sort((a,b)=>score(a)-score(b)||a.display_name.localeCompare(b.display_name));
-      // Keep spouses adjacent when their relationship exists, while preserving child-centred ordering.
-      if(mode==="ancestors")list.sort((a,b)=>{const delta=score(a)-score(b);if(Math.abs(delta)>0.5)return delta;const partner=spouses.find(e=>(e.from_person_id===a.id&&e.to_person_id===b.id)||(e.from_person_id===b.id&&e.to_person_id===a.id));return partner? -1:a.display_name.localeCompare(b.display_name);});
+      // Build spouse/partner groups as indivisible visual units. Parent alignment
+      // influences where a group sits, never the distance between partners.
+      const remaining=new Set(list.map(p=>p.id));
+      const groupsOfPartners:Array<TreePerson[]>=[];
+      while(remaining.size){
+        const seedId=remaining.values().next().value as string;
+        const component=new Set<string>([seedId]);
+        const queue=[seedId];
+        remaining.delete(seedId);
+        while(queue.length){
+          const current=queue.shift()!;
+          for(const edge of spouses){
+            const other=edge.from_person_id===current?edge.to_person_id:edge.to_person_id===current?edge.from_person_id:null;
+            if(other&&remaining.has(other)&&list.some(p=>p.id===other)){
+              remaining.delete(other);component.add(other);queue.push(other);
+            }
+          }
+        }
+        groupsOfPartners.push(list.filter(p=>component.has(p.id)));
+      }
+      const groupScore=(unit:TreePerson[])=>{
+        const scores=unit.map(score).filter(v=>v!==Number.MAX_SAFE_INTEGER);
+        return scores.length?scores.reduce((a,b)=>a+b,0)/scores.length:Number.MAX_SAFE_INTEGER;
+      };
+      groupsOfPartners.sort((a,b)=>groupScore(a)-groupScore(b)||a.map(p=>p.display_name).sort()[0].localeCompare(b.map(p=>p.display_name).sort()[0]));
+      const orderedList=groupsOfPartners.flatMap(unit=>unit.sort((a,b)=>a.display_name.localeCompare(b.display_name)));
       maxCount=Math.max(maxCount,list.length);
-      list.forEach((person,i)=>{const x=42+i*218,y=42+(g-minGeneration)*174;xById.set(person.id,x+80);result.push({person,generation:g,x,y});});
+      orderedList.forEach((person,i)=>{const x=42+i*218,y=42+(g-minGeneration)*174;xById.set(person.id,x+80);result.push({person,generation:g,x,y});});
     }
     const maxY=Math.max(0,...result.map(n=>n.y));
     return {nodes:result,width:Math.max(350,maxCount*218+20),height:Math.max(210,maxY+145),parents:parents.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),spouses:spouses.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),siblings:siblings.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),visibleCount:visible.size};
