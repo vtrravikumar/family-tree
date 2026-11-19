@@ -12,8 +12,11 @@ APP_ENV = "development"
 name = "family-tree-api-dev"
 workers_dev = false
 
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "vansvriksh-dev"
+database_id = "6a646ce7-f920-489a-a274-002ce158c9ae"
+migrations_dir = "migrations"
+
 [env.dev.vars]
 APP_ENV = "development"
-
-# D1 and R2 bindings will be added as isolated resources for dev,
-# staging, and production when those services are introduced.
