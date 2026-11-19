@@ -108,6 +108,29 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     }
   }
 
+  const deceasedMatch=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/people\\/([^/]+)\\/deceased$/);
+  if (deceasedMatch && request.method === "POST") {
+    const familyId=deceasedMatch[1], personId=deceasedMatch[2], role=await roleFor(env.DB,familyId);
+    if (!role) return fail(404,"family_not_found","Family not found.");
+    if (role !== "owner" && role !== "admin") return fail(403,"forbidden","Only a family owner or admin can mark someone deceased.");
+    const input=await body(request);
+    if (input?.confirmed !== true) return fail(400,"confirmation_required","Explicit confirmation is required.");
+    const allowed=["exact","year","approximate_year","range","unknown"];
+    const deathKind=typeof input.deathDateKind==="string"?input.deathDateKind:"unknown";
+    if (!allowed.includes(deathKind)) return fail(400,"invalid_date_precision","Unsupported death-date precision.");
+    const exact=textOrNull(input.deathExactDate), year=yearOrNull(input.deathYear);
+    const start=yearOrNull(input.deathRangeStartYear), end=yearOrNull(input.deathRangeEndYear);
+    const original=textOrNull(input.deathOriginalText);
+    if ((deathKind==="exact" && !exact) || ((deathKind==="year"||deathKind==="approximate_year")&&!year) || (deathKind==="range"&&(!start||!end||start>end)) || (deathKind==="unknown"&&(exact||year||start||end))) return fail(400,"invalid_death_date","Provide a valid date value matching the selected precision.");
+    const t=now();
+    try {
+      const result=await env.DB.prepare(`UPDATE persons SET life_status='deceased',death_date_kind=?,death_exact_date=?,death_year=?,death_range_start_year=?,death_range_end_year=?,death_original_text=?,updated_at=? WHERE id=? AND family_id=? AND life_status='alive'`).bind(deathKind,deathKind==="exact"?exact:null,(deathKind==="year"||deathKind==="approximate_year")?year:null,deathKind==="range"?start:null,deathKind==="range"?end:null,original,t,personId,familyId).run();
+      if (!result.meta.changes) return fail(409,"person_not_markable","Person not found or is already deceased.");
+      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.marked_deceased',?,?)").bind(id(),familyId,personId,JSON.stringify({deathDateKind:deathKind}),t).run();
+      return json({data:{id:personId,lifeStatus:"deceased",deathDateKind:deathKind,updatedAt:t}});
+    } catch { return fail(409,"person_immutable","This person's profile cannot be changed."); }
+  }
+
   const relationshipsMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/relationships$/);
   if (relationshipsMatch) {
     const familyId=relationshipsMatch[1], role=await roleFor(env.DB,familyId);
