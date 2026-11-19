@@ -59,17 +59,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Build frontend
-        run: pnpm --filter @family-tree/web build
-
-      - name: Deploy frontend to Cloudflare Pages
-        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
-        run: pnpm --filter @family-tree/api exec wrangler pages deploy ../../apps/web/dist --project-name vansvriksh-web-dev --branch main
-
       - name: Deploy API to Cloudflare Workers
         if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
         run: pnpm --filter @family-tree/api exec wrangler deploy --env dev
 
       - name: Explain skipped deployment
         if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == ''
-        run: echo "Cloudflare deployment skipped. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as repository Actions secrets."
+        run: echo "Worker deployment skipped. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as repository Actions secrets. The frontend deploys directly through Cloudflare Pages Git integration."
