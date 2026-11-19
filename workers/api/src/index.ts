@@ -151,17 +151,38 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url=new URL(request.url);
-    if (request.method==="GET" && url.pathname==="/health") {
+    const url = new URL(request.url);
+    const origin = request.headers.get("Origin") ?? "";
+    const allowedOrigins = new Set([
+      "https://vansvriksh-web-dev.pages.dev",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+    ]);
+    const corsHeaders: Record<string, string> = {
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Authorization, Content-Type",
+      "Access-Control-Max-Age": "86400",
+      "Vary": "Origin",
+    };
+    if (allowedOrigins.has(origin)) corsHeaders["Access-Control-Allow-Origin"] = origin;
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+
+    let response: Response;
+    if (request.method === "GET" && url.pathname === "/health") {
       try {
-        const result=await env.DB.prepare("SELECT 1 AS ok").first<{ok:number}>();
-        return json({status:"ok",service:"family-tree-api",environment:env.APP_ENV,database:result?.ok===1?"connected":"unavailable"});
-      } catch { return json({status:"degraded",service:"family-tree-api",environment:env.APP_ENV,database:"unavailable"},{status:503}); }
+        const result = await env.DB.prepare("SELECT 1 AS ok").first<{ok:number}>();
+        response = json({status:"ok",service:"family-tree-api",environment:env.APP_ENV,database:result?.ok===1?"connected":"unavailable"});
+      } catch {
+        response = json({status:"degraded",service:"family-tree-api",environment:env.APP_ENV,database:"unavailable"},{status:503});
+      }
+    } else if (url.pathname.startsWith("/v1/")) {
+      try { response = await api(request,env,url); }
+      catch { response = fail(500,"internal_error","The request could not be completed."); }
+    } else {
+      response = fail(404,"not_found","Route not found.");
     }
-    if (url.pathname.startsWith("/v1/")) {
-      try { return await api(request,env,url); }
-      catch { return fail(500,"internal_error","The request could not be completed."); }
-    }
-    return fail(404,"not_found","Route not found.");
+    const headers = new Headers(response.headers);
+    for (const [key,value] of Object.entries(corsHeaders)) headers.set(key,value);
+    return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
   }
 };
