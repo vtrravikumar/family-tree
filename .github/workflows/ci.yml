@@ -59,6 +59,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Apply D1 migrations to development database
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+        run: pnpm --filter @family-tree/api exec wrangler d1 migrations apply vansvriksh-dev --remote --env dev
+
       - name: Deploy API to Cloudflare Workers
         if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
         run: pnpm --filter @family-tree/api exec wrangler deploy --env dev
