@@ -9,7 +9,8 @@ const labels:Record<string,string>={biological_parent:"Parent of",adoptive_paren
 export default function App(){
  const [token,setToken]=useState("");const [connected,setConnected]=useState(false);const [families,setFamilies]=useState<Family[]>([]);const [familyId,setFamilyId]=useState("");const [people,setPeople]=useState<Person[]>([]);const [rels,setRels]=useState<Relationship[]>([]);
  const [familyName,setFamilyName]=useState("");const [given,setGiven]=useState("");const [middle,setMiddle]=useState("");const [surname,setSurname]=useState("");const [gender,setGender]=useState("unspecified");const [dateKind,setDateKind]=useState("unknown");const [dateValue,setDateValue]=useState("");const [deceased,setDeceased]=useState(false);
- const [deathTarget,setDeathTarget]=useState<Person|null>(null);const [deathKind,setDeathKind]=useState("unknown");const [deathValue,setDeathValue]=useState("");\n const [from,setFrom]=useState("");const [to,setTo]=useState("");const [relType,setRelType]=useState("biological_parent");const [error,setError]=useState("");const [notice,setNotice]=useState("");const [busy,setBusy]=useState(false);
+ const [deathTarget,setDeathTarget]=useState<Person|null>(null);const [deathKind,setDeathKind]=useState("unknown");const [deathValue,setDeathValue]=useState("");
+ const [from,setFrom]=useState("");const [to,setTo]=useState("");const [relType,setRelType]=useState("biological_parent");const [error,setError]=useState("");const [notice,setNotice]=useState("");const [busy,setBusy]=useState(false);
  const request=useCallback(async(path:string,method="GET",payload?:unknown)=>{
   const res=await fetch(API+path,{method,headers:{Authorization:"Bearer "+token,...(payload?{"Content-Type":"application/json"}:{})},...(payload?{body:JSON.stringify(payload)}:{})});
   const data=await res.json();if(!res.ok)throw new Error(data?.error?.message||"Request failed ("+res.status+")");return data;
