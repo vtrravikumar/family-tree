@@ -8,7 +8,10 @@ A collaborative family heritage platform. Product branding is intentionally unde
 - Current milestone: M1 — application foundation
 - Market: India initially; architecture intended to support international use
 - Hosting target: Cloudflare Pages + Workers
-- Domain: TBD (.in)
+- Working product name: Vansvriksh (provisional)
+- Development frontend: `https://vansvriksh-web-dev.pages.dev` (after first deployment)
+- Development API: `https://family-tree-api-dev.<your-subdomain>.workers.dev` (after first deployment)
+- Custom domain: intentionally deferred until production readiness
 
 ## Repository layout
 
@@ -52,3 +55,18 @@ pnpm build
 7. All authorization is enforced server-side.
 
 See [Product Specification](docs/PRODUCT_SPEC.md) and [Architecture](docs/ARCHITECTURE.md).
+
+
+## Cloudflare development deployment
+
+The `main` branch is configured to deploy the development frontend and API after CI passes.
+
+One-time setup:
+1. In Cloudflare, create a Pages project named `vansvriksh-web-dev` and set its production branch to `main`.
+2. Create a Cloudflare API token with permission to deploy Workers and Pages for the target account.
+3. In GitHub repository Settings → Secrets and variables → Actions, add:
+   - `CLOUDFLARE_API_TOKEN`
+   - `CLOUDFLARE_ACCOUNT_ID`
+4. Push to `main`. GitHub Actions will validate, build, and deploy the frontend and API.
+
+The API uses the Wrangler `dev` environment (`family-tree-api-dev`). Do not attach production data stores or custom domains to this development deployment.
