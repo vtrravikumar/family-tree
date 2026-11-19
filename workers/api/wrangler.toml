@@ -1,0 +1,10 @@
+name = "family-tree-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-15"
+workers_dev = true
+
+[vars]
+APP_ENV = "development"
+
+# Configure D1 and R2 bindings separately for each environment.
+# Never share development resources with staging or production.
