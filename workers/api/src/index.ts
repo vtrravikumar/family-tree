@@ -138,13 +138,21 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
         }
         continue;
       }
-      const birth=textOrNull(raw.birthExactDate), death=textOrNull(raw.deathExactDate);
-      const validDate=(v:string|null)=>!!v&&/^\\d{4}-\\d{2}-\\d{2}$/.test(v)&&!Number.isNaN(Date.parse(v+"T00:00:00Z"));
-      if ((birth&&!validDate(birth))||(death&&!validDate(death))) return fail(400,"invalid_import_date","A supplied date is invalid; uncertain dates must be omitted.");
+      const suppliedBirth=textOrNull(raw.birthExactDate), suppliedDeath=textOrNull(raw.deathExactDate);
+      const validDate=(v:string|null)=>{
+        if (!v || !/^\\d{4}-\\d{2}-\\d{2}$/.test(v)) return false;
+        const [year,month,day]=v.split("-").map(Number);
+        const parsed=new Date(Date.UTC(year,month-1,day));
+        return parsed.getUTCFullYear()===year && parsed.getUTCMonth()===month-1 && parsed.getUTCDate()===day;
+      };
+      // Uncertain historical dates are retained as unknown precision, not treated as import errors.
+      const birth=validDate(suppliedBirth)?suppliedBirth:null;
+      const death=validDate(suppliedDeath)?suppliedDeath:null;
+      const hasDeathRecord=Boolean(suppliedDeath);
       const personId=id(), gender=["female","male","non_binary","unspecified"].includes(String(raw.gender))?String(raw.gender):"unspecified";
-      const life=death?"deceased":"alive";
+      const life=hasDeathRecord?"deceased":"alive";
       await env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,family_name,display_name,gender,life_status,birth_date_kind,birth_exact_date,death_date_kind,death_exact_date,created_by_user_id,created_at,updated_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,'dev-owner',?,?)`).bind(personId,familyId,given,family,display,gender,life,birth?"exact":"unknown",birth,death?"exact":"unknown",death,t,t).run();
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,'dev-owner',?,?)`).bind(personId,familyId,given,family,display,gender,life,birth?"exact":"unknown",birth,hasDeathRecord?(death?"exact":"unknown"):"unknown",death,t,t).run();
       await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,?,?,?)")
         .bind(id(),familyId,personId,"person.imported",JSON.stringify({source:"family-tree.xlsx",lifeStatus:life}),t).run();
       if (death) await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.marked_deceased',?,?)")
