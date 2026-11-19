@@ -1,58 +1,48 @@
-const principles = [
-  {
-    title: "Your family, together",
-    description: "Create a private family space and invite relatives to contribute to a shared history.",
-  },
-  {
-    title: "Every generation matters",
-    description: "Record relationships across generations, even when historical dates are incomplete.",
-  },
-  {
-    title: "Preserve what is known",
-    description: "Keep family stories and uncertain dates honest. Unknown information is valid information.",
-  },
-];
-
-export default function App() {
-  return (
-    <main className="page-shell">
-      <nav className="topbar" aria-label="Main navigation">
-        <a className="wordmark" href="/" aria-label="Family Tree home">
-          <span className="mark" aria-hidden="true">✳</span>
-          <span>family tree</span>
-        </a>
-        <span className="preview-label">Early preview</span>
-      </nav>
-
-      <section className="hero">
-        <p className="eyebrow">YOUR FAMILY. YOUR STORY. YOUR LEGACY.</p>
-        <h1>Every family has a story worth <em>preserving.</em></h1>
-        <p className="hero-copy">
-          A thoughtful space to build your family tree, bring generations together,
-          and preserve the stories that make your family unique.
-        </p>
-        <div className="hero-actions">
-          <button type="button" disabled title="Authentication will be added in a later milestone">
-            Get started — coming soon
-          </button>
-          <span>Private family spaces · Built for generations</span>
-        </div>
-      </section>
-
-      <section className="principles" aria-label="Product principles">
-        {principles.map((item, index) => (
-          <article className="principle-card" key={item.title}>
-            <span className="card-number">0{index + 1}</span>
-            <h2>{item.title}</h2>
-            <p>{item.description}</p>
-          </article>
-        ))}
-      </section>
-
-      <footer>
-        <span>Family Tree</span>
-        <span>Preserving connections, one generation at a time.</span>
-      </footer>
-    </main>
-  );
+import { useCallback, useEffect, useState } from "react";
+type Family={id:string;name:string;role:string};
+type Person={id:string;display_name:string;given_name:string;life_status:string;birth_date_kind:string;birth_year:number|null};
+type Relationship={id:string;from_name:string;to_name:string;relationship_type:string};
+const API=import.meta.env.VITE_API_URL||"https://api-dev.vtrrk.in";
+const labels:Record<string,string>={biological_parent:"Parent of",adoptive_parent:"Adoptive parent of",step_parent:"Step-parent of",spouse:"Spouse of",partner:"Partner of",sibling:"Sibling of"};
+export default function App(){
+ const [token,setToken]=useState("");const [connected,setConnected]=useState(false);const [families,setFamilies]=useState<Family[]>([]);const [familyId,setFamilyId]=useState("");const [people,setPeople]=useState<Person[]>([]);const [rels,setRels]=useState<Relationship[]>([]);
+ const [familyName,setFamilyName]=useState("");const [given,setGiven]=useState("");const [middle,setMiddle]=useState("");const [surname,setSurname]=useState("");const [gender,setGender]=useState("unspecified");const [dateKind,setDateKind]=useState("unknown");const [dateValue,setDateValue]=useState("");const [deceased,setDeceased]=useState(false);
+ const [from,setFrom]=useState("");const [to,setTo]=useState("");const [relType,setRelType]=useState("biological_parent");const [error,setError]=useState("");const [notice,setNotice]=useState("");const [busy,setBusy]=useState(false);
+ const request=useCallback(async(path:string,method="GET",payload?:unknown)=>{
+  const res=await fetch(API+path,{method,headers:{Authorization:"Bearer "+token,...(payload?{"Content-Type":"application/json"}:{})},...(payload?{body:JSON.stringify(payload)}:{})});
+  const data=await res.json();if(!res.ok)throw new Error(data?.error?.message||"Request failed ("+res.status+")");return data;
+ },[token]);
+ const loadFamilies=useCallback(async()=>{const r=await request("/v1/families") as {data:Family[]};setFamilies(r.data);},[request]);
+ const loadData=useCallback(async(id:string)=>{if(!id){setPeople([]);setRels([]);return;}const [p,r]=await Promise.all([request("/v1/families/"+id+"/people"),request("/v1/families/"+id+"/relationships")]) as [{data:Person[]},{data:Relationship[]}];setPeople(p.data);setRels(r.data);},[request]);
+ useEffect(()=>{if(connected&&familyId)loadData(familyId).catch(e=>setError(e.message));},[connected,familyId,loadData]);
+ async function run(fn:()=>Promise<void>){setBusy(true);setError("");setNotice("");try{await fn();}catch(e){setError(e instanceof Error?e.message:"Something went wrong.");}finally{setBusy(false);}}
+ const selected=families.find(f=>f.id===familyId);
+ return <main className="app-shell">
+  <header className="app-header"><a className="brand" href="/"><span className="brand-mark">✳</span>vansvriksh</a><span className="environment">DEVELOPMENT PREVIEW</span></header>
+  {!connected?<section className="welcome-panel"><p className="eyebrow">A LIVING RECORD OF YOUR FAMILY</p><h1>Bring your family story <em>together.</em></h1><p className="intro">Create a shared family space, add the people who shaped your story, and connect generations.</p><div className="connect-card"><h2>Connect to your private workspace</h2><p>Enter the development access token configured for the API. It stays in this browser tab and is not saved.</p><label>Development access token</label><input type="password" value={token} onChange={e=>setToken(e.target.value)} placeholder="Paste DEV_API_TOKEN" autoComplete="off"/><button disabled={!token.trim()||busy} onClick={()=>run(async()=>{await loadFamilies();setConnected(true);setNotice("Connected to the development API.");})}>{busy?"Connecting…":"Connect"}</button>{error&&<p className="message error">{error}</p>}</div><p className="privacy-note">Private by default · Historical uncertainty is welcome · Built for generations</p></section>:
+  <><section className="workspace-heading"><div><p className="eyebrow">YOUR FAMILY WORKSPACE</p><h1>Preserve what <em>connects us.</em></h1><p className="intro">Start with a family, add people, then connect their stories.</p></div><button className="button-secondary" onClick={()=>{setConnected(false);setToken("");setFamilyId("");}}>Disconnect</button></section>
+   {error&&<p className="message error">{error}</p>}{notice&&<p className="message success">{notice}</p>}
+   <section className="workspace-grid"><aside className="sidebar"><div className="section-title"><div><p className="eyebrow">WORKSPACES</p><h2>Your families</h2></div><span className="count">{families.length}</span></div>
+    <form onSubmit={e=>{e.preventDefault();void run(async()=>{const r=await request("/v1/families","POST",{name:familyName}) as {data:Family};setFamilyName("");await loadFamilies();setFamilyId(r.data.id);setNotice("Family workspace created.");});}}><label>Create a family</label><div className="inline-form"><input value={familyName} onChange={e=>setFamilyName(e.target.value)} placeholder="e.g. The Raman Family" maxLength={120}/><button disabled={busy||!familyName.trim()}>+</button></div></form>
+    <div className="family-list">{families.map(f=><button key={f.id} className={familyId===f.id?"family-item active":"family-item"} onClick={()=>{setFamilyId(f.id);setError("");}}><span className="family-icon">⌂</span><span><strong>{f.name}</strong><small>{f.role}</small></span><span className="chevron">›</span></button>)}{!families.length&&<p className="empty-hint">Your family workspaces will appear here.</p>}</div>
+   </aside><section className="main-panel">{!selected?<div className="empty-state"><span className="empty-symbol">✳</span><h2>Your family story starts here</h2><p>Create a family workspace or choose one to begin.</p></div>:
+    <><div className="family-heading"><div><p className="eyebrow">FAMILY WORKSPACE</p><h2>{selected.name}</h2><p>{people.length} people · {rels.length} connections</p></div><span className="private-tag">PRIVATE</span></div>
+     <div className="add-person-card"><div className="section-title"><div><p className="eyebrow">GROW YOUR TREE</p><h3>Add a person</h3></div></div>
+      <form onSubmit={e=>{e.preventDefault();void run(async()=>{const payload:Record<string,unknown>={givenName:given,middleName:middle,familyName:surname,gender,lifeStatus:deceased?"deceased":"alive",birthDateKind:dateKind};if(dateKind==="exact")payload.birthExactDate=dateValue;if(dateKind==="year"||dateKind==="approximate_year")payload.birthYear=Number(dateValue);if(dateKind==="range"){const v=dateValue.split("-").map(Number);payload.birthRangeStartYear=v[0];payload.birthRangeEndYear=v[1];}await request("/v1/families/"+familyId+"/people","POST",payload);setGiven("");setMiddle("");setSurname("");setDateKind("unknown");setDateValue("");await loadData(familyId);setNotice("Person added.");});}}>
+       <div className="form-grid three"><div><label>Given name *</label><input required value={given} onChange={e=>setGiven(e.target.value)} placeholder="First name"/></div><div><label>Middle name</label><input value={middle} onChange={e=>setMiddle(e.target.value)}/></div><div><label>Family name</label><input value={surname} onChange={e=>setSurname(e.target.value)}/></div></div>
+       <div className="form-grid three"><div><label>Gender</label><select value={gender} onChange={e=>setGender(e.target.value)}><option value="unspecified">Unspecified</option><option value="female">Female</option><option value="male">Male</option><option value="non_binary">Non-binary</option></select></div><div><label>Birth date precision</label><select value={dateKind} onChange={e=>{setDateKind(e.target.value);setDateValue("");}}><option value="unknown">Unknown</option><option value="exact">Exact date</option><option value="year">Year only</option><option value="approximate_year">Approximate year</option><option value="range">Estimated range</option></select></div><div>{dateKind!=="unknown"&&<><label>{dateKind==="exact"?"Birth date":dateKind==="range"?"Year range (1940-1945)":"Birth year"}</label><input required type={dateKind==="exact"?"date":"text"} value={dateValue} onChange={e=>setDateValue(e.target.value)} placeholder="YYYY"/></>}</div></div>
+       <div className="form-actions"><label className="check-label"><input type="checkbox" checked={deceased} onChange={e=>setDeceased(e.target.checked)}/> Mark as deceased</label><button disabled={busy||!given.trim()}>Add person</button></div>
+      </form>
+     </div>
+     <div className="people-section"><div className="section-title"><div><p className="eyebrow">THE PEOPLE</p><h3>Family members</h3></div><span className="count">{people.length}</span></div>{people.length?<div className="people-list">{people.map(p=><article className="person-row" key={p.id}><span className="avatar">{p.given_name.charAt(0).toUpperCase()}</span><div className="person-info"><strong>{p.display_name}</strong><small>{p.birth_year?"Born "+(p.birth_date_kind==="approximate_year"?"c. ":"")+p.birth_year:"Birth date unknown"}</small></div><span className={p.life_status==="deceased"?"status deceased":"status"}>{p.life_status}</span></article>)}</div>:<p className="empty-hint">No people added yet. Start with yourself, a parent, or an ancestor.</p>}</div>
+     <div className="relationships-section"><div className="section-title"><div><p className="eyebrow">CONNECT THE GENERATIONS</p><h3>Relationships</h3></div><span className="count">{rels.length}</span></div>{people.length>=2?<form className="relationship-form" onSubmit={e=>{e.preventDefault();void run(async()=>{await request("/v1/families/"+familyId+"/relationships","POST",{fromPersonId:from,toPersonId:to,relationshipType:relType});await loadData(familyId);setNotice("Relationship added.");});}}>
+      <div><label>{relType.includes("parent")?"Parent":"Person"}</label><select required value={from} onChange={e=>setFrom(e.target.value)}><option value="">Select person</option>{people.map(p=><option key={p.id} value={p.id}>{p.display_name}</option>)}</select></div>
+      <div><label>Relationship</label><select value={relType} onChange={e=>setRelType(e.target.value)}>{Object.entries(labels).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>
+      <div><label>{relType.includes("parent")?"Child":"Related person"}</label><select required value={to} onChange={e=>setTo(e.target.value)}><option value="">Select person</option>{people.map(p=><option key={p.id} value={p.id}>{p.display_name}</option>)}</select></div><button disabled={busy||!from||!to}>Connect</button>
+     </form>:<p className="empty-hint">Add at least two people to connect relationships.</p>}
+     {rels.length>0&&<div className="relationship-list">{rels.map(r=><div className="relationship-row" key={r.id}><span>{r.from_name}</span><small>{labels[r.relationship_type]||r.relationship_type}</small><span>{r.to_name}</span></div>)}</div>}</div>
+    </>}</section></section>
+  </>}
+  <footer className="app-footer"><span>Vansvriksh</span><span>Preserving connections, one generation at a time.</span></footer>
+ </main>;
 }
