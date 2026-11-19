@@ -6,5 +6,12 @@ workers_dev = true
 [vars]
 APP_ENV = "development"
 
-# Configure D1 and R2 bindings separately for each environment.
-# Never share development resources with staging or production.
+[env.dev]
+name = "family-tree-api-dev"
+workers_dev = true
+
+[env.dev.vars]
+APP_ENV = "development"
+
+# D1 and R2 bindings will be added as isolated resources for dev,
+# staging, and production when those services are introduced.
