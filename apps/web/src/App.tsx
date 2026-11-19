@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import FamilyTree from "./FamilyTree";
 type Family={id:string;name:string;role:string};
 type Person={id:string;display_name:string;given_name:string;life_status:string;birth_date_kind:string;birth_year:number|null};
-type Relationship={id:string;from_name:string;to_name:string;relationship_type:string};
+type Relationship={id:string;from_name:string;to_name:string;from_person_id:string;to_person_id:string;relationship_type:string};
 const API=import.meta.env.VITE_API_URL||"https://api-dev.vtrrk.in";
 const labels:Record<string,string>={biological_parent:"Parent of",adoptive_parent:"Adoptive parent of",step_parent:"Step-parent of",spouse:"Spouse of",partner:"Partner of",sibling:"Sibling of"};
 export default function App(){
@@ -40,7 +41,7 @@ export default function App(){
       <div><label>Relationship</label><select value={relType} onChange={e=>setRelType(e.target.value)}>{Object.entries(labels).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>
       <div><label>{relType.includes("parent")?"Child":"Related person"}</label><select required value={to} onChange={e=>setTo(e.target.value)}><option value="">Select person</option>{people.map(p=><option key={p.id} value={p.id}>{p.display_name}</option>)}</select></div><button disabled={busy||!from||!to}>Connect</button>
      </form>:<p className="empty-hint">Add at least two people to connect relationships.</p>}
-     {rels.length>0&&<div className="relationship-list">{rels.map(r=><div className="relationship-row" key={r.id}><span>{r.from_name}</span><small>{labels[r.relationship_type]||r.relationship_type}</small><span>{r.to_name}</span></div>)}</div>}</div>
+     {rels.length>0&&<div className="relationship-list">{rels.map(r=><div className="relationship-row" key={r.id}><span>{r.from_name}</span><small>{labels[r.relationship_type]||r.relationship_type}</small><span>{r.to_name}</span></div>)}</div>}<FamilyTree people={people} relationships={rels}/></div>
     </>}</section></section>
   </>}
   <footer className="app-footer"><span>Vansvriksh</span><span>Preserving connections, one generation at a time.</span></footer>
