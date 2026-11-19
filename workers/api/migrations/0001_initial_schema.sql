@@ -174,7 +174,7 @@ CREATE TABLE share_links (
   revoked_at TEXT,
   created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL,
-  FOREIGN KEY(focus_person_id, family_id) REFERENCES persons(id, family_id) ON DELETE SET NULL,
+  FOREIGN KEY(focus_person_id, family_id) REFERENCES persons(id, family_id) ON DELETE RESTRICT,
   CHECK((scope_type = 'family' AND focus_person_id IS NULL) OR
         (scope_type = 'branch' AND focus_person_id IS NOT NULL))
 );
