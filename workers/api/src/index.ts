@@ -88,7 +88,8 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       const birthKind=typeof input.birthDateKind==="string"?input.birthDateKind:"unknown";
       const deathKind=typeof input.deathDateKind==="string"?input.deathDateKind:"unknown";
       if (!allowed.includes(birthKind)||!allowed.includes(deathKind)) return fail(400,"invalid_date_precision","Unsupported historical date precision.");
-      const personId=id(), t=now(), life=input.lifeStatus==="deceased"?"deceased":"alive";
+      if (input.lifeStatus === "deceased") return fail(400,"use_death_confirmation","New profiles start as alive. Marking someone deceased requires the separate confirmation workflow.");
+      const personId=id(), t=now(), life="alive";
       const displayName=[textOrNull(input.givenName),textOrNull(input.middleName),textOrNull(input.familyName)].filter(Boolean).join(" ");
       try {
         await env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,
