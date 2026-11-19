@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-labelledby="title">
+<title id="title">Vansvriksha banyan tree</title>
+<g fill="none" stroke="#315b45" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke-width="7" d="M120 133V66m0 17C99 73 83 58 69 43m51 37c21-7 37-22 52-38M120 97C99 91 80 88 59 91m61 6c22-7 43-8 63-5"/>
+  <path stroke-width="4" d="M70 43c-2 22-3 38-3 55m-8-7c-1 17-1 29 0 39m25-52c-1 18-1 31 0 43m91-78c2 22 3 38 3 55m8-7c1 17 1 29 0 39m-25-52c1 18 1 31 0 43"/>
+  <path stroke-width="6" d="M120 132c-14 9-28 13-43 13m43-13c14 9 28 13 43 13"/>
+  <path stroke-width="4" d="M120 66c-9-12-21-19-35-23m35 23c9-12 21-19 35-23M88 54c-13-5-25-6-37-3m101 3c13-5 25-6 37-3"/>
+</g>
+<g fill="#668b54">
+  <ellipse cx="120" cy="25" rx="16" ry="10"/><ellipse cx="96" cy="29" rx="16" ry="10"/><ellipse cx="144" cy="29" rx="16" ry="10"/>
+  <ellipse cx="73" cy="38" rx="17" ry="10"/><ellipse cx="167" cy="38" rx="17" ry="10"/><ellipse cx="51" cy="50" rx="14" ry="9"/><ellipse cx="189" cy="50" rx="14" ry="9"/>
+  <ellipse cx="106" cy="48" rx="15" ry="9"/><ellipse cx="134" cy="48" rx="15" ry="9"/><ellipse cx="85" cy="63" rx="13" ry="8"/><ellipse cx="155" cy="63" rx="13" ry="8"/>
+</g>
+<g fill="#315b45"><path d="M120 20l-5 13h10z"/><path d="M62 37l-9 9 14 1z"/><path d="M178 37l9 9-14 1z"/></g>
+<path d="M28 148h184" stroke="#b7a77f" stroke-width="2" stroke-linecap="round"/>
+</svg>
