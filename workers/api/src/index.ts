@@ -113,7 +113,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const familyId=importMatch[1], role=await roleFor(env.DB,familyId);
     if (role !== "owner" && role !== "admin") return fail(role?403:404,"forbidden","Only a family owner or admin can import family records.");
     const input=await body(request);
-    if (input?.confirmed !== true || input?.confirmDeceasedRecords !== true || !Array.isArray(input.people))
+    if (input?.confirmed !== true || input?.confirmDeceasedRecords !== true || !Array.isArray(input.people) || !Array.isArray(input.relationships))
       return fail(400,"confirmation_required","Confirm the import and deceased records before proceeding.");
     if (input.people.length > 100) return fail(400,"import_too_large","Import exceeds the supported record limit.");
     const existing=await env.DB.prepare("SELECT id,display_name,given_name,family_name FROM persons WHERE family_id=?").bind(familyId).all<{id:string;display_name:string;given_name:string;family_name:string|null}>();
@@ -159,6 +159,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     }
     const relationshipInputs:JsonObject[]=[];
     const edgeSeen=new Set<string>();
+    for (const raw of input.relationships) if (isObject(raw) && typeof raw.from==="string" && typeof raw.to==="string" && typeof raw.type==="string") { const k=raw.from+"|"+raw.to+"|"+raw.type; if(!edgeSeen.has(k)){edgeSeen.add(k);relationshipInputs.push(raw);} }
     for (const raw of input.people) if (isObject(raw)&&typeof raw.key==="string") {
       if (Array.isArray(raw.parents)) for (const parent of raw.parents) if (typeof parent==="string") {
         const from=sourceKeys.get(normalize(parent)); if(from&&from!==raw.key){const k=from+"|"+raw.key+"|biological_parent";if(!edgeSeen.has(k)){edgeSeen.add(k);relationshipInputs.push({from,to:raw.key,type:"biological_parent"});}}
