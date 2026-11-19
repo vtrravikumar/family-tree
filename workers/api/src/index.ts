@@ -5,19 +5,14 @@ export interface Env {
 }
 
 type JsonObject = Record<string, unknown>;
-const json = (data: unknown, init: ResponseInit = {}) =>
-  Response.json(data, { ...init, headers: {
-    "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-store",
-    "x-content-type-options": "nosniff",
-    ...init.headers,
-  }});
-const fail = (status: number, code: string, message: string) =>
-  json({ error: { code, message } }, { status });
+const json = (data: unknown, init: ResponseInit = {}) => Response.json(data, { ...init, headers: {
+  "content-type": "application/json; charset=utf-8", "cache-control": "no-store",
+  "x-content-type-options": "nosniff", ...init.headers,
+}});
+const fail = (status: number, code: string, message: string) => json({ error: { code, message } }, { status });
 const now = () => new Date().toISOString();
 const id = () => crypto.randomUUID();
 const isObject = (v: unknown): v is JsonObject => typeof v === "object" && v !== null && !Array.isArray(v);
-
 function safeEqual(a: string, b: string): boolean {
   const x = new TextEncoder().encode(a), y = new TextEncoder().encode(b);
   let diff = x.length ^ y.length;
@@ -25,8 +20,7 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 async function body(request: Request): Promise<JsonObject | null> {
-  const n = Number(request.headers.get("content-length") ?? 0);
-  if (n > 16384) return null;
+  if (Number(request.headers.get("content-length") ?? 0) > 16384) return null;
   try { const value: unknown = await request.json(); return isObject(value) ? value : null; }
   catch { return null; }
 }
@@ -38,17 +32,18 @@ async function authorize(request: Request, env: Env): Promise<Response | null> {
 }
 async function ensureDevUser(db: D1Database) {
   const t = now();
-  await db.prepare(`INSERT INTO users (id, identity_provider, provider_subject, email, display_name, created_at, updated_at)
-    VALUES ('dev-owner','dev','dev-owner','dev-owner@vansvriksh.local','Development Owner',?,?)
+  await db.prepare(`INSERT INTO users(id,identity_provider,provider_subject,email,display_name,created_at,updated_at)
+    VALUES('dev-owner','dev','dev-owner','dev-owner@vansvriksh.local','Development Owner',?,?)
     ON CONFLICT(identity_provider,provider_subject) DO UPDATE SET updated_at=excluded.updated_at`).bind(t,t).run();
 }
 async function roleFor(db: D1Database, familyId: string) {
-  const row = await db.prepare("SELECT role FROM family_members WHERE family_id=? AND user_id='dev-owner'")
-    .bind(familyId).first<{role:string}>();
+  const row = await db.prepare("SELECT role FROM family_members WHERE family_id=? AND user_id='dev-owner'").bind(familyId).first<{role:string}>();
   return row?.role ?? null;
 }
 const textOrNull = (v: unknown) => typeof v === "string" && v.trim() ? v.trim() : null;
 const yearOrNull = (v: unknown) => Number.isInteger(v) && Number(v) >= 1 && Number(v) <= 9999 ? Number(v) : null;
+const parentTypes = ["biological_parent", "adoptive_parent", "step_parent"];
+const relationshipTypes = [...parentTypes, "spouse", "partner", "sibling"];
 
 async function api(request: Request, env: Env, url: URL): Promise<Response> {
   const denied = await authorize(request, env);
@@ -56,10 +51,9 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   await ensureDevUser(env.DB);
 
   if (url.pathname === "/v1/families" && request.method === "GET") {
-    const result = await env.DB.prepare(`SELECT f.id,f.name,f.created_at,f.updated_at,fm.role
-      FROM families f JOIN family_members fm ON fm.family_id=f.id
-      WHERE fm.user_id='dev-owner' ORDER BY f.created_at DESC`).all();
-    return json({data: result.results});
+    const result = await env.DB.prepare(`SELECT f.id,f.name,f.created_at,f.updated_at,fm.role FROM families f
+      JOIN family_members fm ON fm.family_id=f.id WHERE fm.user_id='dev-owner' ORDER BY f.created_at DESC`).all();
+    return json({data:result.results});
   }
   if (url.pathname === "/v1/families" && request.method === "POST") {
     const input = await body(request);
@@ -74,9 +68,9 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     return json({data:{id:familyId,name,role:"owner",createdAt:t}},{status:201});
   }
 
-  const match=url.pathname.match(/^\/v1\/families\/([^/]+)\/people$/);
-  if (match) {
-    const familyId=match[1], role=await roleFor(env.DB,familyId);
+  const peopleMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people$/);
+  if (peopleMatch) {
+    const familyId=peopleMatch[1], role=await roleFor(env.DB,familyId);
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (request.method === "GET") {
       const result=await env.DB.prepare(`SELECT id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,
@@ -93,16 +87,14 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       const allowed=["exact","year","approximate_year","range","unknown"];
       const birthKind=typeof input.birthDateKind==="string"?input.birthDateKind:"unknown";
       const deathKind=typeof input.deathDateKind==="string"?input.deathDateKind:"unknown";
-      if (!allowed.includes(birthKind)||!allowed.includes(deathKind))
-        return fail(400,"invalid_date_precision","Unsupported historical date precision.");
+      if (!allowed.includes(birthKind)||!allowed.includes(deathKind)) return fail(400,"invalid_date_precision","Unsupported historical date precision.");
       const personId=id(), t=now(), life=input.lifeStatus==="deceased"?"deceased":"alive";
       const displayName=[textOrNull(input.givenName),textOrNull(input.middleName),textOrNull(input.familyName)].filter(Boolean).join(" ");
       try {
         await env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,
           birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,
           death_date_kind,death_exact_date,death_year,death_range_start_year,death_range_end_year,death_original_text,
-          created_by_user_id,created_at,updated_at)
-          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'dev-owner',?,?)`).bind(
+          created_by_user_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'dev-owner',?,?)`).bind(
           personId,familyId,input.givenName.trim(),textOrNull(input.middleName),textOrNull(input.familyName),displayName,
           textOrNull(input.gender),life,birthKind,textOrNull(input.birthExactDate),yearOrNull(input.birthYear),
           yearOrNull(input.birthRangeStartYear),yearOrNull(input.birthRangeEndYear),textOrNull(input.birthOriginalText),
@@ -111,9 +103,47 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
         await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,'dev-owner','person',?,'person.created',?)")
           .bind(id(),familyId,personId,t).run();
         return json({data:{id:personId,familyId,displayName,lifeStatus:life,createdAt:t}},{status:201});
-      } catch {
-        return fail(400,"invalid_person","Person data violates the family or historical-date constraints.");
+      } catch { return fail(400,"invalid_person","Person data violates the family or historical-date constraints."); }
+    }
+  }
+
+  const relationshipsMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/relationships$/);
+  if (relationshipsMatch) {
+    const familyId=relationshipsMatch[1], role=await roleFor(env.DB,familyId);
+    if (!role) return fail(404,"family_not_found","Family not found.");
+    if (request.method === "GET") {
+      const result=await env.DB.prepare(`SELECT r.id,r.from_person_id,r.to_person_id,r.relationship_type,r.metadata_json,r.created_at,
+        a.display_name AS from_name,b.display_name AS to_name
+        FROM relationships r JOIN persons a ON a.id=r.from_person_id AND a.family_id=r.family_id
+        JOIN persons b ON b.id=r.to_person_id AND b.family_id=r.family_id
+        WHERE r.family_id=? ORDER BY r.created_at`).bind(familyId).all();
+      return json({data:result.results});
+    }
+    if (request.method === "POST") {
+      if (role === "viewer") return fail(403,"forbidden","Viewer access cannot add relationships.");
+      const input=await body(request);
+      const fromId=textOrNull(input?.fromPersonId), toId=textOrNull(input?.toPersonId), type=textOrNull(input?.relationshipType);
+      if (!fromId || !toId || !type || !relationshipTypes.includes(type))
+        return fail(400,"invalid_relationship","Provide fromPersonId, toPersonId and a supported relationshipType.");
+      if (fromId===toId) return fail(400,"self_relationship","A person cannot have a relationship with themselves.");
+      const people=await env.DB.prepare("SELECT id FROM persons WHERE family_id=? AND id IN (?,?)").bind(familyId,fromId,toId).all<{id:string}>();
+      if (people.results.length!==2) return fail(400,"person_not_in_family","Both people must belong to this family.");
+      if (parentTypes.includes(type)) {
+        const cycle=await env.DB.prepare(`WITH RECURSIVE descendants(person_id) AS (
+          SELECT to_person_id FROM relationships WHERE family_id=? AND from_person_id=? AND relationship_type IN ('biological_parent','adoptive_parent','step_parent')
+          UNION SELECT r.to_person_id FROM relationships r JOIN descendants d ON r.from_person_id=d.person_id
+          WHERE r.family_id=? AND r.relationship_type IN ('biological_parent','adoptive_parent','step_parent')
+        ) SELECT 1 AS found FROM descendants WHERE person_id=? LIMIT 1`).bind(familyId,toId,familyId,fromId).first();
+        if (cycle) return fail(409,"relationship_cycle","This parent-child relationship would create an ancestry cycle.");
       }
+      const relationshipId=id(), t=now();
+      try {
+        await env.DB.batch([
+          env.DB.prepare("INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) VALUES(?,?,?,?,?,'dev-owner',?)").bind(relationshipId,familyId,fromId,toId,type,t),
+          env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,'dev-owner','relationship',?,'relationship.created',?)").bind(id(),familyId,relationshipId,t)
+        ]);
+        return json({data:{id:relationshipId,familyId,fromPersonId:fromId,toPersonId:toId,relationshipType:type,createdAt:t}},{status:201});
+      } catch { return fail(409,"duplicate_relationship","This relationship already exists or violates a database constraint."); }
     }
   }
   return fail(404,"not_found","Route not found.");
@@ -126,9 +156,7 @@ export default {
       try {
         const result=await env.DB.prepare("SELECT 1 AS ok").first<{ok:number}>();
         return json({status:"ok",service:"family-tree-api",environment:env.APP_ENV,database:result?.ok===1?"connected":"unavailable"});
-      } catch {
-        return json({status:"degraded",service:"family-tree-api",environment:env.APP_ENV,database:"unavailable"},{status:503});
-      }
+      } catch { return json({status:"degraded",service:"family-tree-api",environment:env.APP_ENV,database:"unavailable"},{status:503}); }
     }
     if (url.pathname.startsWith("/v1/")) {
       try { return await api(request,env,url); }
