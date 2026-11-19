@@ -1,7 +1,8 @@
 name = "family-tree-api"
 main = "src/index.ts"
 compatibility_date = "2025-01-15"
-# The development API is exposed through its Cloudflare-managed custom domain.
+# Custom domain is managed in the Cloudflare dashboard.
+# Keep workers.dev disabled; deploy code without modifying zone routes.
 workers_dev = false
 
 [vars]
@@ -10,10 +11,6 @@ APP_ENV = "development"
 [env.dev]
 name = "family-tree-api-dev"
 workers_dev = false
-
-[[env.dev.routes]]
-pattern = "api-dev.vtrrk.in"
-custom_domain = true
 
 [env.dev.vars]
 APP_ENV = "development"
