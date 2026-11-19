@@ -14,7 +14,6 @@ workers_dev = false
 [[env.dev.routes]]
 pattern = "api-dev.vtrrk.in"
 custom_domain = true
-previews_enabled = true
 
 [env.dev.vars]
 APP_ENV = "development"
