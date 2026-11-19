@@ -20,7 +20,7 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 async function body(request: Request): Promise<JsonObject | null> {
-  if (Number(request.headers.get("content-length") ?? 0) > 16384) return null;
+  if (Number(request.headers.get("content-length") ?? 0) > 65536) return null;
   try { const value: unknown = await request.json(); return isObject(value) ? value : null; }
   catch { return null; }
 }
@@ -106,6 +106,72 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
         return json({data:{id:personId,familyId,displayName,lifeStatus:life,createdAt:t}},{status:201});
       } catch { return fail(400,"invalid_person","Person data violates the family or historical-date constraints."); }
     }
+  }
+
+  const importMatch=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/import$/);
+  if (importMatch && request.method === "POST") {
+    const familyId=importMatch[1], role=await roleFor(env.DB,familyId);
+    if (role !== "owner" && role !== "admin") return fail(role?403:404,"forbidden","Only a family owner or admin can import family records.");
+    const input=await body(request);
+    if (input?.confirmed !== true || input?.confirmDeceasedRecords !== true || !Array.isArray(input.people) || !Array.isArray(input.relationships))
+      return fail(400,"confirmation_required","Confirm the import and deceased records before proceeding.");
+    if (input.people.length > 100 || input.relationships.length > 300) return fail(400,"import_too_large","Import exceeds the supported record limit.");
+    const existing=await env.DB.prepare("SELECT id,display_name,given_name,family_name FROM persons WHERE family_id=?").bind(familyId).all<{id:string;display_name:string;given_name:string;family_name:string|null}>();
+    const normalize=(value:string)=>value.toLocaleLowerCase().normalize("NFKD").replace(/[^\\p{L}\\p{N}]+/gu," ").trim().replace(/\\s+/g," ");
+    const existingByName=new Map(existing.results.map(p=>[normalize(p.display_name||[p.given_name,p.family_name].filter(Boolean).join(" ")),p.id]));
+    const keyToId=new Map<string,string>(), created:string[]=[], matched:string[]=[], updated:string[]=[];
+    const t=now();
+    for (const raw of input.people) {
+      if (!isObject(raw) || typeof raw.key!=="string" || typeof raw.givenName!=="string" || !raw.givenName.trim()) return fail(400,"invalid_import_person","Every imported person needs a key and given name.");
+      const key=raw.key, given=raw.givenName.trim(), family=textOrNull(raw.familyName), display=[given,family].filter(Boolean).join(" ");
+      const aliases=Array.isArray(raw.aliases)?raw.aliases.filter((v):v is string=>typeof v==="string"):[];
+      let match=existingByName.get(normalize(display));
+      if (!match) {
+        const aliasMatches=[...new Set(aliases.map(a=>existingByName.get(normalize(a))).filter((v):v is string=>!!v))];
+        if (aliasMatches.length===1) match=aliasMatches[0];
+      }
+      if (match) {
+        keyToId.set(key,match);matched.push(match);
+        if ((raw.sourceName==="Varsha"||raw.sourceName==="Bhoodevi") && raw.gender==="female") {
+          await env.DB.prepare("UPDATE persons SET gender='female',updated_at=? WHERE id=? AND family_id=? AND life_status='alive'").bind(t,match,familyId).run();
+          updated.push(match);
+        }
+        continue;
+      }
+      const birth=textOrNull(raw.birthExactDate), death=textOrNull(raw.deathExactDate);
+      const validDate=(v:string|null)=>!!v&&/^\\d{4}-\\d{2}-\\d{2}$/.test(v)&&!Number.isNaN(Date.parse(v+"T00:00:00Z"));
+      if ((birth&&!validDate(birth))||(death&&!validDate(death))) return fail(400,"invalid_import_date","A supplied date is invalid; uncertain dates must be omitted.");
+      const personId=id(), gender=["female","male","non_binary","unspecified"].includes(String(raw.gender))?String(raw.gender):"unspecified";
+      const life=death?"deceased":"alive";
+      await env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,family_name,display_name,gender,life_status,birth_date_kind,birth_exact_date,death_date_kind,death_exact_date,created_by_user_id,created_at,updated_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,'dev-owner',?,?)`).bind(personId,familyId,given,family,display,gender,life,birth?"exact":"unknown",birth,birth?"unknown":death?"exact":"unknown",death,t,t).run();
+      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,?,?,?)")
+        .bind(id(),familyId,personId,"person.imported",JSON.stringify({source:"family-tree.xlsx",lifeStatus:life}),t).run();
+      if (death) await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.marked_deceased',?,?)")
+        .bind(id(),familyId,personId,JSON.stringify({source:"family-tree.xlsx",deathDate:death}),t).run();
+      keyToId.set(key,personId);created.push(personId);existingByName.set(normalize(display),personId);
+    }
+    let relationshipsCreated=0, relationshipsSkipped=0;
+    for (const raw of input.relationships) {
+      if (!isObject(raw)||typeof raw.from!=="string"||typeof raw.to!=="string"||!["biological_parent","spouse"].includes(String(raw.type))) continue;
+      const fromId=keyToId.get(raw.from),toId=keyToId.get(raw.to),type=String(raw.type);
+      if (!fromId||!toId||fromId===toId) { relationshipsSkipped++;continue; }
+      const duplicate=type==="spouse"
+        ? await env.DB.prepare("SELECT id FROM relationships WHERE family_id=? AND relationship_type='spouse' AND ((from_person_id=? AND to_person_id=?) OR (from_person_id=? AND to_person_id=?)) LIMIT 1").bind(familyId,fromId,toId,toId,fromId).first()
+        : await env.DB.prepare("SELECT id FROM relationships WHERE family_id=? AND from_person_id=? AND to_person_id=? AND relationship_type=? LIMIT 1").bind(familyId,fromId,toId,type).first();
+      if (duplicate) {relationshipsSkipped++;continue;}
+      if (type==="biological_parent") {
+        const cycle=await env.DB.prepare(`WITH RECURSIVE descendants(person_id) AS (SELECT to_person_id FROM relationships WHERE family_id=? AND from_person_id=? AND relationship_type IN ('biological_parent','adoptive_parent','step_parent') UNION SELECT r.to_person_id FROM relationships r JOIN descendants d ON r.from_person_id=d.person_id WHERE r.family_id=? AND r.relationship_type IN ('biological_parent','adoptive_parent','step_parent')) SELECT 1 FROM descendants WHERE person_id=? LIMIT 1`).bind(familyId,toId,familyId,fromId).first();
+        if (cycle) {relationshipsSkipped++;continue;}
+      }
+      const rid=id();
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) VALUES(?,?,?,?,?,'dev-owner',?)").bind(rid,familyId,fromId,toId,type,t),
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,'dev-owner','relationship',?,'relationship.imported',?)").bind(id(),familyId,rid,t)
+      ]);
+      relationshipsCreated++;
+    }
+    return json({data:{peopleCreated:created.length,peopleMatched:matched.length,peopleUpdated:updated.length,relationshipsCreated,relationshipsSkipped}});
   }
 
   const deceasedMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/deceased$/);
