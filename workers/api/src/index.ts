@@ -117,7 +117,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       return fail(400,"confirmation_required","Confirm the import and deceased records before proceeding.");
     if (input.people.length > 100) return fail(400,"import_too_large","Import exceeds the supported record limit.");
     const existing=await env.DB.prepare("SELECT id,display_name,given_name,family_name FROM persons WHERE family_id=?").bind(familyId).all<{id:string;display_name:string;given_name:string;family_name:string|null}>();
-    const normalize=(value:string)=>value.toLocaleLowerCase().normalize("NFKD").replace(/[^\\p{L}\\p{N}]+/gu," ").trim().replace(/\\s+/g," ");
+    const normalize=(value:string)=>value.toLocaleLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu," ").trim().replace(/\s+/g," ");
     const existingByName=new Map(existing.results.map(p=>[normalize(p.display_name||[p.given_name,p.family_name].filter(Boolean).join(" ")),p.id]));
     const keyToId=new Map<string,string>(), created:string[]=[], matched:string[]=[], updated:string[]=[];
     const t=now();
@@ -177,17 +177,24 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       }
     }
     let relationshipsCreated=0, relationshipsSkipped=0;
+    const skippedByReason:Record<string,number>={};
+    const skippedRelationshipDetails:Array<{from:string;to:string;type:string;reason:string}>=[];
+    const skipRelationship=(raw:JsonObject,reason:string)=>{
+      relationshipsSkipped++;skippedByReason[reason]=(skippedByReason[reason]??0)+1;
+      skippedRelationshipDetails.push({from:String(raw.from??""),to:String(raw.to??""),type:String(raw.type??""),reason});
+    };
     for (const raw of relationshipInputs) {
-      if (!isObject(raw)||typeof raw.from!=="string"||typeof raw.to!=="string"||!["biological_parent","spouse"].includes(String(raw.type))) continue;
+      if (!isObject(raw)||typeof raw.from!=="string"||typeof raw.to!=="string"||!["biological_parent","spouse"].includes(String(raw.type))) { if(isObject(raw))skipRelationship(raw,"unsupported_or_malformed"); continue; }
       const fromId=keyToId.get(raw.from),toId=keyToId.get(raw.to),type=String(raw.type);
-      if (!fromId||!toId||fromId===toId) { relationshipsSkipped++;continue; }
+      if (!fromId||!toId) { skipRelationship(raw,"person_key_not_resolved");continue; }
+      if (fromId===toId) { skipRelationship(raw,"self_relationship_after_matching");continue; }
       const duplicate=type==="spouse"
         ? await env.DB.prepare("SELECT id FROM relationships WHERE family_id=? AND relationship_type='spouse' AND ((from_person_id=? AND to_person_id=?) OR (from_person_id=? AND to_person_id=?)) LIMIT 1").bind(familyId,fromId,toId,toId,fromId).first()
         : await env.DB.prepare("SELECT id FROM relationships WHERE family_id=? AND from_person_id=? AND to_person_id=? AND relationship_type=? LIMIT 1").bind(familyId,fromId,toId,type).first();
-      if (duplicate) {relationshipsSkipped++;continue;}
+      if (duplicate) {skipRelationship(raw,"already_exists");continue;}
       if (type==="biological_parent") {
         const cycle=await env.DB.prepare(`WITH RECURSIVE descendants(person_id) AS (SELECT to_person_id FROM relationships WHERE family_id=? AND from_person_id=? AND relationship_type IN ('biological_parent','adoptive_parent','step_parent') UNION SELECT r.to_person_id FROM relationships r JOIN descendants d ON r.from_person_id=d.person_id WHERE r.family_id=? AND r.relationship_type IN ('biological_parent','adoptive_parent','step_parent')) SELECT 1 FROM descendants WHERE person_id=? LIMIT 1`).bind(familyId,toId,familyId,fromId).first();
-        if (cycle) {relationshipsSkipped++;continue;}
+        if (cycle) {skipRelationship(raw,"would_create_ancestry_cycle");continue;}
       }
       const rid=id();
       await env.DB.batch([
@@ -196,7 +203,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       ]);
       relationshipsCreated++;
     }
-    return json({data:{peopleCreated:created.length,peopleMatched:matched.length,peopleUpdated:updated.length,relationshipsCreated,relationshipsSkipped}});
+    return json({data:{peopleCreated:created.length,peopleMatched:matched.length,peopleUpdated:updated.length,relationshipsConsidered:relationshipInputs.length,relationshipsCreated,relationshipsSkipped,relationshipsSkippedByReason:skippedByReason,skippedRelationshipDetails}});
   }
 
   const deceasedMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/deceased$/);
