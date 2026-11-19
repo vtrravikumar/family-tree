@@ -64,7 +64,18 @@ CREATE TABLE persons (
   UNIQUE(id, family_id),
   CHECK(birth_range_start_year IS NULL OR birth_range_end_year IS NULL OR birth_range_start_year <= birth_range_end_year),
   CHECK(death_range_start_year IS NULL OR death_range_end_year IS NULL OR death_range_start_year <= death_range_end_year),
-  CHECK(life_status = 'alive' OR death_date_kind <> 'unknown' OR death_original_text IS NULL)
+  CHECK(
+    (birth_date_kind = 'exact' AND birth_exact_date IS NOT NULL AND birth_year IS NULL AND birth_range_start_year IS NULL AND birth_range_end_year IS NULL) OR
+    (birth_date_kind IN ('year', 'approximate_year') AND birth_exact_date IS NULL AND birth_year IS NOT NULL AND birth_range_start_year IS NULL AND birth_range_end_year IS NULL) OR
+    (birth_date_kind = 'range' AND birth_exact_date IS NULL AND birth_year IS NULL AND birth_range_start_year IS NOT NULL AND birth_range_end_year IS NOT NULL) OR
+    (birth_date_kind = 'unknown' AND birth_exact_date IS NULL AND birth_year IS NULL AND birth_range_start_year IS NULL AND birth_range_end_year IS NULL)
+  ),
+  CHECK(
+    (death_date_kind = 'exact' AND death_exact_date IS NOT NULL AND death_year IS NULL AND death_range_start_year IS NULL AND death_range_end_year IS NULL) OR
+    (death_date_kind IN ('year', 'approximate_year') AND death_exact_date IS NULL AND death_year IS NOT NULL AND death_range_start_year IS NULL AND death_range_end_year IS NULL) OR
+    (death_date_kind = 'range' AND death_exact_date IS NULL AND death_year IS NULL AND death_range_start_year IS NOT NULL AND death_range_end_year IS NOT NULL) OR
+    (death_date_kind = 'unknown' AND death_exact_date IS NULL AND death_year IS NULL AND death_range_start_year IS NULL AND death_range_end_year IS NULL)
+  )
 );
 
 CREATE INDEX persons_by_family_name ON persons(family_id, family_name, given_name);
@@ -118,7 +129,7 @@ CREATE TABLE media (
   metadata_json TEXT,
   uploaded_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL,
-  FOREIGN KEY(person_id, family_id) REFERENCES persons(id, family_id) ON DELETE SET NULL
+  FOREIGN KEY(person_id, family_id) REFERENCES persons(id, family_id) ON DELETE RESTRICT
 );
 
 CREATE TABLE historical_sources (
@@ -149,7 +160,7 @@ CREATE TABLE tree_layouts (
   created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  FOREIGN KEY(focus_person_id, family_id) REFERENCES persons(id, family_id) ON DELETE SET NULL
+  FOREIGN KEY(focus_person_id, family_id) REFERENCES persons(id, family_id) ON DELETE RESTRICT
 );
 
 CREATE TABLE share_links (
