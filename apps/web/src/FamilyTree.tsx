@@ -40,11 +40,29 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
         if(!changed)break;
       }
     }
+    // In ancestor mode, include each ancestor's spouse/partner at the same generation.
+    if(mode==="ancestors"&&selected){
+      let expanded=true;
+      while(expanded){expanded=false;for(const edge of spouses){if(visible.has(edge.from_person_id)&&!visible.has(edge.to_person_id)){visible.add(edge.to_person_id);generations.set(edge.to_person_id,generations.get(edge.from_person_id)??-1);expanded=true;}else if(visible.has(edge.to_person_id)&&!visible.has(edge.from_person_id)){visible.add(edge.from_person_id);generations.set(edge.from_person_id,generations.get(edge.to_person_id)??-1);expanded=true;}}}
+    }
     const groups=new Map<number,TreePerson[]>();
     for(const p of people){if(!visible.has(p.id))continue;const g=generations.get(p.id)??0;groups.set(g,[...(groups.get(g)??[]),p]);}
-    const result:Node[]=[];
-    let maxCount=1;
-    for(const [g,list] of groups){list.sort((a,b)=>a.display_name.localeCompare(b.display_name));maxCount=Math.max(maxCount,list.length);list.forEach((person,i)=>result.push({person,generation:g,x:42+i*218,y:42+(g-(Math.min(0,...groups.keys())))*174}));}
+    const result:Node[]=[];const xById=new Map<string,number>();let maxCount=1;
+    const minGeneration=Math.min(0,...groups.keys()),maxGeneration=Math.max(0,...groups.keys());
+    const order=mode==="ancestors"?Array.from({length:maxGeneration-minGeneration+1},(_,i)=>maxGeneration-i):Array.from({length:maxGeneration-minGeneration+1},(_,i)=>minGeneration+i);
+    for(const g of order){
+      const list=groups.get(g)??[];
+      const score=(person:TreePerson)=>{
+        const related=mode==="ancestors"?parents.filter(e=>e.from_person_id===person.id):parents.filter(e=>e.to_person_id===person.id);
+        const xs=related.map(e=>xById.get(mode==="ancestors"?e.to_person_id:e.from_person_id)).filter((x):x is number=>x!==undefined);
+        return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:Number.MAX_SAFE_INTEGER;
+      };
+      list.sort((a,b)=>score(a)-score(b)||a.display_name.localeCompare(b.display_name));
+      // Keep spouses adjacent when their relationship exists, while preserving child-centred ordering.
+      if(mode==="ancestors")list.sort((a,b)=>{const delta=score(a)-score(b);if(Math.abs(delta)>0.5)return delta;const partner=spouses.find(e=>(e.from_person_id===a.id&&e.to_person_id===b.id)||(e.from_person_id===b.id&&e.to_person_id===a.id));return partner? -1:a.display_name.localeCompare(b.display_name);});
+      maxCount=Math.max(maxCount,list.length);
+      list.forEach((person,i)=>{const x=42+i*218,y=42+(g-minGeneration)*174;xById.set(person.id,x+80);result.push({person,generation:g,x,y});});
+    }
     const maxY=Math.max(0,...result.map(n=>n.y));
     return {nodes:result,width:Math.max(350,maxCount*218+20),height:Math.max(210,maxY+145),parents:parents.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),spouses:spouses.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),siblings:siblings.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),visibleCount:visible.size};
   },[people,relationships,mode,selected]);
