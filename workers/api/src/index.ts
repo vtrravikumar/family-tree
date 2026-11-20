@@ -157,7 +157,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       }
       const suppliedBirth=textOrNull(raw.birthExactDate), suppliedDeath=textOrNull(raw.deathExactDate);
       const validDate=(v:string|null)=>{
-        if (!v || !/^\\d{4}-\\d{2}-\\d{2}$/.test(v)) return false;
+        if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
         const [year,month,day]=v.split("-").map(Number);
         const parsed=new Date(Date.UTC(year,month-1,day));
         return parsed.getUTCFullYear()===year && parsed.getUTCMonth()===month-1 && parsed.getUTCDate()===day;
