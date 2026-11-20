@@ -22,12 +22,6 @@ WHEN OLD.life_status = 'deceased'
    OR NEW.birth_range_start_year IS NOT OLD.birth_range_start_year
    OR NEW.birth_range_end_year IS NOT OLD.birth_range_end_year
    OR NEW.birth_original_text IS NOT OLD.birth_original_text
-   OR NEW.death_date_kind IS NOT OLD.death_date_kind
-   OR NEW.death_exact_date IS NOT OLD.death_exact_date
-   OR NEW.death_year IS NOT OLD.death_year
-   OR NEW.death_range_start_year IS NOT OLD.death_range_start_year
-   OR NEW.death_range_end_year IS NOT OLD.death_range_end_year
-   OR NEW.death_original_text IS NOT OLD.death_original_text
    OR NEW.biography IS NOT OLD.biography
  )
 BEGIN
