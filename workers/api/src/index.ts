@@ -34,7 +34,7 @@ function base64UrlBytes(value: string): Uint8Array {
 }
 function base64Url(value: Uint8Array): string {
   let binary="";for(const byte of value)binary+=String.fromCharCode(byte);
-  return btoa(binary).replace(/=/g,"").replace(/\\+/g,"-").replace(/\\//g,"_");
+  return btoa(binary).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
 }
 async function sha256(value: string): Promise<string> {
   return base64Url(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value))));
