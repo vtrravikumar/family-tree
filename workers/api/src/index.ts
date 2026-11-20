@@ -3,6 +3,7 @@ export interface Env {
   DB: D1Database;
   DEV_API_TOKEN?: string;
   GOOGLE_CLIENT_ID?: string;
+  INITIAL_OWNER_EMAIL?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -90,6 +91,7 @@ async function authRoute(request: Request,env: Env,url: URL): Promise<Response|n
     if(!user){
       const legacy=await env.DB.prepare("SELECT id FROM users WHERE id='dev-owner' AND identity_provider='dev'").first<{id:string}>();
       if(!legacy)return fail(409,"account_not_linked","This Google account is not linked to the current development workspace owner.");
+      if(!env.INITIAL_OWNER_EMAIL||identity.email.toLowerCase()!==env.INITIAL_OWNER_EMAIL.toLowerCase())return fail(403,"owner_account_not_allowed","Sign in with the configured initial owner Google account.");
       await env.DB.prepare("UPDATE users SET identity_provider='google',provider_subject=?,email=?,display_name=?,avatar_url=?,updated_at=? WHERE id='dev-owner' AND identity_provider='dev'")
         .bind(identity.sub,identity.email,identity.name,identity.picture,timestamp).run();
       user={id:"dev-owner",email:identity.email,display_name:identity.name};
