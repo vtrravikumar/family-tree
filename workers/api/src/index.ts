@@ -352,14 +352,14 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
         await env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,
           birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,
           death_date_kind,death_exact_date,death_year,death_range_start_year,death_range_end_year,death_original_text,
-          created_by_user_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'dev-owner',?,?)`).bind(
+          created_by_user_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
           personId,familyId,input.givenName.trim(),textOrNull(input.middleName),textOrNull(input.familyName),displayName,
           textOrNull(input.gender),life,birthKind,textOrNull(input.birthExactDate),yearOrNull(input.birthYear),
           yearOrNull(input.birthRangeStartYear),yearOrNull(input.birthRangeEndYear),textOrNull(input.birthOriginalText),
           deathKind,textOrNull(input.deathExactDate),yearOrNull(input.deathYear),yearOrNull(input.deathRangeStartYear),
-          yearOrNull(input.deathRangeEndYear),textOrNull(input.deathOriginalText),t,t).run();
-        await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,'dev-owner','person',?,'person.created',?)")
-          .bind(id(),familyId,personId,t).run();
+          yearOrNull(input.deathRangeEndYear),textOrNull(input.deathOriginalText),actorUserId,t,t).run();
+        await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,?,'person',?,'person.created',?)")
+          .bind(id(),familyId,actorUserId,personId,t).run();
         return json({data:{id:personId,familyId,displayName,lifeStatus:life,createdAt:t}},{status:201});
       } catch { return fail(400,"invalid_person","Person data violates the family or historical-date constraints."); }
     }
@@ -412,11 +412,11 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       const birthKind=birth?(raw.birthDateKind==="exact"?"exact":"exact"):"unknown";
       const deathKind=hasDeathRecord?(death?"exact":"unknown"):"unknown";
       await env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,birth_date_kind,birth_exact_date,death_date_kind,death_exact_date,created_by_user_id,created_at,updated_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,'dev-owner',?,?)`).bind(personId,familyId,given,middle,family,[given,middle,family].filter(Boolean).join(" "),gender,life,birthKind,birth,deathKind,death,t,t).run();
-      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,?,?,?)")
-        .bind(id(),familyId,personId,"person.imported",JSON.stringify({source:"family-tree.xlsx",lifeStatus:life}),t).run();
-      if (death) await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.marked_deceased',?,?)")
-        .bind(id(),familyId,personId,JSON.stringify({source:"family-tree.xlsx",deathDate:death}),t).run();
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(personId,familyId,given,middle,family,[given,middle,family].filter(Boolean).join(" "),gender,life,birthKind,birth,deathKind,death,actorUserId,t,t).run();
+      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,?,?,?)")
+        .bind(id(),familyId,actorUserId,personId,"person.imported",JSON.stringify({source:"family-tree.xlsx",lifeStatus:life}),t).run();
+      if (death) await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'person.marked_deceased',?,?)")
+        .bind(id(),familyId,actorUserId,personId,JSON.stringify({source:"family-tree.xlsx",deathDate:death}),t).run();
       keyToId.set(key,personId);created.push(personId);existingByName.set(normalize(display),personId);
     }
     const sourceKeys=new Map<string,string>();
@@ -458,8 +458,8 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       }
       const rid=id();
       await env.DB.batch([
-        env.DB.prepare("INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) VALUES(?,?,?,?,?,'dev-owner',?)").bind(rid,familyId,fromId,toId,type,t),
-        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,'dev-owner','relationship',?,'relationship.imported',?)").bind(id(),familyId,rid,t)
+        env.DB.prepare("INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) VALUES(?,?,?,?,?,?,?)") .bind(rid,familyId,fromId,toId,type,actorUserId,t),
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,?,'relationship',?,'relationship.imported',?)") .bind(id(),familyId,actorUserId,rid,t)
       ]);
       relationshipsCreated++;
     }
@@ -498,8 +498,8 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
         given,middle,family,display,gender,birthKind,birthKind==="exact"?exact:null,
         (birthKind==="year"||birthKind==="approximate_year")?year:null,birthKind==="range"?start:null,
         birthKind==="range"?end:null,original,textOrNull(input.biography),t,personId,familyId).run();
-      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.updated',?,?)")
-        .bind(id(),familyId,personId,JSON.stringify({fields:["name","gender","birth_date","biography"]}),t).run();
+      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'person.updated',?,?)")
+        .bind(id(),familyId,actorUserId,personId,JSON.stringify({fields:["name","gender","birth_date","biography"]}),t).run();
       return json({data:{id:personId,displayName:display,updatedAt:t}});
     } catch { return fail(409,"person_immutable","This profile could not be changed. It may have been marked deceased."); }
   }
@@ -519,7 +519,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const t=now();
     try {
       await env.DB.batch([
-        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.deleted',?,?)").bind(id(),familyId,personId,JSON.stringify({displayName:current.display_name,relationships:"cascade_deleted"}),t),
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'person.deleted',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({displayName:current.display_name,relationships:"cascade_deleted"}),t),
         env.DB.prepare("DELETE FROM persons WHERE id=? AND family_id=? AND life_status='alive'").bind(personId,familyId)
       ]);
       return json({data:{id:personId,deleted:true,relationshipsDeleted:"all"}});
@@ -537,7 +537,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     try {
       const result=await env.DB.prepare("UPDATE persons SET life_status='alive',death_date_kind='unknown',death_exact_date=NULL,death_year=NULL,death_range_start_year=NULL,death_range_end_year=NULL,death_original_text=NULL,updated_at=? WHERE id=? AND family_id=? AND life_status='deceased'").bind(t,personId,familyId).run();
       if (!result.meta.changes) return fail(409,"person_not_restorable","Person not found or is already living.");
-      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.restored_to_alive',?,?)").bind(id(),familyId,personId,JSON.stringify({reason:textOrNull(input.reason)}),t).run();
+      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'person.restored_to_alive',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({reason:textOrNull(input.reason)}),t).run();
       return json({data:{id:personId,lifeStatus:"alive",updatedAt:t}});
     } catch { return fail(409,"person_restore_failed","This profile could not be restored."); }
   }
@@ -560,7 +560,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     try {
       const result=await env.DB.prepare(`UPDATE persons SET life_status='deceased',death_date_kind=?,death_exact_date=?,death_year=?,death_range_start_year=?,death_range_end_year=?,death_original_text=?,updated_at=? WHERE id=? AND family_id=? AND life_status='alive'`).bind(deathKind,deathKind==="exact"?exact:null,(deathKind==="year"||deathKind==="approximate_year")?year:null,deathKind==="range"?start:null,deathKind==="range"?end:null,original,t,personId,familyId).run();
       if (!result.meta.changes) return fail(409,"person_not_markable","Person not found or is already deceased.");
-      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.marked_deceased',?,?)").bind(id(),familyId,personId,JSON.stringify({deathDateKind:deathKind}),t).run();
+      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.marked_deceased',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({deathDateKind:deathKind}),t).run();
       return json({data:{id:personId,lifeStatus:"deceased",deathDateKind:deathKind,updatedAt:t}});
     } catch { return fail(409,"person_immutable","This person's profile cannot be changed."); }
   }
@@ -576,7 +576,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if (request.method === "DELETE") {
       await env.DB.batch([
         env.DB.prepare("DELETE FROM relationships WHERE id=? AND family_id=?").bind(relationshipId,familyId),
-        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','relationship',?,'relationship.deleted',?,?)").bind(id(),familyId,relationshipId,JSON.stringify({from:current.from_person_id,to:current.to_person_id,type:current.relationship_type}),t)
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'relationship',?,'relationship.deleted',?,?)").bind(id(),familyId,actorUserId,relationshipId,JSON.stringify({from:current.from_person_id,to:current.to_person_id,type:current.relationship_type}),t)
       ]);
       return json({data:{id:relationshipId,deleted:true}});
     }
@@ -596,7 +596,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     }
     await env.DB.batch([
       env.DB.prepare("UPDATE relationships SET from_person_id=?,to_person_id=?,relationship_type=? WHERE id=? AND family_id=?").bind(fromId,toId,type,relationshipId,familyId),
-      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','relationship',?,'relationship.updated',?,?)").bind(id(),familyId,relationshipId,JSON.stringify({from:fromId,to:toId,type}),t)
+      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'relationship',?,'relationship.updated',?,?)").bind(id(),familyId,actorUserId,relationshipId,JSON.stringify({from:fromId,to:toId,type}),t)
     ]);
     return json({data:{id:relationshipId,fromPersonId:fromId,toPersonId:toId,relationshipType:type,updatedAt:t}});
   }
@@ -634,7 +634,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       try {
         await env.DB.batch([
           env.DB.prepare("INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) VALUES(?,?,?,?,?,'dev-owner',?)").bind(relationshipId,familyId,fromId,toId,type,t),
-          env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,'dev-owner','relationship',?,'relationship.created',?)").bind(id(),familyId,relationshipId,t)
+          env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,?,'relationship',?,'relationship.created',?)") .bind(id(),familyId,actorUserId,relationshipId,t)
         ]);
         return json({data:{id:relationshipId,familyId,fromPersonId:fromId,toPersonId:toId,relationshipType:type,createdAt:t}},{status:201});
       } catch { return fail(409,"duplicate_relationship","This relationship already exists or violates a database constraint."); }
