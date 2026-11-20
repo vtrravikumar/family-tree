@@ -7,6 +7,11 @@ All notable Vansvriksha releases are documented here. Versions use the format `v
 Changes merged to `main` after the most recent formal release. These changes are part of the next release, but are not yet assigned a release number.
 
 ### Added
+- Independent Google accounts can register and sign in without replacing the original workspace owner identity.
+- Family workspaces are listed and created according to the authenticated user's actual membership.
+- Family member directory with owner/admin/editor/viewer role visibility.
+- Email-targeted family invitations with seven-day expiry and acceptance restricted to the invited Google account.
+- Owners and admins can manage collaborator roles and remove non-owner members, with family audit records.
 - Optional relationship linking while adding a new family member.
 - When a new person is added as a **sibling**, automatically connect them to every member of the existing explicitly linked **Sibling** group.
 - Keep **Sibling** distinct from **Half-sibling**; half-sibling relationships are never inferred by this automatic linking behavior.
@@ -14,6 +19,7 @@ Changes merged to `main` after the most recent formal release. These changes are
 - Add owner/admin person deletion with explicit name confirmation; deleting a living person also removes all connected relationships. Deceased profiles remain protected. Existing media, saved-layout, or branch-share references block deletion.
 
 ### Improved
+- Family data changes and audit events are attributed to the authenticated collaborator rather than the legacy development owner.
 - Family members and Relationships sections can be collapsed to keep large workspaces manageable.
 - Returning to All generations clears the selected-person focus.
 - Ancestors and descendants views are not dimmed by first-degree focus behavior.
