@@ -5,6 +5,24 @@ type TreeRelationship = { id:string; from_person_id:string; to_person_id:string;
 type Node = { person:TreePerson; generation:number; x:number; y:number };
 type ViewMode = "generation" | "ancestors" | "descendants";
 const parentTypes=["biological_parent","adoptive_parent","step_parent"];
+function parentConnectorPath(a:Node,b:Node,nodes:Node[]):string {
+  const sx=a.x+80, sy=a.y+104, tx=b.x+80, ty=b.y;
+  if(ty<=sy) return `M ${sx} ${sy} C ${sx} ${sy+18}, ${tx} ${ty-18}, ${tx} ${ty}`;
+  const blockers=nodes.filter(n=>n.person.id!==a.person.id&&n.person.id!==b.person.id&&n.y+104>sy+8&&n.y<ty-8&&n.x<Math.max(sx,tx)+80&&n.x+160>Math.min(sx,tx)-80);
+  if(!blockers.length) {
+    const bend=Math.min(48,(ty-sy)*0.62);
+    return `M ${sx} ${sy} C ${sx} ${sy+bend}, ${tx} ${ty-bend}, ${tx} ${ty}`;
+  }
+  // Take the connector outside the intervening cards, then return above the child.
+  const left=Math.min(...blockers.map(n=>n.x))-18;
+  const right=Math.max(...blockers.map(n=>n.x+160))+18;
+  const gutter=Math.abs(sx-left)+Math.abs(tx-left)<=Math.abs(sx-right)+Math.abs(tx-right)?left:right;
+  const top=Math.min(...blockers.map(n=>n.y))-14;
+  const bottom=Math.max(...blockers.map(n=>n.y+104))+14;
+  const approach=Math.max(sy+14,top);
+  const depart=Math.min(ty-14,bottom);
+  return `M ${sx} ${sy} C ${sx} ${sy+14}, ${gutter} ${sy+14}, ${gutter} ${approach} L ${gutter} ${depart} C ${gutter} ${ty-14}, ${tx} ${ty-14}, ${tx} ${ty}`;
+}
 function birthLabel(p:TreePerson){if(p.birth_date_kind==="exact"&&p.birth_exact_date){const [y,m,d]=p.birth_exact_date.split("-").map(Number);return new Date(Date.UTC(y,m-1,d)).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"});}if(p.birth_date_kind==="year"&&p.birth_year)return String(p.birth_year);if(p.birth_date_kind==="approximate_year"&&p.birth_year)return `c. ${p.birth_year}`;if(p.birth_date_kind==="range"&&p.birth_range_start_year&&p.birth_range_end_year)return `${p.birth_range_start_year}–${p.birth_range_end_year}`;return p.birth_original_text||"Birth date unknown";}
 
 export default function FamilyTree({people,relationships}:{people:TreePerson[];relationships:TreeRelationship[]}) {
@@ -134,7 +152,7 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
     {mode!=="generation"&&!selected&&<p className="tree-hint">Search for a person and select them to view their {mode}.</p>}
     <div className="tree-legend"><span><i className="legend-parent"/>Parent / child</span><span><i className="legend-spouse"/>Spouse / partner</span><span><i className="legend-sibling"/>Sibling</span></div>
     <div className="tree-viewport"><svg width={Math.max(1,layout.width*zoom/100)} height={Math.max(1,layout.height*zoom/100)} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-label="Interactive family tree">
-      {layout.parents.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const sx=a.x+80,sy=a.y+104,tx=b.x+80,ty=b.y;const gap=Math.max(24,ty-sy);const bend=Math.min(48,gap*0.62);return <path key={e.id} d={`M ${sx} ${sy} C ${sx} ${sy+bend}, ${tx} ${ty-bend}, ${tx} ${ty}`} fill="none" stroke="#91a98d" strokeWidth="2"/>;})}
+      {layout.parents.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;return <path key={e.id} d={parentConnectorPath(a,b,layout.nodes)} fill="none" stroke="#91a98d" strokeWidth="2"/>;})}
       {layout.spouses.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const left=Math.min(a.x,b.x)+80,right=Math.max(a.x,b.x)+80,top=Math.min(a.y,b.y)-12;return <path key={e.id} d={`M ${left} ${Math.min(a.y,b.y)} C ${left} ${top}, ${right} ${top}, ${right} ${Math.min(a.y,b.y)}`} fill="none" stroke="#b58d62" strokeWidth="2.5"/>;})}
       {layout.siblings.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const leftNode=a.x<=b.x?a:b,rightNode=a.x<=b.x?b:a,top=Math.min(a.y,b.y)+72;return <path key={e.id} d={`M ${leftNode.x+160} ${leftNode.y+94} C ${leftNode.x+178} ${top}, ${rightNode.x-18} ${top}, ${rightNode.x} ${rightNode.y+94}`} fill="none" stroke="#9b9bba" strokeWidth="2" strokeDasharray="5 4"/>;})}
       {layout.nodes.map(node=><g key={node.person.id} transform={`translate(${node.x},${node.y})`} onClick={()=>choosePerson(node.person.id)} style={{cursor:"pointer"}}>
