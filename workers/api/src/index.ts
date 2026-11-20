@@ -226,6 +226,44 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     return json({data:{peopleCreated:created.length,peopleMatched:matched.length,peopleUpdated:updated.length,relationshipsConsidered:relationshipInputs.length,relationshipsCreated,relationshipsSkipped,relationshipsSkippedByReason:skippedByReason,skippedRelationshipDetails}});
   }
 
+  const personUpdateMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)$/);
+  if (personUpdateMatch && request.method === "PUT") {
+    const familyId=personUpdateMatch[1], personId=personUpdateMatch[2], role=await roleFor(env.DB,familyId);
+    if (!role) return fail(404,"family_not_found","Family not found.");
+    if (role === "viewer") return fail(403,"forbidden","Viewer access cannot edit family members.");
+    const input=await body(request);
+    if (!input) return fail(400,"invalid_person","Provide the profile fields to update.");
+    const current=await env.DB.prepare("SELECT life_status FROM persons WHERE id=? AND family_id=?").bind(personId,familyId).first<{life_status:string}>();
+    if (!current) return fail(404,"person_not_found","Family member not found.");
+    if (current.life_status === "deceased") return fail(409,"person_immutable","Deceased profiles are read-only. Relationships can still be corrected.");
+    const given=textOrNull(input.givenName), middle=textOrNull(input.middleName), family=textOrNull(input.familyName);
+    const gender=typeof input.gender==="string"?input.gender:"unspecified";
+    const allowed=["exact","year","approximate_year","range","unknown"];
+    const birthKind=typeof input.birthDateKind==="string"?input.birthDateKind:"unknown";
+    if (!given || given.length>120 || (middle&&middle.length>120) || (family&&family.length>120))
+      return fail(400,"invalid_name","Given name is required; each name field must be 120 characters or fewer.");
+    if (!["female","male","non_binary","unspecified"].includes(gender)) return fail(400,"invalid_gender","Choose a supported gender value.");
+    if (!allowed.includes(birthKind)) return fail(400,"invalid_date_precision","Unsupported birth-date precision.");
+    const exact=textOrNull(input.birthExactDate), year=yearOrNull(input.birthYear);
+    const start=yearOrNull(input.birthRangeStartYear), end=yearOrNull(input.birthRangeEndYear);
+    const original=textOrNull(input.birthOriginalText);
+    const validExact=(v:string|null)=>{if(!v||!/^\\d{4}-\\d{2}-\\d{2}$/.test(v))return false;const [y,m,d]=v.split("-").map(Number);const dt=new Date(Date.UTC(y,m-1,d));return dt.getUTCFullYear()===y&&dt.getUTCMonth()===m-1&&dt.getUTCDate()===d;};
+    if ((birthKind==="exact"&&!validExact(exact)) || ((birthKind==="year"||birthKind==="approximate_year")&&!year) || (birthKind==="range"&&(!start||!end||start>end)) || (birthKind==="unknown"&&(exact||year||start||end)))
+      return fail(400,"invalid_birth_date","Provide a valid value matching the selected birth-date precision.");
+    const t=now(), display=[given,middle,family].filter(Boolean).join(" ");
+    try {
+      await env.DB.prepare(`UPDATE persons SET given_name=?,middle_name=?,family_name=?,display_name=?,gender=?,
+        birth_date_kind=?,birth_exact_date=?,birth_year=?,birth_range_start_year=?,birth_range_end_year=?,birth_original_text=?,
+        biography=?,updated_at=? WHERE id=? AND family_id=? AND life_status='alive'`).bind(
+        given,middle,family,display,gender,birthKind,birthKind==="exact"?exact:null,
+        (birthKind==="year"||birthKind==="approximate_year")?year:null,birthKind==="range"?start:null,
+        birthKind==="range"?end:null,original,textOrNull(input.biography),t,personId,familyId).run();
+      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.updated',?,?)")
+        .bind(id(),familyId,personId,JSON.stringify({fields:["name","gender","birth_date","biography"]}),t).run();
+      return json({data:{id:personId,displayName:display,updatedAt:t}});
+    } catch { return fail(409,"person_immutable","This profile could not be changed. It may have been marked deceased."); }
+  }
+
   const deceasedMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/deceased$/);
   if (deceasedMatch && request.method === "POST") {
     const familyId=deceasedMatch[1], personId=deceasedMatch[2], role=await roleFor(env.DB,familyId);
