@@ -15,3 +15,15 @@
 .avatar-female{background:#f3e8ed;color:#86556c}.avatar-male{background:#e5edf2;color:#42647b}.avatar-neutral{background:#e9eee8;color:var(--green)}.edit-person{background:transparent!important;color:var(--green)!important;border:1px solid #cbd6c8!important;padding:6px 10px!important;font-size:10px!important}.edit-person:hover{background:#edf2ea!important}.edit-dialog{width:min(620px,100%)}.edit-dialog textarea{width:100%;resize:vertical;border:1px solid #d9dbd2;border-radius:5px;background:#fffefa;color:#29382f;padding:11px 12px;font:inherit}.edit-dialog .form-grid{gap:10px}.edit-dialog .helper-text{margin:12px 0 0;line-height:1.5}
 
 .relationship-row{gap:10px;flex-wrap:wrap}.relationship-actions{display:flex;gap:6px;margin-left:auto}.relationship-delete{background:transparent!important;color:#8a392a!important;border:1px solid #e8c9c1!important;padding:6px 10px!important;font-size:10px!important}.relationship-delete:hover{background:#f8eeeb!important}.edit-person:disabled{opacity:.45;cursor:not-allowed}@media(max-width:600px){.relationship-actions{width:100%;margin-left:0}.relationship-actions button{flex:1}}
+
+
+/* Collapsible family data panels */
+.collapsible-section{border:1px solid #e1e4da;border-radius:9px;background:#fffefa;padding:0 16px;margin:18px 0;}
+.collapsible-section>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;padding:15px 0;}
+.collapsible-section>summary::-webkit-details-marker{display:none;}
+.collapse-summary-meta{display:flex;align-items:center;gap:10px;}
+.collapse-indicator{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border:1px solid #d9dfd3;border-radius:50%;color:#477454;font-size:17px;transition:transform .18s ease;}
+.collapsible-section[open]>summary{border-bottom:1px solid #e8e9e2;margin-bottom:14px;}
+.collapsible-section[open]>summary .collapse-indicator{transform:rotate(180deg);}
+.collapsible-section .people-list,.collapsible-section .relationship-list{padding-bottom:12px;}
+.collapsible-section .relationship-form{margin-bottom:16px;}
