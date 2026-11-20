@@ -53,3 +53,11 @@
 .avatar{position:relative;flex:0 0 36px;overflow:visible}
 .avatar-memorial{position:absolute;right:-4px;top:-5px;width:16px;height:16px;display:grid;place-items:center;border:1.5px solid #fffefa;border-radius:50%;background:#777b75;color:#fff;font:700 11px/1 Georgia,serif;font-style:normal}
 .avatar-deceased{filter:saturate(.65)}
+
+
+/* Google Identity Services sign-in */
+.google-signin-button{display:flex;justify-content:center;min-height:44px;margin:18px 0 10px}
+.dev-access{margin-top:20px;padding-top:14px;border-top:1px solid #e2e5dc}
+.dev-access summary{cursor:pointer;color:#737d73;font-size:12px}
+.dev-access label{display:block;margin-top:12px}
+.dev-access input{width:100%;margin:6px 0 10px}
