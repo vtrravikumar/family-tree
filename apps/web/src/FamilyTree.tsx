@@ -121,6 +121,20 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
     return {nodes:result,width:Math.max(350,maxCount*218+20),height:Math.max(210,maxY+145),parents:parents.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),spouses:spouses.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),siblings:siblings.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),visibleCount:visible.size};
   },[people,relationships,mode,selected]);
   const byId=new Map(layout.nodes.map(n=>[n.person.id,n]));
+  // Route parent connectors by the exact parent set. Children are grouped only
+  // when they share every recorded parent; unrelated families never share a bus.
+  const parentGroups=useMemo(()=>{
+    const groups=new Map<string,{parents:string[];children:string[]}>();
+    for(const edge of layout.parents){
+      const groupForChild=layout.parents.filter(e=>e.to_person_id===edge.to_person_id).map(e=>e.from_person_id).sort();
+      const key=groupForChild.join("|");
+      let group=groups.get(key);
+      if(!group){group={parents:groupForChild,children:[]};groups.set(key,group);}
+      if(!group.children.includes(edge.to_person_id))group.children.push(edge.to_person_id);
+    }
+    return Array.from(groups.values());
+  },[layout.parents]);
+
   const focused=people.find(p=>p.id===selected);
   const choosePerson=(id:string)=>{setSelected(id);setSearch(people.find(p=>p.id===id)?.display_name??"");};
   if(!people.length)return <div className="tree-empty">Add family members and connect their parent-child relationships to see the generations take shape.</div>;
@@ -134,7 +148,7 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
     {mode!=="generation"&&!selected&&<p className="tree-hint">Search for a person and select them to view their {mode}.</p>}
     <div className="tree-legend"><span><i className="legend-parent"/>Parent / child</span><span><i className="legend-spouse"/>Spouse / partner</span><span><i className="legend-sibling"/>Sibling</span></div>
     <div className="tree-viewport"><svg width={Math.max(1,layout.width*zoom/100)} height={Math.max(1,layout.height*zoom/100)} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-label="Interactive family tree">
-      {layout.parents.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;return <path key={e.id} d={`M ${a.x+80} ${a.y+104} V ${a.y+126} H ${b.x+80} V ${b.y}`} fill="none" stroke="#91a98d" strokeWidth="2"/>;})}
+      {parentGroups.map((group,i)=>{const parentNodes=group.parents.map(id=>byId.get(id)).filter((n):n is Node=>Boolean(n));const childNodes=group.children.map(id=>byId.get(id)).filter((n):n is Node=>Boolean(n));if(!parentNodes.length||!childNodes.length)return null;const parentCenters=parentNodes.map(n=>n.x+80);const childCenters=childNodes.map(n=>n.x+80);const parentY=Math.max(...parentNodes.map(n=>n.y+104));const childY=Math.min(...childNodes.map(n=>n.y));const junctionY=parentY+22+i*2;const childBusY=childY-18;const parentMid=(Math.min(...parentCenters)+Math.max(...parentCenters))/2;const childLeft=Math.min(...childCenters),childRight=Math.max(...childCenters);return <g key={group.parents.join("|")} fill="none" stroke="#91a98d" strokeWidth="2"><path d={parentCenters.map(x=>`M ${x} ${parentNodes.find(n=>n.x+80===x)!.y+104} V ${junctionY}`).join(" ")}/>{parentCenters.length>1&&<path d={`M ${Math.min(...parentCenters)} ${junctionY} H ${Math.max(...parentCenters)}`}/>}<path d={`M ${parentMid} ${junctionY} V ${childBusY} ${childLeft===childRight?"":`H ${childRight}`}`}/>{childNodes.map(n=><path key={n.person.id} d={`M ${n.x+80} ${childBusY} V ${n.y}`}/>)}</g>;})}
       {layout.spouses.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const left=Math.min(a.x,b.x)+80,right=Math.max(a.x,b.x)+80,top=Math.min(a.y,b.y)-12;return <path key={e.id} d={`M ${left} ${Math.min(a.y,b.y)} C ${left} ${top}, ${right} ${top}, ${right} ${Math.min(a.y,b.y)}`} fill="none" stroke="#b58d62" strokeWidth="2.5"/>;})}
       {layout.siblings.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const leftNode=a.x<=b.x?a:b,rightNode=a.x<=b.x?b:a,top=Math.min(a.y,b.y)+72;return <path key={e.id} d={`M ${leftNode.x+160} ${leftNode.y+94} C ${leftNode.x+178} ${top}, ${rightNode.x-18} ${top}, ${rightNode.x} ${rightNode.y+94}`} fill="none" stroke="#9b9bba" strokeWidth="2" strokeDasharray="5 4"/>;})}
       {layout.nodes.map(node=><g key={node.person.id} transform={`translate(${node.x},${node.y})`} onClick={()=>choosePerson(node.person.id)} style={{cursor:"pointer"}}>
