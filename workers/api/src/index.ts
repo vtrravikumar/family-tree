@@ -247,7 +247,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const exact=textOrNull(input.birthExactDate), year=yearOrNull(input.birthYear);
     const start=yearOrNull(input.birthRangeStartYear), end=yearOrNull(input.birthRangeEndYear);
     const original=textOrNull(input.birthOriginalText);
-    const validExact=(v:string|null)=>{if(!v||!/^\\d{4}-\\d{2}-\\d{2}$/.test(v))return false;const [y,m,d]=v.split("-").map(Number);const dt=new Date(Date.UTC(y,m-1,d));return dt.getUTCFullYear()===y&&dt.getUTCMonth()===m-1&&dt.getUTCDate()===d;};
+    const validExact=(v:string|null)=>{if(!v||!/^\d{4}-\d{2}-\d{2}$/.test(v))return false;const [y,m,d]=v.split("-").map(Number);const dt=new Date(Date.UTC(y,m-1,d));return dt.getUTCFullYear()===y&&dt.getUTCMonth()===m-1&&dt.getUTCDate()===d;};
     if ((birthKind==="exact"&&!validExact(exact)) || ((birthKind==="year"||birthKind==="approximate_year")&&!year) || (birthKind==="range"&&(!start||!end||start>end)) || (birthKind==="unknown"&&(exact||year||start||end)))
       return fail(400,"invalid_birth_date","Provide a valid value matching the selected birth-date precision.");
     const t=now(), display=[given,middle,family].filter(Boolean).join(" ");
