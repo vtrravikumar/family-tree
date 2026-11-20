@@ -120,7 +120,7 @@ export default function App(){
        if(editDateKind==="year"||editDateKind==="approximate_year")payload.birthYear=Number(editDateValue);
        if(editDateKind==="range"){const match=editDateValue.trim().match(/^(\\d{1,4})\\s*[-–]\\s*(\\d{1,4})$/);if(!match)throw new Error("Enter the estimated birth-year range as YYYY-YYYY, for example 1940-1945.");payload.birthRangeStartYear=Number(match[1]);payload.birthRangeEndYear=Number(match[2]);}
        await request("/v1/families/"+familyId+"/people/"+editTarget.id,"PUT",payload);setEditTarget(null);await loadData(familyId);setNotice(editTarget.display_name+" updated.");});}}>
-       <p className="eyebrow">FAMILY MEMBER PROFILE</p><h3>Edit {editTarget.display_name}</h3>
+       <p className="eyebrow">FAMILY MEMBER PROFILE</p><h3>Edit {editTarget.display_name}</h3>{error&&<p className="message error" role="alert">{error}</p>}
        <label>Given name *</label><input required maxLength={120} value={editGiven} onChange={e=>setEditGiven(e.target.value)}/>
        <label>Middle name</label><input maxLength={120} value={editMiddle} onChange={e=>setEditMiddle(e.target.value)}/>
        <label>Family name</label><input maxLength={120} value={editSurname} onChange={e=>setEditSurname(e.target.value)}/>
@@ -129,7 +129,7 @@ export default function App(){
        {editDateKind!=="unknown"&&<><label>{editDateKind==="exact"?"Birth date":editDateKind==="range"?"Year range (e.g. 1940-1945)":"Birth year"}</label><input required type={editDateKind==="exact"?"date":"text"} value={editDateValue} onChange={e=>setEditDateValue(e.target.value)} placeholder="YYYY"/></>}
        <label>Biography / notes</label><textarea rows={3} maxLength={5000} value={editBiography} onChange={e=>setEditBiography(e.target.value)} placeholder="Optional notes about this family member"/>
        <p className="helper-text">Photo upload will follow once secure family photo storage is configured. Deceased profiles remain read-only.</p>
-       <div className="death-actions"><button type="button" className="button-secondary" onClick={()=>setEditTarget(null)}>Cancel</button><button type="submit" disabled={busy||!editGiven.trim()||editDateKind!=="unknown"&&!editDateValue.trim()}>Save changes</button></div>
+       <div className="death-actions"><button type="button" className="button-secondary" onClick={()=>setEditTarget(null)}>Cancel</button><button type="submit" disabled={busy||!editGiven.trim()||editDateKind!=="unknown"&&!editDateValue.trim()}>{busy?"Saving…":"Save changes"}</button></div>
      </form></div>}
      {relationshipEdit&&<div className="modal-backdrop"><form className="death-dialog edit-dialog" onSubmit={e=>{e.preventDefault();void run(async()=>{await request("/v1/families/"+familyId+"/relationships/"+relationshipEdit.id,"PUT",{fromPersonId:relationshipFrom,toPersonId:relationshipTo,relationshipType:relationshipTypeEdit});setRelationshipEdit(null);await loadData(familyId);setNotice("Relationship updated.");});}}>
        <p className="eyebrow">FAMILY CONNECTION</p><h3>Edit relationship</h3>
