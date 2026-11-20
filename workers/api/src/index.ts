@@ -92,7 +92,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if (request.method === "GET") {
       const result=await env.DB.prepare(`SELECT id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,
         birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,
-        death_date_kind,death_exact_date,death_year,death_range_start_year,death_range_end_year,death_original_text,created_at,updated_at
+        death_date_kind,death_exact_date,death_year,death_range_start_year,death_range_end_year,death_original_text,biography,created_at,updated_at
         FROM persons WHERE family_id=? ORDER BY family_name,given_name`).bind(familyId).all();
       return json({data:result.results});
     }
