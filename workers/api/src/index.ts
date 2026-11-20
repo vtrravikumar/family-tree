@@ -233,6 +233,81 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     return json({data:{id:familyId,name,role:"owner",createdAt:t}},{status:201});
   }
 
+
+  const familyMembersMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/members$/);
+  if(familyMembersMatch&&request.method==="GET"){
+    const familyId=familyMembersMatch[1],role=await roleFor(env.DB,familyId,actorUserId);
+    if(!role)return fail(404,"family_not_found","Family not found.");
+    const members=await env.DB.prepare("SELECT u.id,u.email,u.display_name,u.avatar_url,fm.role,fm.joined_at FROM family_members fm JOIN users u ON u.id=fm.user_id WHERE fm.family_id=? ORDER BY CASE fm.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'editor' THEN 2 ELSE 3 END,fm.joined_at").bind(familyId).all();
+    return json({data:members.results});
+  }
+  const familyInvitationsMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/invitations$/);
+  if(familyInvitationsMatch&&request.method==="POST"){
+    const familyId=familyInvitationsMatch[1],role=await roleFor(env.DB,familyId,actorUserId);
+    if(role!=="owner"&&role!=="admin")return fail(role?403:404,"forbidden","Only a family owner or admin can invite collaborators.");
+    const input=await body(request),email=textOrNull(input?.email)?.toLowerCase()||null;
+    const offeredRole=typeof input?.role==="string"?input.role:"viewer";
+    if(!email||email.length>254||!/^\S+@\S+\.\S+$/.test(email))return fail(400,"invalid_invitee_email","Provide a valid email address for the invitation.");
+    if(!["admin","editor","viewer"].includes(offeredRole))return fail(400,"invalid_invitation_role","Invitations can offer Admin, Editor or Viewer access.");
+    if(role==="admin"&&offeredRole==="admin")return fail(403,"role_assignment_forbidden","Family admins can invite Editors or Viewers, not other Admins.");
+    const existing=await env.DB.prepare("SELECT u.id,fm.role FROM users u LEFT JOIN family_members fm ON fm.user_id=u.id AND fm.family_id=? WHERE lower(u.email)=lower(?) LIMIT 1").bind(familyId,email).first<{id:string;role:string|null}>();
+    if(existing?.role)return fail(409,"already_a_member","This user is already a member of the family.");
+    const codeBytes=new Uint8Array(32);crypto.getRandomValues(codeBytes);const code=base64Url(codeBytes),created=now(),expires=new Date(Date.now()+7*24*60*60*1000).toISOString();
+    await env.DB.prepare("INSERT INTO invitations(id,family_id,inviter_user_id,invitee_email,invite_code_hash,offered_role,status,expires_at,created_at) VALUES(?,?,?,?,?,?,'pending',?,?)")
+      .bind(id(),familyId,actorUserId,email,await sha256(code),offeredRole,expires,created).run();
+    await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'invitation',?,'invitation.created',?,?)")
+      .bind(id(),familyId,actorUserId,email,JSON.stringify({email,role:offeredRole,expiresAt:expires}),created).run();
+    return json({data:{inviteCode:code,email,role:offeredRole,expiresAt:expires}},{status:201});
+  }
+  const invitationAcceptMatch=url.pathname.match(/^\/v1\/invitations\/([^/]+)\/accept$/);
+  if(invitationAcceptMatch&&request.method==="POST"){
+    if(!session)return fail(401,"not_authenticated","Sign in with Google before accepting an invitation.");
+    const code=invitationAcceptMatch[1],hash=await sha256(code),timestamp=now();
+    const invitation=await env.DB.prepare("SELECT id,family_id,invitee_email,offered_role,status,expires_at FROM invitations WHERE invite_code_hash=?").bind(hash).first<{id:string;family_id:string;invitee_email:string|null;offered_role:string;status:string;expires_at:string}>();
+    if(!invitation||invitation.status!=="pending"||invitation.expires_at<=timestamp)return fail(404,"invitation_unavailable","This invitation is invalid, expired or no longer available.");
+    if(invitation.invitee_email&&invitation.invitee_email.toLowerCase()!==session.email.toLowerCase())return fail(403,"invitation_email_mismatch","Sign in with the Google account that received this invitation.");
+    const member=await env.DB.prepare("SELECT role FROM family_members WHERE family_id=? AND user_id=?").bind(invitation.family_id,actorUserId).first();
+    if(member)return fail(409,"already_a_member","You are already a member of this family.");
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO family_members(family_id,user_id,role,joined_at) VALUES(?,?,?,?)").bind(invitation.family_id,actorUserId,invitation.offered_role,timestamp),
+      env.DB.prepare("UPDATE invitations SET status='accepted',accepted_at=? WHERE id=? AND status='pending'").bind(timestamp,invitation.id),
+      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'invitation',?,'invitation.accepted',?,?)").bind(id(),invitation.family_id,actorUserId,invitation.id,JSON.stringify({role:invitation.offered_role}),timestamp)
+    ]);
+    return json({data:{familyId:invitation.family_id,role:invitation.offered_role,accepted:true}});
+  }
+  const familyMemberRoleMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/members\/([^/]+)$/);
+  if(familyMemberRoleMatch&&request.method==="PUT"){
+    const familyId=familyMemberRoleMatch[1],targetUserId=familyMemberRoleMatch[2],actorRole=await roleFor(env.DB,familyId,actorUserId);
+    if(actorRole!=="owner"&&actorRole!=="admin")return fail(actorRole?403:404,"forbidden","Only a family owner or admin can manage member roles.");
+    const input=await body(request),newRole=typeof input?.role==="string"?input.role:"";
+    if(!["admin","editor","viewer"].includes(newRole))return fail(400,"invalid_member_role","Choose Admin, Editor or Viewer.");
+    if(actorRole==="admin"&&newRole==="admin")return fail(403,"role_assignment_forbidden","Family admins cannot assign Admin privileges.");
+    const target=await env.DB.prepare("SELECT role FROM family_members WHERE family_id=? AND user_id=?").bind(familyId,targetUserId).first<{role:string}>();
+    if(!target)return fail(404,"member_not_found","Family member not found.");
+    if(target.role==="owner")return fail(409,"owner_role_protected","Use the ownership transfer workflow to change the family owner.");
+    if(actorRole==="admin"&&target.role==="admin")return fail(403,"role_assignment_forbidden","Family admins cannot modify another Admin.");
+    const timestamp=now();
+    await env.DB.batch([
+      env.DB.prepare("UPDATE family_members SET role=? WHERE family_id=? AND user_id=?").bind(newRole,familyId,targetUserId),
+      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'family_member',?,'member.role_changed',?,?)").bind(id(),familyId,actorUserId,targetUserId,JSON.stringify({from:target.role,to:newRole}),timestamp)
+    ]);
+    return json({data:{userId:targetUserId,role:newRole}});
+  }
+  if(familyMemberRoleMatch&&request.method==="DELETE"){
+    const familyId=familyMemberRoleMatch[1],targetUserId=familyMemberRoleMatch[2],actorRole=await roleFor(env.DB,familyId,actorUserId);
+    if(actorRole!=="owner"&&actorRole!=="admin")return fail(actorRole?403:404,"forbidden","Only a family owner or admin can remove a member.");
+    const target=await env.DB.prepare("SELECT role FROM family_members WHERE family_id=? AND user_id=?").bind(familyId,targetUserId).first<{role:string}>();
+    if(!target)return fail(404,"member_not_found","Family member not found.");
+    if(target.role==="owner")return fail(409,"owner_role_protected","The family owner cannot be removed. Transfer ownership first.");
+    if(actorRole==="admin"&&target.role==="admin")return fail(403,"role_assignment_forbidden","Family admins cannot remove another Admin.");
+    const timestamp=now();
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM family_members WHERE family_id=? AND user_id=?").bind(familyId,targetUserId),
+      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'family_member',?,'member.removed',?,?)").bind(id(),familyId,actorUserId,targetUserId,JSON.stringify({role:target.role}),timestamp)
+    ]);
+    return json({data:{userId:targetUserId,removed:true}});
+  }
+
   const familyDeleteMatch=url.pathname.match(/^\/v1\/families\/([^/]+)$/);
   if (familyDeleteMatch && request.method === "DELETE") {
     const familyId=familyDeleteMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
