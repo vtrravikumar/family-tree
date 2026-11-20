@@ -327,7 +327,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   const peopleMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people$/);
   if (peopleMatch) {
-    const familyId=peopleMatch[1], role=await roleFor(env.DB,familyId);
+    const familyId=peopleMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (request.method === "GET") {
       const result=await env.DB.prepare(`SELECT id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,
@@ -367,7 +367,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   const importMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/import$/);
   if (importMatch && request.method === "POST") {
-    const familyId=importMatch[1], role=await roleFor(env.DB,familyId);
+    const familyId=importMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
     if (role !== "owner" && role !== "admin") return fail(role?403:404,"forbidden","Only a family owner or admin can import family records.");
     const input=await body(request);
     if (input?.confirmed !== true || input?.confirmDeceasedRecords !== true || !Array.isArray(input.people))
@@ -468,7 +468,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   const personUpdateMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)$/);
   if (personUpdateMatch && request.method === "PUT") {
-    const familyId=personUpdateMatch[1], personId=personUpdateMatch[2], role=await roleFor(env.DB,familyId);
+    const familyId=personUpdateMatch[1], personId=personUpdateMatch[2], role=await roleFor(env.DB,familyId,actorUserId);
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (role === "viewer") return fail(403,"forbidden","Viewer access cannot edit family members.");
     const input=await body(request);
@@ -506,7 +506,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   const personDeleteMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)$/);
   if (personDeleteMatch && request.method === "DELETE") {
-    const familyId=personDeleteMatch[1], personId=personDeleteMatch[2], role=await roleFor(env.DB,familyId);
+    const familyId=personDeleteMatch[1], personId=personDeleteMatch[2], role=await roleFor(env.DB,familyId,actorUserId);
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (role !== "owner" && role !== "admin") return fail(403,"forbidden","Only a family owner or admin can delete a person.");
     const input=await body(request);
@@ -528,7 +528,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   const restoreMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/restore$/);
   if (restoreMatch && request.method === "POST") {
-    const familyId=restoreMatch[1], personId=restoreMatch[2], role=await roleFor(env.DB,familyId);
+    const familyId=restoreMatch[1], personId=restoreMatch[2], role=await roleFor(env.DB,familyId,actorUserId);
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (role !== "owner" && role !== "admin") return fail(403,"forbidden","Only a family owner or admin can restore a profile.");
     const input=await body(request);
@@ -544,7 +544,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   const deceasedMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/deceased$/);
   if (deceasedMatch && request.method === "POST") {
-    const familyId=deceasedMatch[1], personId=deceasedMatch[2], role=await roleFor(env.DB,familyId);
+    const familyId=deceasedMatch[1], personId=deceasedMatch[2], role=await roleFor(env.DB,familyId,actorUserId);
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (role !== "owner" && role !== "admin") return fail(403,"forbidden","Only a family owner or admin can mark someone deceased.");
     const input=await body(request);
@@ -567,7 +567,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   const relationshipItemMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/relationships\/([^/]+)$/);
   if (relationshipItemMatch && (request.method === "PUT" || request.method === "DELETE")) {
-    const familyId=relationshipItemMatch[1], relationshipId=relationshipItemMatch[2], role=await roleFor(env.DB,familyId);
+    const familyId=relationshipItemMatch[1], relationshipId=relationshipItemMatch[2], role=await roleFor(env.DB,familyId,actorUserId);
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (role === "viewer") return fail(403,"forbidden","Viewer access cannot change relationships.");
     const current=await env.DB.prepare("SELECT id,from_person_id,to_person_id,relationship_type FROM relationships WHERE id=? AND family_id=?").bind(relationshipId,familyId).first<{id:string;from_person_id:string;to_person_id:string;relationship_type:string}>();
@@ -603,7 +603,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   const relationshipsMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/relationships$/);
   if (relationshipsMatch) {
-    const familyId=relationshipsMatch[1], role=await roleFor(env.DB,familyId);
+    const familyId=relationshipsMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (request.method === "GET") {
       const result=await env.DB.prepare(`SELECT r.id,r.from_person_id,r.to_person_id,r.relationship_type,r.metadata_json,r.created_at,
