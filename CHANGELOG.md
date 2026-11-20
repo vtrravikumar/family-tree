@@ -1,6 +1,6 @@
 # Changelog
 
-All notable Vansvriksha releases are documented here. This project uses Semantic Versioning (SemVer).
+All notable Vansvriksha releases are documented here. Versions use the format `vMAJOR.MINOR.PATCH` (for example, `v0.2.0`). The major number is currently `0`; the second number is the feature/minor release; the third number is the patch/fix release.
 
 ## [Unreleased]
 
@@ -61,10 +61,11 @@ For every formal release, add a newest-first section using this structure:
 ## Versioning policy
 
 - **MAJOR** (`X.0.0`): incompatible changes to user workflows, APIs, data formats, or stored data.
-- **MINOR** (`0.Y.0`): backward-compatible user-facing features and substantial capabilities.
-- **PATCH** (`0.0.Z`): backward-compatible bug fixes, small refinements, and security fixes.
+- **MINOR** (`0.Y.0`): backward-compatible user-facing features and substantial capabilities. During 0.x, this is the normal feature-release increment (for example, `v0.2.0`).
+- **PATCH** (`0.Y.Z`): backward-compatible bug fixes, small refinements, and security fixes (for example, `v0.2.1`).
 - While the product is in `0.x`, the API and data model may evolve; any breaking changes must still be called out explicitly.
 - Every release gets a matching Git tag (`vX.Y.Z`) and GitHub Release with these notes.
+- The app footer always displays the current package version as a link to `/version-history`, followed by the current build identifier in parentheses. The history page lists released versions and the unreleased changes awaiting the next version.
 - The root, web, and API package versions must be kept aligned at the release version.
 - A release is created only after CI is green and the intended deployment has succeeded. Development deployments from ordinary commits to `main` are not releases.
 - Release notes describe what users receive, not merely a list of code changes. Always identify data migrations, compatibility impact, and known limitations.
