@@ -35,6 +35,51 @@ function exportFamilyExcel(familyName:string,people:Person[],relationships:Relat
 }
 const API=import.meta.env.VITE_API_URL||"https://api-dev.vtrrk.in";
 const labels:Record<string,string>={biological_parent:"Parent of",adoptive_parent:"Adoptive parent of",step_parent:"Step-parent of",spouse:"Spouse of",partner:"Partner of",sibling:"Sibling of"};
+
+function FamilySummary({people,relationships}:{people:Person[];relationships:Relationship[]}){
+ const year=(p:Person,kind:"birth"|"death"):number|null=>{
+  const dateKind=kind==="birth"?p.birth_date_kind:p.death_date_kind;
+  const exact=kind==="birth"?p.birth_exact_date:p.death_exact_date;
+  const y=kind==="birth"?p.birth_year:p.death_year;
+  const start=kind==="birth"?p.birth_range_start_year:p.death_range_start_year;
+  const end=kind==="birth"?p.birth_range_end_year:p.death_range_end_year;
+  if(dateKind==="exact"&&exact)return Number(exact.slice(0,4));
+  if((dateKind==="year"||dateKind==="approximate_year")&&y)return y;
+  if(dateKind==="range"&&start&&end)return (start+end)/2;
+  return null;
+ };
+ const birthYears=people.map(p=>year(p,"birth")).filter((v):v is number=>v!==null);
+ const alive=people.filter(p=>p.life_status==="alive").length;
+ const deceased=people.filter(p=>p.life_status==="deceased").length;
+ const parentEdges=relationships.filter(r=>["biological_parent","adoptive_parent","step_parent"].includes(r.relationship_type));
+ const parentMap=new Map<string,string[]>();
+ for(const edge of parentEdges)parentMap.set(edge.to_person_id,[...(parentMap.get(edge.to_person_id)||[]),edge.from_person_id]);
+ const memo=new Map<string,number>();
+ const depth=(id:string,visiting=new Set<string>()):number=>{
+  if(memo.has(id))return memo.get(id)!;
+  if(visiting.has(id))return 0;
+  const next=new Set(visiting);next.add(id);
+  const value=1+Math.max(0,...(parentMap.get(id)||[]).map(parent=>depth(parent,next)));
+  memo.set(id,value);return value;
+ };
+ const generations=people.length?Math.max(...people.map(p=>depth(p.id))):0;
+ const lifespans=people.filter(p=>p.life_status==="deceased").map(p=>({person:p,birth:year(p,"birth"),death:year(p,"death")})).filter((v):v is {person:Person;birth:number;death:number}=>v.birth!==null&&v.death!==null&&v.death>=v.birth).map(v=>({...v,years:Math.floor(v.death-v.birth)}));
+ const average=lifespans.length?Math.round(lifespans.reduce((sum,v)=>sum+v.years,0)/lifespans.length):null;
+ const longest=lifespans.length?lifespans.reduce((a,b)=>b.years>a.years?b:a):null;
+ const fmt=(v:number)=>Number.isInteger(v)?String(v):String(Math.round(v));
+ const stats:[string,string][]=[
+  ["People in the tree",String(people.length)],
+  ["Generations",String(generations)],
+  ["Earliest birth year",birthYears.length?fmt(Math.min(...birthYears)):"—"],
+  ["Latest birth year",birthYears.length?fmt(Math.max(...birthYears)):"—"],
+  ["Living",String(alive)],
+  ["Deceased",String(deceased)],
+  ["Average lifespan",average===null?"Insufficient dates":average+" years"],
+  ["Longest life",longest?longest.person.display_name+" ("+longest.years+" years)":"Insufficient dates"]
+ ];
+ return <section className="family-summary" aria-label="Family at a glance"><h3>Our Family at a Glance</h3><dl>{stats.map(([label,value])=><div className="family-summary-row" key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><p className="family-summary-note">Lifespan figures use recorded birth and death years for deceased members only. Unknown or incomplete dates are excluded.</p></section>;
+}
+
 export default function App(){
  const [token,setToken]=useState("");const [connected,setConnected]=useState(false);const [families,setFamilies]=useState<Family[]>([]);const [familyId,setFamilyId]=useState("");const [people,setPeople]=useState<Person[]>([]);const [rels,setRels]=useState<Relationship[]>([]);
  const [familyName,setFamilyName]=useState("");const [given,setGiven]=useState("");const [middle,setMiddle]=useState("");const [surname,setSurname]=useState("");const [gender,setGender]=useState("unspecified");const [dateKind,setDateKind]=useState("unknown");const [dateValue,setDateValue]=useState("");const [deceased,setDeceased]=useState(false);
@@ -104,7 +149,7 @@ export default function App(){
       <div><label>Relationship</label><select value={relType} onChange={e=>setRelType(e.target.value)}>{Object.entries(labels).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>
       <div><label>{relType.includes("parent")?"Child":"Related person"}</label><select required value={to} onChange={e=>setTo(e.target.value)}><option value="">Select person</option>{people.map(p=><option key={p.id} value={p.id}>{p.display_name}</option>)}</select></div><button disabled={busy||!from||!to}>Connect</button>
      </form>:<p className="empty-hint">Add at least two people to connect relationships.</p>}
-     {rels.length>0&&<div className="relationship-list">{rels.map(r=><div className="relationship-row" key={r.id}><span>{r.from_name}</span><small>{labels[r.relationship_type]||r.relationship_type}</small><span>{r.to_name}</span><div className="relationship-actions"><button type="button" className="edit-person" onClick={()=>{setRelationshipEdit(r);setRelationshipFrom(r.from_person_id);setRelationshipTo(r.to_person_id);setRelationshipTypeEdit(r.relationship_type);}}>Edit</button><button type="button" className="relationship-delete" disabled={busy} onClick={()=>void run(async()=>{if(!window.confirm("Delete the relationship between "+r.from_name+" and "+r.to_name+"?"))return;await request("/v1/families/"+familyId+"/relationships/"+r.id,"DELETE");await loadData(familyId);setNotice("Relationship deleted.");})}>Delete</button></div></div>)}</div>}</details><FamilyTree key={familyId} people={people} relationships={rels}/></div>
+     {rels.length>0&&<div className="relationship-list">{rels.map(r=><div className="relationship-row" key={r.id}><span>{r.from_name}</span><small>{labels[r.relationship_type]||r.relationship_type}</small><span>{r.to_name}</span><div className="relationship-actions"><button type="button" className="edit-person" onClick={()=>{setRelationshipEdit(r);setRelationshipFrom(r.from_person_id);setRelationshipTo(r.to_person_id);setRelationshipTypeEdit(r.relationship_type);}}>Edit</button><button type="button" className="relationship-delete" disabled={busy} onClick={()=>void run(async()=>{if(!window.confirm("Delete the relationship between "+r.from_name+" and "+r.to_name+"?"))return;await request("/v1/families/"+familyId+"/relationships/"+r.id,"DELETE");await loadData(familyId);setNotice("Relationship deleted.");})}>Delete</button></div></div>)}</div>}</details><FamilySummary people={people} relationships={rels}/><FamilyTree key={familyId} people={people} relationships={rels}/></div>
     </>}</section></section>
   </>}
   <footer className="app-footer"><span>Vansvriksh</span><span>Preserving connections, one generation at a time.</span></footer>
