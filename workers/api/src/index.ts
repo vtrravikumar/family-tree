@@ -85,22 +85,26 @@ async function authRoute(request: Request,env: Env,url: URL): Promise<Response|n
     const identity=await verifyGoogleCredential(credential,env.GOOGLE_CLIENT_ID);
     if(!identity)return fail(401,"invalid_google_credential","Google could not verify this sign-in. Please try again.");
     const timestamp=now();
-    // The first Google account claims the existing single-owner development identity.
-    // This preserves every existing family, membership, person and relationship ID.
+    // Preserve the legacy owner identity for the configured first account; allow other verified Google identities to register independently.
     let user=await env.DB.prepare("SELECT id,email,display_name FROM users WHERE identity_provider='google' AND provider_subject=?")
       .bind(identity.sub).first<{id:string;email:string;display_name:string}>();
     if(!user){
-      const legacy=await env.DB.prepare("SELECT id FROM users WHERE id='dev-owner' AND identity_provider='dev'").first<{id:string}>();
-      if(!legacy)return fail(409,"account_not_linked","This Google account is not linked to the current development workspace owner.");
-      if(!env.INITIAL_OWNER_EMAIL||identity.email.toLowerCase()!==env.INITIAL_OWNER_EMAIL.toLowerCase())return fail(403,"owner_account_not_allowed","Sign in with the configured initial owner Google account.");
-      await env.DB.prepare("UPDATE users SET identity_provider='google',provider_subject=?,email=?,display_name=?,avatar_url=?,updated_at=? WHERE id='dev-owner' AND identity_provider='dev'")
-        .bind(identity.sub,identity.email,identity.name,identity.picture,timestamp).run();
-      user={id:"dev-owner",email:identity.email,display_name:identity.name};
+      const emailOwner=await env.DB.prepare("SELECT id,identity_provider FROM users WHERE lower(email)=lower(?) LIMIT 1")
+        .bind(identity.email).first<{id:string;identity_provider:string}>();
+      if(emailOwner){
+        if(emailOwner.id!=="dev-owner"||emailOwner.identity_provider!=="dev"||!env.INITIAL_OWNER_EMAIL||identity.email.toLowerCase()!==env.INITIAL_OWNER_EMAIL.toLowerCase()) return fail(409,"account_email_in_use","This email is already associated with another account identity. Contact platform support.");
+        await env.DB.prepare("UPDATE users SET identity_provider='google',provider_subject=?,email=?,display_name=?,avatar_url=?,updated_at=? WHERE id='dev-owner' AND identity_provider='dev'")
+          .bind(identity.sub,identity.email,identity.name,identity.picture,timestamp).run();
+        user={id:"dev-owner",email:identity.email,display_name:identity.name};
+      }else{
+        const newUserId=id();
+        await env.DB.prepare("INSERT INTO users(id,identity_provider,provider_subject,email,display_name,avatar_url,created_at,updated_at) VALUES(?,'google',?,?,?,?,?,?)")
+          .bind(newUserId,identity.sub,identity.email,identity.name,identity.picture,timestamp,timestamp).run();
+        user={id:newUserId,email:identity.email,display_name:identity.name};
+      }
     }
-    if(user.id!=="dev-owner")return fail(409,"account_not_linked","This Google account is not linked to the current development workspace owner.");
     if(identity.email.toLowerCase()===(env.SUPER_ADMIN_EMAIL||"vtrravikumar@gmail.com").toLowerCase()){
-      await env.DB.prepare(`INSERT OR IGNORE INTO platform_super_admins(user_id,granted_by_user_id,granted_at,reason)
-        VALUES(?,NULL,?,'Initial platform super administrator bootstrap')`).bind(user.id,timestamp).run();
+      await env.DB.prepare("INSERT OR IGNORE INTO platform_super_admins(user_id,granted_by_user_id,granted_at,reason) VALUES(?,NULL,?,'Initial platform super administrator bootstrap')").bind(user.id,timestamp).run();
     }
     await env.DB.prepare("UPDATE users SET email=?,display_name=?,avatar_url=?,updated_at=? WHERE id=?")
       .bind(identity.email,identity.name,identity.picture,timestamp,user.id).run();
@@ -146,8 +150,8 @@ async function writePlatformAudit(db:D1Database,actorUserId:string,action:string
   await db.prepare("INSERT INTO platform_audit_logs(id,actor_user_id,action,target_type,target_id,reason,metadata,created_at) VALUES(?,?,?,?,?,?,?,?)")
     .bind(id(),actorUserId,action,targetType,targetId,reason,metadata?JSON.stringify(metadata):null,now()).run();
 }
-async function roleFor(db: D1Database, familyId: string) {
-  const row = await db.prepare("SELECT role FROM family_members WHERE family_id=? AND user_id='dev-owner'").bind(familyId).first<{role:string}>();
+async function roleFor(db: D1Database, familyId: string, userId: string) {
+  const row = await db.prepare("SELECT role FROM family_members WHERE family_id=? AND user_id=?").bind(familyId,userId).first<{role:string}>();
   return row?.role ?? null;
 }
 const textOrNull = (v: unknown) => typeof v === "string" && v.trim() ? v.trim() : null;
@@ -214,26 +218,24 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   }
 
   if (url.pathname === "/v1/families" && request.method === "GET") {
-    const result = await env.DB.prepare(`SELECT f.id,f.name,f.created_at,f.updated_at,fm.role FROM families f
-      JOIN family_members fm ON fm.family_id=f.id WHERE fm.user_id='dev-owner' ORDER BY f.created_at DESC`).all();
+    const result = await env.DB.prepare("SELECT f.id,f.name,f.created_at,f.updated_at,fm.role FROM families f JOIN family_members fm ON fm.family_id=f.id WHERE fm.user_id=? ORDER BY f.created_at DESC").bind(actorUserId).all();
     return json({data:result.results});
   }
   if (url.pathname === "/v1/families" && request.method === "POST") {
     const input = await body(request);
-    if (!input || typeof input.name !== "string" || !input.name.trim() || input.name.trim().length > 120)
-      return fail(400,"invalid_name","Family name must contain between 1 and 120 characters.");
+    if (!input || typeof input.name !== "string" || !input.name.trim() || input.name.trim().length > 120) return fail(400,"invalid_name","Family name must contain between 1 and 120 characters.");
     const familyId=id(), t=now(), name=input.name.trim();
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO families(id,name,owner_user_id,privacy,created_at,updated_at) VALUES(?,?,'dev-owner','private',?,?)").bind(familyId,name,t,t),
-      env.DB.prepare("INSERT INTO family_members(family_id,user_id,role,joined_at) VALUES(?,'dev-owner','owner',?)").bind(familyId,t),
-      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','family',?,'family.created',?,?)").bind(id(),familyId,familyId,JSON.stringify({name}),t)
+      env.DB.prepare("INSERT INTO families(id,name,owner_user_id,privacy,created_at,updated_at) VALUES(?,?,?,'private',?,?)").bind(familyId,name,actorUserId,t,t),
+      env.DB.prepare("INSERT INTO family_members(family_id,user_id,role,joined_at) VALUES(?,?,'owner',?)").bind(familyId,actorUserId,t),
+      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'family',?,'family.created',?,?)").bind(id(),familyId,actorUserId,familyId,JSON.stringify({name}),t)
     ]);
     return json({data:{id:familyId,name,role:"owner",createdAt:t}},{status:201});
   }
 
   const familyDeleteMatch=url.pathname.match(/^\/v1\/families\/([^/]+)$/);
   if (familyDeleteMatch && request.method === "DELETE") {
-    const familyId=familyDeleteMatch[1], role=await roleFor(env.DB,familyId);
+    const familyId=familyDeleteMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (role !== "owner") return fail(403,"forbidden","Only the family owner can delete this family.");
     const input=await body(request);
