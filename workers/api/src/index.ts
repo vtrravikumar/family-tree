@@ -165,11 +165,14 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       // Uncertain historical dates are retained as unknown precision, not treated as import errors.
       const birth=validDate(suppliedBirth)?suppliedBirth:null;
       const death=validDate(suppliedDeath)?suppliedDeath:null;
-      const hasDeathRecord=Boolean(suppliedDeath);
+      const hasDeathRecord=raw.lifeStatus==="deceased" || Boolean(suppliedDeath);
       const personId=id(), gender=["female","male","non_binary","unspecified"].includes(String(raw.gender))?String(raw.gender):"unspecified";
       const life=hasDeathRecord?"deceased":"alive";
-      await env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,family_name,display_name,gender,life_status,birth_date_kind,birth_exact_date,death_date_kind,death_exact_date,created_by_user_id,created_at,updated_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,'dev-owner',?,?)`).bind(personId,familyId,given,family,display,gender,life,birth?"exact":"unknown",birth,hasDeathRecord?(death?"exact":"unknown"):"unknown",death,t,t).run();
+      const middle=textOrNull(raw.middleName);
+      const birthKind=birth?(raw.birthDateKind==="exact"?"exact":"exact"):"unknown";
+      const deathKind=hasDeathRecord?(death?"exact":"unknown"):"unknown";
+      await env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,birth_date_kind,birth_exact_date,death_date_kind,death_exact_date,created_by_user_id,created_at,updated_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'dev-owner',?,?)`).bind(personId,familyId,given,middle,family,[given,middle,family].filter(Boolean).join(" "),gender,life,birthKind,birth,deathKind,death,t,t).run();
       await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,?,?,?)")
         .bind(id(),familyId,personId,"person.imported",JSON.stringify({source:"family-tree.xlsx",lifeStatus:life}),t).run();
       if (death) await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.marked_deceased',?,?)")
@@ -201,7 +204,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       skippedRelationshipDetails.push({from:String(raw.from??""),to:String(raw.to??""),type:String(raw.type??""),reason});
     };
     for (const raw of relationshipInputs) {
-      if (!isObject(raw)||typeof raw.from!=="string"||typeof raw.to!=="string"||!["biological_parent","spouse"].includes(String(raw.type))) { if(isObject(raw))skipRelationship(raw,"unsupported_or_malformed"); continue; }
+      if (!isObject(raw)||typeof raw.from!=="string"||typeof raw.to!=="string"||!relationshipTypes.includes(String(raw.type))) { if(isObject(raw))skipRelationship(raw,"unsupported_or_malformed"); continue; }
       const fromId=keyToId.get(raw.from),toId=keyToId.get(raw.to),type=String(raw.type);
       if (!fromId||!toId) { skipRelationship(raw,"person_key_not_resolved");continue; }
       if (fromId===toId) { skipRelationship(raw,"self_relationship_after_matching");continue; }
