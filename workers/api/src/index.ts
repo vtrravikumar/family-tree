@@ -301,7 +301,7 @@ export default {
       "http://127.0.0.1:5173",
     ]);
     const corsHeaders: Record<string, string> = {
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Authorization, Content-Type",
       "Access-Control-Max-Age": "86400",
       "Vary": "Origin",
