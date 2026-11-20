@@ -191,7 +191,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       FROM families f JOIN users u ON u.id=f.owner_user_id ORDER BY f.created_at DESC`).all();
     return json({data:result.results});
   }
-  const supportAccess=url.pathname.match(/^\\/v1\\/platform\\/families\\/([^/]+)\\/support-access$/);
+  const supportAccess=url.pathname.match(/^\/v1\/platform\/families\/([^/]+)\/support-access$/);
   if(supportAccess&&request.method==="POST"){
     if(!superAdmin)return fail(403,"platform_admin_required","Super Admin access is required.");
     const familyId=supportAccess[1],input=await body(request),reason=typeof input?.reason==="string"?input.reason.trim():"";
