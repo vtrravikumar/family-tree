@@ -127,7 +127,7 @@ async function authorize(request: Request, env: Env): Promise<Response | null> {
 }
 async function ensureDevUser(db: D1Database) {
   const t = now();
-  await db.prepare(`INSERT INTO users(id,identity_provider,provider_subject,email,display_name,created_at,updated_at)
+  await db.prepare(`INSERT OR IGNORE INTO users(id,identity_provider,provider_subject,email,display_name,created_at,updated_at)
     VALUES('dev-owner','dev','dev-owner','dev-owner@vansvriksh.local','Development Owner',?,?)
     ON CONFLICT(identity_provider,provider_subject) DO UPDATE SET updated_at=excluded.updated_at`).bind(t,t).run();
 }
@@ -517,6 +517,7 @@ export default {
       "Vary": "Origin",
     };
     if (allowedOrigins.has(origin)) corsHeaders["Access-Control-Allow-Origin"] = origin;
+    if (origin && !allowedOrigins.has(origin) && ["POST","PUT","DELETE"].includes(request.method)) return fail(403,"origin_not_allowed","This browser origin is not allowed to modify family data.");
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
     let response: Response;
