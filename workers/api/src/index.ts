@@ -2,6 +2,7 @@ export interface Env {
   APP_ENV: string;
   DB: D1Database;
   DEV_API_TOKEN?: string;
+  GOOGLE_CLIENT_ID?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -24,11 +25,98 @@ async function body(request: Request): Promise<JsonObject | null> {
   try { const value: unknown = await request.json(); return isObject(value) ? value : null; }
   catch { return null; }
 }
+const SESSION_COOKIE = "vansvriksh_session";
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+let googleJwksCache: {keys: JsonWebKey[]; expiresAt: number} | null = null;
+function base64UrlBytes(value: string): Uint8Array {
+  const padded=value.replace(/-/g,"+").replace(/_/g,"/")+"===".slice((value.length+3)%4);
+  const binary=atob(padded);return Uint8Array.from(binary,ch=>ch.charCodeAt(0));
+}
+function base64Url(value: Uint8Array): string {
+  let binary="";for(const byte of value)binary+=String.fromCharCode(byte);
+  return btoa(binary).replace(/=/g,"").replace(/\\+/g,"-").replace(/\\//g,"_");
+}
+async function sha256(value: string): Promise<string> {
+  return base64Url(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value))));
+}
+function cookieValue(request: Request,name: string): string | null {
+  const cookie=request.headers.get("Cookie")||"";
+  for(const part of cookie.split(";")){const [key,...rest]=part.trim().split("=");if(key===name)return rest.join("=")||"";}
+  return null;
+}
+async function verifyGoogleCredential(credential: string, clientId: string): Promise<{sub:string;email:string;name:string;picture:string|null}|null> {
+  try {
+    const parts=credential.split(".");if(parts.length!==3)return null;
+    const header=JSON.parse(new TextDecoder().decode(base64UrlBytes(parts[0]))) as {alg?:string;kid?:string};
+    const claims=JSON.parse(new TextDecoder().decode(base64UrlBytes(parts[1]))) as {iss?:string;aud?:string;exp?:number;sub?:string;email?:string;email_verified?:boolean;name?:string;picture?:string};
+    if(header.alg!=="RS256"||!header.kid||!claims.sub||claims.aud!==clientId||
+      !["accounts.google.com","https://accounts.google.com"].includes(claims.iss||"")||
+      !claims.exp||claims.exp<=Math.floor(Date.now()/1000)||!claims.email||claims.email_verified!==true)return null;
+    if(!googleJwksCache||googleJwksCache.expiresAt<Date.now()){
+      const response=await fetch("https://www.googleapis.com/oauth2/v3/certs",{headers:{"Accept":"application/json"}});
+      if(!response.ok)return null;
+      const data=await response.json() as {keys:JsonWebKey[]};
+      googleJwksCache={keys:data.keys,expiresAt:Date.now()+60*60*1000};
+    }
+    const jwk=googleJwksCache.keys.find(key=>(key as JsonWebKey & {kid?:string}).kid===header.kid);
+    if(!jwk)return null;
+    const key=await crypto.subtle.importKey("jwk",jwk,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["verify"]);
+    const valid=await crypto.subtle.verify("RSASSA-PKCS1-v1_5",key,base64UrlBytes(parts[2]),new TextEncoder().encode(parts[0]+"."+parts[1]));
+    if(!valid)return null;
+    return {sub:claims.sub,email:claims.email,name:claims.name||claims.email,picture:claims.picture||null};
+  } catch { return null; }
+}
+async function currentSession(request: Request,db: D1Database): Promise<{id:string;email:string;displayName:string}|null> {
+  const token=cookieValue(request,SESSION_COOKIE);if(!token)return null;
+  const tokenHash=await sha256(token),t=now();
+  const row=await db.prepare(`SELECT u.id,u.email,u.display_name,s.id AS session_id FROM auth_sessions s
+    JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? LIMIT 1`).bind(tokenHash,t).first<{id:string;email:string;display_name:string;session_id:string}>();
+  if(!row)return null;
+  await db.prepare("UPDATE auth_sessions SET last_seen_at=? WHERE id=?").bind(t,row.session_id).run();
+  return {id:row.id,email:row.email,displayName:row.display_name};
+}
+async function authRoute(request: Request,env: Env,url: URL): Promise<Response|null> {
+  if(url.pathname==="/v1/auth/google"&&request.method==="POST"){
+    if(!env.GOOGLE_CLIENT_ID)return fail(503,"google_auth_not_configured","Google sign-in is not configured on the API.");
+    const input=await body(request),credential=typeof input?.credential==="string"?input.credential:"";
+    if(!credential)return fail(400,"missing_credential","A Google identity credential is required.");
+    const identity=await verifyGoogleCredential(credential,env.GOOGLE_CLIENT_ID);
+    if(!identity)return fail(401,"invalid_google_credential","Google could not verify this sign-in. Please try again.");
+    const timestamp=now();
+    // The first Google account claims the existing single-owner development identity.
+    // This preserves every existing family, membership, person and relationship ID.
+    const user=await env.DB.prepare(`INSERT INTO users(id,identity_provider,provider_subject,email,display_name,avatar_url,created_at,updated_at)
+      VALUES('dev-owner','google',?,?,?,?,?,?)
+      ON CONFLICT(identity_provider,provider_subject) DO UPDATE SET email=excluded.email,display_name=excluded.display_name,avatar_url=excluded.avatar_url,updated_at=excluded.updated_at
+      RETURNING id,email,display_name`).bind(identity.sub,identity.email,identity.name,identity.picture,timestamp,timestamp).first<{id:string;email:string;display_name:string}>();
+    if(!user||user.id!=="dev-owner")return fail(409,"account_not_linked","This Google account is not linked to the current development workspace owner.");
+    const random=new Uint8Array(32);crypto.getRandomValues(random);const sessionToken=base64Url(random);
+    const expiresAt=new Date(Date.now()+SESSION_TTL_SECONDS*1000).toISOString();
+    await env.DB.prepare("INSERT INTO auth_sessions(id,user_id,token_hash,expires_at,created_at,last_seen_at) VALUES(?,?,?,?,?,?)")
+      .bind(id(),user.id,await sha256(sessionToken),expiresAt,timestamp,timestamp).run();
+    const response=json({data:{user:{id:user.id,email:user.email,displayName:user.display_name},expiresAt}});
+    response.headers.append("Set-Cookie",SESSION_COOKIE+"="+sessionToken+"; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age="+SESSION_TTL_SECONDS);
+    return response;
+  }
+  if(url.pathname==="/v1/auth/me"&&request.method==="GET"){
+    const user=await currentSession(request,env.DB);
+    return user?json({data:{user}}):fail(401,"not_authenticated","Please sign in to continue.");
+  }
+  if(url.pathname==="/v1/auth/logout"&&request.method==="POST"){
+    const token=cookieValue(request,SESSION_COOKIE);
+    if(token)await env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash=?").bind(await sha256(token)).run();
+    const response=json({data:{signedOut:true}});
+    response.headers.append("Set-Cookie",SESSION_COOKIE+"=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0");
+    return response;
+  }
+  return null;
+}
 async function authorize(request: Request, env: Env): Promise<Response | null> {
-  if (env.APP_ENV !== "development") return fail(503, "auth_not_configured", "Authentication is not configured.");
+  if(await currentSession(request,env.DB))return null;
+  if (env.APP_ENV !== "development") return fail(401, "unauthorized", "Please sign in with Google.");
   if (!env.DEV_API_TOKEN) return fail(503, "dev_token_not_configured", "Configure the DEV_API_TOKEN Worker secret.");
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-  return safeEqual(token, env.DEV_API_TOKEN) ? null : fail(401, "unauthorized", "A valid development bearer token is required.");
+  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "") ?? "";
+  return safeEqual(token, env.DEV_API_TOKEN) ? null : fail(401, "unauthorized", "A valid sign-in session is required.");
 }
 async function ensureDevUser(db: D1Database) {
   const t = now();
@@ -46,6 +134,7 @@ const parentTypes = ["biological_parent", "adoptive_parent", "step_parent"];
 const relationshipTypes = [...parentTypes, "spouse", "partner", "sibling"];
 
 async function api(request: Request, env: Env, url: URL): Promise<Response> {
+  const authResponse=await authRoute(request,env,url);if(authResponse)return authResponse;
   const denied = await authorize(request, env);
   if (denied) return denied;
   await ensureDevUser(env.DB);
@@ -409,12 +498,14 @@ export default {
     const origin = request.headers.get("Origin") ?? "";
     const allowedOrigins = new Set([
       "https://vansvriksh-web-dev.pages.dev",
+      "https://vansvriksh.vtrrk.in",
       "http://localhost:5173",
       "http://127.0.0.1:5173",
     ]);
     const corsHeaders: Record<string, string> = {
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Authorization, Content-Type",
+      "Access-Control-Allow-Credentials": "true",
       "Access-Control-Max-Age": "86400",
       "Vary": "Origin",
     };
