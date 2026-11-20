@@ -10,6 +10,7 @@ Changes merged to `main` after the most recent formal release. These changes are
 - Optional relationship linking while adding a new family member.
 - When a new person is added as a **sibling**, automatically connect them to every member of the existing explicitly linked **Sibling** group.
 - Keep **Sibling** distinct from **Half-sibling**; half-sibling relationships are never inferred by this automatic linking behavior.
+- When adding a new sibling, also connect them to every biological parent recorded for the existing sibling group. Adoptive and step-parent relationships are not inherited automatically.
 
 ### Improved
 - Family members and Relationships sections can be collapsed to keep large workspaces manageable.
