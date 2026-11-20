@@ -1,0 +1,69 @@
+# Changelog
+
+All notable Vansvriksha releases are documented here. This project uses Semantic Versioning (SemVer).
+
+## [Unreleased]
+
+Changes merged to `main` after the most recent formal release. These changes are part of the next release, but are not yet assigned a release number.
+
+### Added
+- Optional relationship linking while adding a new family member.
+- When a new person is added as a **sibling**, automatically connect them to every member of the existing explicitly linked **Sibling** group.
+- Keep **Sibling** distinct from **Half-sibling**; half-sibling relationships are never inferred by this automatic linking behavior.
+
+### Improved
+- Family members and Relationships sections can be collapsed to keep large workspaces manageable.
+- Returning to All generations clears the selected-person focus.
+- Ancestors and descendants views are not dimmed by first-degree focus behavior.
+
+### Release history
+No formal releases have been published yet.
+
+---
+
+## Release entry template
+
+For every formal release, add a newest-first section using this structure:
+
+## [X.Y.Z] - YYYY-MM-DD
+
+### Highlights
+- The most important user-visible outcome.
+
+### Added
+- New capabilities.
+
+### Improved
+- Enhancements to existing behavior or performance.
+
+### Fixed
+- Bugs corrected.
+
+### Security
+- Security or privacy changes, if applicable.
+
+### Breaking changes
+- Incompatible API, data, workflow, or behavior changes. Write "None" when there are none.
+
+### Migration / upgrade notes
+- Database migrations, required configuration, data impact, and manual steps. Write "None" when there are none.
+
+### Known limitations
+- Important gaps users should know about.
+
+### Included commits
+- `<short-sha>` — <commit subject>
+
+---
+
+## Versioning policy
+
+- **MAJOR** (`X.0.0`): incompatible changes to user workflows, APIs, data formats, or stored data.
+- **MINOR** (`0.Y.0`): backward-compatible user-facing features and substantial capabilities.
+- **PATCH** (`0.0.Z`): backward-compatible bug fixes, small refinements, and security fixes.
+- While the product is in `0.x`, the API and data model may evolve; any breaking changes must still be called out explicitly.
+- Every release gets a matching Git tag (`vX.Y.Z`) and GitHub Release with these notes.
+- The root, web, and API package versions must be kept aligned at the release version.
+- A release is created only after CI is green and the intended deployment has succeeded. Development deployments from ordinary commits to `main` are not releases.
+- Release notes describe what users receive, not merely a list of code changes. Always identify data migrations, compatibility impact, and known limitations.
+- Each release entry records the exact included commit range or commit list so its contents are auditable.
