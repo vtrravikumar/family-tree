@@ -150,9 +150,14 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
       if(edge.from_person_id===selected)firstDegree.add(edge.to_person_id);
       if(edge.to_person_id===selected)firstDegree.add(edge.from_person_id);
     }
+    for(const edge of layout.siblings){
+      if(edge.from_person_id===selected)firstDegree.add(edge.to_person_id);
+      if(edge.to_person_id===selected)firstDegree.add(edge.from_person_id);
+    }
   }
   const isDirectParentEdge=(from:string,to:string)=>!selected||from===selected||to===selected;
   const isDirectSpouseEdge=(from:string,to:string)=>!selected||from===selected||to===selected;
+  const isDirectSiblingEdge=(from:string,to:string)=>!selected||from===selected||to===selected;
   const focused=people.find(p=>p.id===selected);
   const choosePerson=(id:string)=>{setSelected(id);setSearch(people.find(p=>p.id===id)?.display_name??"");};
   if(!people.length)return <div className="tree-empty">Add family members and connect their parent-child relationships to see the generations take shape.</div>;
@@ -168,7 +173,7 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
     <div className="tree-viewport"><svg width={Math.max(1,layout.width*zoom/100)} height={Math.max(1,layout.height*zoom/100)} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-label="Interactive family tree">
       {layout.parents.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;return <path key={e.id} d={parentConnectorPath(a,b,layout.nodes)} fill="none" stroke={isDirectParentEdge(e.from_person_id,e.to_person_id)?"#477b54":"#91a98d"} strokeWidth={isDirectParentEdge(e.from_person_id,e.to_person_id)?3:2} opacity={!selected||isDirectParentEdge(e.from_person_id,e.to_person_id)?1:0.12}/>;})}
       {layout.spouses.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const left=Math.min(a.x,b.x)+80,right=Math.max(a.x,b.x)+80,top=Math.min(a.y,b.y)-12;return <path key={e.id} d={`M ${left} ${Math.min(a.y,b.y)} C ${left} ${top}, ${right} ${top}, ${right} ${Math.min(a.y,b.y)}`} fill="none" stroke={isDirectSpouseEdge(e.from_person_id,e.to_person_id)?"#b87935":"#b58d62"} strokeWidth={isDirectSpouseEdge(e.from_person_id,e.to_person_id)?3.5:2.5} opacity={!selected||isDirectSpouseEdge(e.from_person_id,e.to_person_id)?1:0.12}/>;})}
-      {layout.siblings.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const leftNode=a.x<=b.x?a:b,rightNode=a.x<=b.x?b:a,top=Math.min(a.y,b.y)+72;return <path key={e.id} d={`M ${leftNode.x+160} ${leftNode.y+94} C ${leftNode.x+178} ${top}, ${rightNode.x-18} ${top}, ${rightNode.x} ${rightNode.y+94}`} fill="none" stroke="#9b9bba" strokeWidth="2" strokeDasharray="5 4" opacity={!selected?1:0.12}/>;})}
+      {layout.siblings.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const leftNode=a.x<=b.x?a:b,rightNode=a.x<=b.x?b:a,top=Math.min(a.y,b.y)+72;return <path key={e.id} d={`M ${leftNode.x+160} ${leftNode.y+94} C ${leftNode.x+178} ${top}, ${rightNode.x-18} ${top}, ${rightNode.x} ${rightNode.y+94}`} fill="none" stroke={isDirectSiblingEdge(e.from_person_id,e.to_person_id)?"#7777a8":"#9b9bba"} strokeWidth={isDirectSiblingEdge(e.from_person_id,e.to_person_id)?3:2} strokeDasharray="5 4" opacity={!selected||isDirectSiblingEdge(e.from_person_id,e.to_person_id)?1:0.12}/>;})}
       {layout.nodes.map(node=><g key={node.person.id} transform={`translate(${node.x},${node.y})`} onClick={()=>choosePerson(node.person.id)} style={{cursor:"pointer",opacity:!selected||firstDegree.has(node.person.id)?1:0.24}}>
         <rect width="160" height="104" rx="9" fill={node.person.life_status==="deceased"?"#f0eee8":"#fffefa"} stroke={selected===node.person.id?"#315b45":firstDegree.has(node.person.id)?"#6d9b72":"#d9dfd3"} strokeWidth={selected===node.person.id?3.5:firstDegree.has(node.person.id)?2.5:1.5}/>
         <circle cx="22" cy="24" r="14" fill={node.person.life_status==="deceased"?"#e1ded4":"#e5eee2"}/>
