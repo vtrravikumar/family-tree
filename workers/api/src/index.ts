@@ -2,6 +2,7 @@ export interface Env {
   APP_ENV: string;
   DB: D1Database;
   DEV_API_TOKEN?: string;
+  DEV_TEST_LOGIN_ENABLED?: string;
   GOOGLE_CLIENT_ID?: string;
   INITIAL_OWNER_EMAIL?: string;
   SUPER_ADMIN_EMAIL?: string;
@@ -80,7 +81,7 @@ async function currentSession(request: Request,db: D1Database): Promise<{id:stri
 async function authRoute(request: Request,env: Env,url: URL): Promise<Response|null> {
   // Development-only second identity for collaboration testing. Never available outside APP_ENV=development.
   if(url.pathname==="/v1/auth/dev"&&request.method==="POST"){
-    if(env.APP_ENV!=="development")return fail(404,"not_found","Route not found.");
+    if(env.APP_ENV!=="development"||env.DEV_TEST_LOGIN_ENABLED!=="true")return fail(404,"not_found","Route not found.");
     if(!env.DEV_API_TOKEN)return fail(503,"dev_token_not_configured","Development test sign-in is not configured.");
     const input=await body(request),provided=typeof input?.token==="string"?input.token:"";
     if(!provided||!safeEqual(provided,env.DEV_API_TOKEN))return fail(401,"invalid_dev_token","A valid development access token is required.");
