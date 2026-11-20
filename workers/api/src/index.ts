@@ -264,7 +264,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     } catch { return fail(409,"person_immutable","This profile could not be changed. It may have been marked deceased."); }
   }
 
-  const personDeleteMatch=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/people\\/([^/]+)$/);
+  const personDeleteMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)$/);
   if (personDeleteMatch && request.method === "DELETE") {
     const familyId=personDeleteMatch[1], personId=personDeleteMatch[2], role=await roleFor(env.DB,familyId);
     if (!role) return fail(404,"family_not_found","Family not found.");
