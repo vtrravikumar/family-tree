@@ -18,3 +18,10 @@ CREATE TABLE platform_audit_logs (
 );
 CREATE INDEX platform_audit_by_actor ON platform_audit_logs(actor_user_id, created_at);
 CREATE INDEX platform_audit_by_target ON platform_audit_logs(target_type, target_id, created_at);
+
+-- Bootstrap the known platform owner without changing existing family memberships.
+INSERT OR IGNORE INTO platform_super_admins(user_id,granted_by_user_id,granted_at,reason)
+SELECT id,NULL,datetime('now'),'Initial platform super administrator bootstrap'
+FROM users
+WHERE lower(email)='vtrravikumar@gmail.com'
+LIMIT 1;
