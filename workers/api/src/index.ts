@@ -560,7 +560,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     try {
       const result=await env.DB.prepare(`UPDATE persons SET life_status='deceased',death_date_kind=?,death_exact_date=?,death_year=?,death_range_start_year=?,death_range_end_year=?,death_original_text=?,updated_at=? WHERE id=? AND family_id=? AND life_status='alive'`).bind(deathKind,deathKind==="exact"?exact:null,(deathKind==="year"||deathKind==="approximate_year")?year:null,deathKind==="range"?start:null,deathKind==="range"?end:null,original,t,personId,familyId).run();
       if (!result.meta.changes) return fail(409,"person_not_markable","Person not found or is already deceased.");
-      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.marked_deceased',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({deathDateKind:deathKind}),t).run();
+      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'person.marked_deceased',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({deathDateKind:deathKind}),t).run();
       return json({data:{id:personId,lifeStatus:"deceased",deathDateKind:deathKind,updatedAt:t}});
     } catch { return fail(409,"person_immutable","This person's profile cannot be changed."); }
   }
@@ -633,7 +633,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       const relationshipId=id(), t=now();
       try {
         await env.DB.batch([
-          env.DB.prepare("INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) VALUES(?,?,?,?,?,'dev-owner',?)").bind(relationshipId,familyId,fromId,toId,type,t),
+          env.DB.prepare("INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) VALUES(?,?,?,?,?,?,?)").bind(relationshipId,familyId,fromId,toId,type,actorUserId,t),
           env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,?,'relationship',?,'relationship.created',?)") .bind(id(),familyId,actorUserId,relationshipId,t)
         ]);
         return json({data:{id:relationshipId,familyId,fromPersonId:fromId,toPersonId:toId,relationshipType:type,createdAt:t}},{status:201});
