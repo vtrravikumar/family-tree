@@ -264,6 +264,22 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     } catch { return fail(409,"person_immutable","This profile could not be changed. It may have been marked deceased."); }
   }
 
+  const restoreMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/restore$/);
+  if (restoreMatch && request.method === "POST") {
+    const familyId=restoreMatch[1], personId=restoreMatch[2], role=await roleFor(env.DB,familyId);
+    if (!role) return fail(404,"family_not_found","Family not found.");
+    if (role !== "owner" && role !== "admin") return fail(403,"forbidden","Only a family owner or admin can restore a profile.");
+    const input=await body(request);
+    if (input?.confirmed !== true) return fail(400,"confirmation_required","Explicit confirmation is required.");
+    const t=now();
+    try {
+      const result=await env.DB.prepare("UPDATE persons SET life_status='alive',death_date_kind='unknown',death_exact_date=NULL,death_year=NULL,death_range_start_year=NULL,death_range_end_year=NULL,death_original_text=NULL,updated_at=? WHERE id=? AND family_id=? AND life_status='deceased'").bind(t,personId,familyId).run();
+      if (!result.meta.changes) return fail(409,"person_not_restorable","Person not found or is already living.");
+      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.restored_to_alive',?,?)").bind(id(),familyId,personId,JSON.stringify({reason:textOrNull(input.reason)}),t).run();
+      return json({data:{id:personId,lifeStatus:"alive",updatedAt:t}});
+    } catch { return fail(409,"person_restore_failed","This profile could not be restored."); }
+  }
+
   const deceasedMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/deceased$/);
   if (deceasedMatch && request.method === "POST") {
     const familyId=deceasedMatch[1], personId=deceasedMatch[2], role=await roleFor(env.DB,familyId);
@@ -285,6 +301,42 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.marked_deceased',?,?)").bind(id(),familyId,personId,JSON.stringify({deathDateKind:deathKind}),t).run();
       return json({data:{id:personId,lifeStatus:"deceased",deathDateKind:deathKind,updatedAt:t}});
     } catch { return fail(409,"person_immutable","This person's profile cannot be changed."); }
+  }
+
+  const relationshipItemMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/relationships\/([^/]+)$/);
+  if (relationshipItemMatch && (request.method === "PUT" || request.method === "DELETE")) {
+    const familyId=relationshipItemMatch[1], relationshipId=relationshipItemMatch[2], role=await roleFor(env.DB,familyId);
+    if (!role) return fail(404,"family_not_found","Family not found.");
+    if (role === "viewer") return fail(403,"forbidden","Viewer access cannot change relationships.");
+    const current=await env.DB.prepare("SELECT id,from_person_id,to_person_id,relationship_type FROM relationships WHERE id=? AND family_id=?").bind(relationshipId,familyId).first<{id:string;from_person_id:string;to_person_id:string;relationship_type:string}>();
+    if (!current) return fail(404,"relationship_not_found","Relationship not found.");
+    const t=now();
+    if (request.method === "DELETE") {
+      await env.DB.batch([
+        env.DB.prepare("DELETE FROM relationships WHERE id=? AND family_id=?").bind(relationshipId,familyId),
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','relationship',?,'relationship.deleted',?,?)").bind(id(),familyId,relationshipId,JSON.stringify({from:current.from_person_id,to:current.to_person_id,type:current.relationship_type}),t)
+      ]);
+      return json({data:{id:relationshipId,deleted:true}});
+    }
+    const input=await body(request);
+    const fromId=textOrNull(input?.fromPersonId),toId=textOrNull(input?.toPersonId),type=textOrNull(input?.relationshipType);
+    if (!fromId||!toId||!type||!relationshipTypes.includes(type)) return fail(400,"invalid_relationship","Provide two people and a supported relationship type.");
+    if(fromId===toId)return fail(400,"self_relationship","A person cannot have a relationship with themselves.");
+    const people=await env.DB.prepare("SELECT id FROM persons WHERE family_id=? AND id IN (?,?)").bind(familyId,fromId,toId).all<{id:string}>();
+    if(people.results.length!==2)return fail(400,"person_not_in_family","Both people must belong to this family.");
+    const duplicate=type==="spouse"
+      ? await env.DB.prepare("SELECT id FROM relationships WHERE family_id=? AND relationship_type='spouse' AND id<>? AND ((from_person_id=? AND to_person_id=?) OR (from_person_id=? AND to_person_id=?)) LIMIT 1").bind(familyId,relationshipId,fromId,toId,toId,fromId).first()
+      : await env.DB.prepare("SELECT id FROM relationships WHERE family_id=? AND from_person_id=? AND to_person_id=? AND relationship_type=? AND id<>? LIMIT 1").bind(familyId,fromId,toId,type,relationshipId).first();
+    if(duplicate)return fail(409,"duplicate_relationship","This relationship already exists.");
+    if(parentTypes.includes(type)){
+      const cycle=await env.DB.prepare(`WITH RECURSIVE descendants(person_id) AS (SELECT to_person_id FROM relationships WHERE family_id=? AND from_person_id=? AND relationship_type IN ('biological_parent','adoptive_parent','step_parent') AND id<>? UNION SELECT r.to_person_id FROM relationships r JOIN descendants d ON r.from_person_id=d.person_id WHERE r.family_id=? AND r.relationship_type IN ('biological_parent','adoptive_parent','step_parent') AND r.id<>?) SELECT 1 FROM descendants WHERE person_id=? LIMIT 1`).bind(familyId,toId,relationshipId,familyId,relationshipId,fromId).first();
+      if(cycle)return fail(409,"relationship_cycle","This parent-child relationship would create an ancestry cycle.");
+    }
+    await env.DB.batch([
+      env.DB.prepare("UPDATE relationships SET from_person_id=?,to_person_id=?,relationship_type=? WHERE id=? AND family_id=?").bind(fromId,toId,type,relationshipId,familyId),
+      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','relationship',?,'relationship.updated',?,?)").bind(id(),familyId,relationshipId,JSON.stringify({from:fromId,to:toId,type}),t)
+    ]);
+    return json({data:{id:relationshipId,fromPersonId:fromId,toPersonId:toId,relationshipType:type,updatedAt:t}});
   }
 
   const relationshipsMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/relationships$/);
@@ -339,7 +391,7 @@ export default {
       "http://127.0.0.1:5173",
     ]);
     const corsHeaders: Record<string, string> = {
-      "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Authorization, Content-Type",
       "Access-Control-Max-Age": "86400",
       "Vary": "Origin",
