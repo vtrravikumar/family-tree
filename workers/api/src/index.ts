@@ -85,11 +85,18 @@ async function authRoute(request: Request,env: Env,url: URL): Promise<Response|n
     const timestamp=now();
     // The first Google account claims the existing single-owner development identity.
     // This preserves every existing family, membership, person and relationship ID.
-    const user=await env.DB.prepare(`INSERT INTO users(id,identity_provider,provider_subject,email,display_name,avatar_url,created_at,updated_at)
-      VALUES('dev-owner','google',?,?,?,?,?,?)
-      ON CONFLICT(identity_provider,provider_subject) DO UPDATE SET email=excluded.email,display_name=excluded.display_name,avatar_url=excluded.avatar_url,updated_at=excluded.updated_at
-      RETURNING id,email,display_name`).bind(identity.sub,identity.email,identity.name,identity.picture,timestamp,timestamp).first<{id:string;email:string;display_name:string}>();
-    if(!user||user.id!=="dev-owner")return fail(409,"account_not_linked","This Google account is not linked to the current development workspace owner.");
+    let user=await env.DB.prepare("SELECT id,email,display_name FROM users WHERE identity_provider='google' AND provider_subject=?")
+      .bind(identity.sub).first<{id:string;email:string;display_name:string}>();
+    if(!user){
+      const legacy=await env.DB.prepare("SELECT id FROM users WHERE id='dev-owner' AND identity_provider='dev'").first<{id:string}>();
+      if(!legacy)return fail(409,"account_not_linked","This Google account is not linked to the current development workspace owner.");
+      await env.DB.prepare("UPDATE users SET identity_provider='google',provider_subject=?,email=?,display_name=?,avatar_url=?,updated_at=? WHERE id='dev-owner' AND identity_provider='dev'")
+        .bind(identity.sub,identity.email,identity.name,identity.picture,timestamp).run();
+      user={id:"dev-owner",email:identity.email,display_name:identity.name};
+    }
+    if(user.id!=="dev-owner")return fail(409,"account_not_linked","This Google account is not linked to the current development workspace owner.");
+    await env.DB.prepare("UPDATE users SET email=?,display_name=?,avatar_url=?,updated_at=? WHERE id=?")
+      .bind(identity.email,identity.name,identity.picture,timestamp,user.id).run();
     const random=new Uint8Array(32);crypto.getRandomValues(random);const sessionToken=base64Url(random);
     const expiresAt=new Date(Date.now()+SESSION_TTL_SECONDS*1000).toISOString();
     await env.DB.prepare("INSERT INTO auth_sessions(id,user_id,token_hash,expires_at,created_at,last_seen_at) VALUES(?,?,?,?,?,?)")
