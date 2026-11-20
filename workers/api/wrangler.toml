@@ -7,6 +7,7 @@ workers_dev = false
 
 [vars]
 APP_ENV = "development"
+GOOGLE_CLIENT_ID = "569004813603-bgdrv8dmth1po7hvn84ke5jq9vmkkalt.apps.googleusercontent.com"
 
 [env.dev]
 name = "family-tree-api-dev"
@@ -20,3 +21,4 @@ migrations_dir = "migrations"
 
 [env.dev.vars]
 APP_ENV = "development"
+GOOGLE_CLIENT_ID = "569004813603-bgdrv8dmth1po7hvn84ke5jq9vmkkalt.apps.googleusercontent.com"
