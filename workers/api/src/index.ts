@@ -78,6 +78,25 @@ async function currentSession(request: Request,db: D1Database): Promise<{id:stri
   return {id:row.id,email:row.email,displayName:row.display_name};
 }
 async function authRoute(request: Request,env: Env,url: URL): Promise<Response|null> {
+  // Development-only second identity for collaboration testing. Never available outside APP_ENV=development.
+  if(url.pathname==="/v1/auth/dev"&&request.method==="POST"){
+    if(env.APP_ENV!=="development")return fail(404,"not_found","Route not found.");
+    if(!env.DEV_API_TOKEN)return fail(503,"dev_token_not_configured","Development test sign-in is not configured.");
+    const input=await body(request),provided=typeof input?.token==="string"?input.token:"";
+    if(!provided||!safeEqual(provided,env.DEV_API_TOKEN))return fail(401,"invalid_dev_token","A valid development access token is required.");
+    const timestamp=now();
+    await env.DB.prepare(`INSERT OR IGNORE INTO users(id,identity_provider,provider_subject,email,display_name,created_at,updated_at)
+      VALUES('dev-tester','dev','dev-tester','vansvriksh-tester@vansvriksh.local','Vansvriksh Tester',?,?)`).bind(timestamp,timestamp).run();
+    const user=await env.DB.prepare("SELECT id,email,display_name FROM users WHERE id='dev-tester' AND identity_provider='dev'").first<{id:string;email:string;display_name:string}>();
+    if(!user)return fail(500,"dev_test_user_unavailable","The development test identity could not be created.");
+    const random=new Uint8Array(32);crypto.getRandomValues(random);const sessionToken=base64Url(random);
+    const expiresAt=new Date(Date.now()+SESSION_TTL_SECONDS*1000).toISOString();
+    await env.DB.prepare("INSERT INTO auth_sessions(id,user_id,token_hash,expires_at,created_at,last_seen_at) VALUES(?,?,?,?,?,?)")
+      .bind(id(),user.id,await sha256(sessionToken),expiresAt,timestamp,timestamp).run();
+    const response=json({data:{user:{id:user.id,email:user.email,displayName:user.display_name},expiresAt,developmentOnly:true}});
+    response.headers.append("Set-Cookie",SESSION_COOKIE+"="+sessionToken+"; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age="+SESSION_TTL_SECONDS);
+    return response;
+  }
   if(url.pathname==="/v1/auth/google"&&request.method==="POST"){
     if(!env.GOOGLE_CLIENT_ID)return fail(503,"google_auth_not_configured","Google sign-in is not configured on the API.");
     const input=await body(request),credential=typeof input?.credential==="string"?input.credential:"";
