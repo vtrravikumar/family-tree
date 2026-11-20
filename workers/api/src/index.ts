@@ -68,6 +68,23 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     return json({data:{id:familyId,name,role:"owner",createdAt:t}},{status:201});
   }
 
+  const familyDeleteMatch=url.pathname.match(/^\/v1\/families\/([^/]+)$/);
+  if (familyDeleteMatch && request.method === "DELETE") {
+    const familyId=familyDeleteMatch[1], role=await roleFor(env.DB,familyId);
+    if (!role) return fail(404,"family_not_found","Family not found.");
+    if (role !== "owner") return fail(403,"forbidden","Only the family owner can delete this family.");
+    const input=await body(request);
+    if (input?.confirmed !== true) return fail(400,"confirmation_required","Explicit confirmation is required.");
+    const family=await env.DB.prepare("SELECT name FROM families WHERE id=?").bind(familyId).first<{name:string}>();
+    if (!family) return fail(404,"family_not_found","Family not found.");
+    try {
+      await env.DB.prepare("DELETE FROM families WHERE id=?").bind(familyId).run();
+      return json({data:{id:familyId,name:family.name,deleted:true}});
+    } catch {
+      return fail(409,"family_delete_blocked","This family could not be deleted because dependent records are protected. No family data was intentionally changed.");
+    }
+  }
+
   const peopleMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people$/);
   if (peopleMatch) {
     const familyId=peopleMatch[1], role=await roleFor(env.DB,familyId);
