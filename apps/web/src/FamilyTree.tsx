@@ -58,11 +58,7 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
         if(!changed)break;
       }
     }
-    // In ancestor mode, include each ancestor's spouse/partner at the same generation.
-    if(mode==="ancestors"&&selected){
-      let expanded=true;
-      while(expanded){expanded=false;for(const edge of spouses){if(visible.has(edge.from_person_id)&&!visible.has(edge.to_person_id)){visible.add(edge.to_person_id);generations.set(edge.to_person_id,generations.get(edge.from_person_id)??-1);expanded=true;}else if(visible.has(edge.to_person_id)&&!visible.has(edge.from_person_id)){visible.add(edge.from_person_id);generations.set(edge.from_person_id,generations.get(edge.to_person_id)??-1);expanded=true;}}}
-    }
+    // Ancestor view contains only the selected person and their recorded ancestors.
     // Generation is a shared horizontal band: spouses/partners and siblings
     // must sit at the same height. Parent-child edges then propagate the
     // resulting generation levels through the visible family.
@@ -136,11 +132,11 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
       orderedList.forEach((person,i)=>{const x=42+i*218,y=42+(g-minGeneration)*174;xById.set(person.id,x+80);result.push({person,generation:g,x,y});});
     }
     const maxY=Math.max(0,...result.map(n=>n.y));
-    return {nodes:result,width:Math.max(350,maxCount*218+20),height:Math.max(210,maxY+145),parents:parents.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),spouses:spouses.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),siblings:siblings.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),visibleCount:visible.size};
+    return {nodes:result,width:Math.max(350,maxCount*218+20),height:Math.max(210,maxY+145),parents:parents.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),spouses:mode==="ancestors"?[]:spouses.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),siblings:mode==="ancestors"?[]:siblings.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),visibleCount:visible.size};
   },[people,relationships,mode,selected]);
   const byId=new Map(layout.nodes.map(n=>[n.person.id,n]));
   const firstDegree=new Set<string>();
-  if(selected){
+  if(selected&&mode==="generation"){
     firstDegree.add(selected);
     for(const edge of layout.parents){
       if(edge.from_person_id===selected)firstDegree.add(edge.to_person_id);
@@ -155,9 +151,10 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
       if(edge.to_person_id===selected)firstDegree.add(edge.from_person_id);
     }
   }
-  const isDirectParentEdge=(from:string,to:string)=>!selected||from===selected||to===selected;
-  const isDirectSpouseEdge=(from:string,to:string)=>!selected||from===selected||to===selected;
-  const isDirectSiblingEdge=(from:string,to:string)=>!selected||from===selected||to===selected;
+  const highlightActive=Boolean(selected&&mode==="generation");
+  const isDirectParentEdge=(from:string,to:string)=>!highlightActive||from===selected||to===selected;
+  const isDirectSpouseEdge=(from:string,to:string)=>!highlightActive||from===selected||to===selected;
+  const isDirectSiblingEdge=(from:string,to:string)=>!highlightActive||from===selected||to===selected;
   const focused=people.find(p=>p.id===selected);
   const choosePerson=(id:string)=>{setSelected(id);setSearch(people.find(p=>p.id===id)?.display_name??"");};
   if(!people.length)return <div className="tree-empty">Add family members and connect their parent-child relationships to see the generations take shape.</div>;
