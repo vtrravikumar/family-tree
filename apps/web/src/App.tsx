@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import FamilyTree from "./FamilyTree";
+import VersionHistory from "./VersionHistory";
 import { ramanImportGzipBase64 } from "./ramanImportData";
 type Family={id:string;name:string;role:string};
 type Person={id:string;display_name:string;given_name:string;middle_name:string|null;family_name:string|null;gender:string;life_status:string;birth_date_kind:string;birth_exact_date:string|null;birth_year:number|null;birth_range_start_year:number|null;birth_range_end_year:number|null;birth_original_text:string|null;death_date_kind:string;death_exact_date:string|null;death_year:number|null;death_range_start_year:number|null;death_range_end_year:number|null;death_original_text:string|null;biography?:string|null};
@@ -49,6 +50,7 @@ export default function App(){
  useEffect(()=>{if(connected&&familyId)loadData(familyId).catch(e=>setError(e.message));},[connected,familyId,loadData]);
  async function run(fn:()=>Promise<void>){setBusy(true);setError("");setNotice("");try{await fn();}catch(e){setError(e instanceof Error?e.message:"Something went wrong.");}finally{setBusy(false);}}
  const selected=families.find(f=>f.id===familyId);
+ if (window.location.pathname === "/version-history") return <VersionHistory version={__APP_VERSION__} build={__BUILD_NUMBER__} />;
  return <main className="app-shell">
   <header className="app-header"><a className="brand" href="/"><img className="brand-mark" src="/banyan-mark.svg" alt="" />Vansvriksha</a><span className="environment">DEVELOPMENT PREVIEW</span></header>
   {!connected?<section className="welcome-panel"><p className="eyebrow">A LIVING RECORD OF YOUR FAMILY</p><h1>Bring your family story <em>together.</em></h1><p className="intro">Create a shared family space, add the people who shaped your story, and connect generations.</p><div className="connect-card"><h2>Connect to your private workspace</h2><p>Enter the development access token configured for the API. It stays in this browser tab and is not saved.</p><label>Development access token</label><input type="password" value={token} onChange={e=>setToken(e.target.value)} placeholder="Paste DEV_API_TOKEN" autoComplete="off"/><button disabled={!token.trim()||busy} onClick={()=>run(async()=>{await loadFamilies();setConnected(true);setNotice("Connected to the development API.");})}>{busy?"Connecting…":"Connect"}</button>{error&&<p className="message error">{error}</p>}</div><p className="privacy-note">Private by default · Historical uncertainty is welcome · Built for generations</p></section>:
