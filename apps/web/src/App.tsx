@@ -152,6 +152,6 @@ export default function App(){
      {rels.length>0&&<div className="relationship-list">{rels.map(r=><div className="relationship-row" key={r.id}><span>{r.from_name}</span><small>{labels[r.relationship_type]||r.relationship_type}</small><span>{r.to_name}</span><div className="relationship-actions"><button type="button" className="edit-person" onClick={()=>{setRelationshipEdit(r);setRelationshipFrom(r.from_person_id);setRelationshipTo(r.to_person_id);setRelationshipTypeEdit(r.relationship_type);}}>Edit</button><button type="button" className="relationship-delete" disabled={busy} onClick={()=>void run(async()=>{if(!window.confirm("Delete the relationship between "+r.from_name+" and "+r.to_name+"?"))return;await request("/v1/families/"+familyId+"/relationships/"+r.id,"DELETE");await loadData(familyId);setNotice("Relationship deleted.");})}>Delete</button></div></div>)}</div>}</details><FamilySummary people={people} relationships={rels}/><FamilyTree key={familyId} people={people} relationships={rels}/></div>
     </>}</section></section>
   </>}
-  <footer className="app-footer"><span>Vansvriksh</span><span>Preserving connections, one generation at a time.</span></footer>
+  <footer className="app-footer"><span>Vansvriksha</span><span>Preserving connections, one generation at a time.</span><a className="version-link" href="/version-history" title="View version history">v{__APP_VERSION__} (build {__BUILD_NUMBER__})</a></footer>
  </main>;
 }
