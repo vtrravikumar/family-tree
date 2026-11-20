@@ -47,3 +47,9 @@
 .family-summary-row dd{margin:0;text-align:right;font:700 17px Georgia,serif;color:#263a2e;}
 .family-summary-note{margin:16px 8px 2px;padding-top:12px;border-top:1px solid #e0e7df;color:#788278;font-size:10px;line-height:1.55;}
 @media(max-width:600px){.family-summary{padding:24px 20px 18px}.family-summary h3{margin:12px 0 20px}.family-summary-row{gap:10px;padding:9px 0}.family-summary-row dt{font-size:13px}.family-summary-row dd{font-size:14px}}
+
+
+/* Default family avatars and memorial indicator */
+.avatar{position:relative;flex:0 0 36px;overflow:visible}
+.avatar-memorial{position:absolute;right:-4px;top:-5px;width:16px;height:16px;display:grid;place-items:center;border:1.5px solid #fffefa;border-radius:50%;background:#777b75;color:#fff;font:700 11px/1 Georgia,serif;font-style:normal}
+.avatar-deceased{filter:saturate(.65)}
