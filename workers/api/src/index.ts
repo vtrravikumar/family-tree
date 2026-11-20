@@ -264,6 +264,28 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     } catch { return fail(409,"person_immutable","This profile could not be changed. It may have been marked deceased."); }
   }
 
+  const personDeleteMatch=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/people\\/([^/]+)$/);
+  if (personDeleteMatch && request.method === "DELETE") {
+    const familyId=personDeleteMatch[1], personId=personDeleteMatch[2], role=await roleFor(env.DB,familyId);
+    if (!role) return fail(404,"family_not_found","Family not found.");
+    if (role !== "owner" && role !== "admin") return fail(403,"forbidden","Only a family owner or admin can delete a person.");
+    const input=await body(request);
+    if (input?.confirmed !== true) return fail(400,"confirmation_required","Explicit confirmation is required.");
+    const current=await env.DB.prepare("SELECT display_name,life_status FROM persons WHERE id=? AND family_id=?").bind(personId,familyId).first<{display_name:string|null,life_status:string}>();
+    if (!current) return fail(404,"person_not_found","Family member not found.");
+    if (current.life_status === "deceased") return fail(409,"person_immutable","Deceased profiles cannot be deleted.");
+    const dependencies=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM media WHERE person_id=? AND family_id=?) AS media_count,(SELECT COUNT(*) FROM tree_layouts WHERE focus_person_id=? AND family_id=?) AS layout_count,(SELECT COUNT(*) FROM share_links WHERE focus_person_id=? AND family_id=?) AS share_count").bind(personId,familyId,personId,familyId,personId,familyId).first<{media_count:number,layout_count:number,share_count:number}>();
+    if (dependencies && (dependencies.media_count||dependencies.layout_count||dependencies.share_count)) return fail(409,"person_has_dependencies","This person is referenced by a photo, saved layout, or branch share link. Remove or reassign those items before deleting the person.");
+    const t=now();
+    try {
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,'dev-owner','person',?,'person.deleted',?,?)").bind(id(),familyId,personId,JSON.stringify({displayName:current.display_name,relationships:"cascade_deleted"}),t),
+        env.DB.prepare("DELETE FROM persons WHERE id=? AND family_id=? AND life_status='alive'").bind(personId,familyId)
+      ]);
+      return json({data:{id:personId,deleted:true,relationshipsDeleted:"all"}});
+    } catch { return fail(409,"person_delete_failed","This person could not be deleted. No records were removed."); }
+  }
+
   const restoreMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/restore$/);
   if (restoreMatch && request.method === "POST") {
     const familyId=restoreMatch[1], personId=restoreMatch[2], role=await roleFor(env.DB,familyId);
