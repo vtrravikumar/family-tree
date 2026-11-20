@@ -11,6 +11,7 @@ Changes merged to `main` after the most recent formal release. These changes are
 - When a new person is added as a **sibling**, automatically connect them to every member of the existing explicitly linked **Sibling** group.
 - Keep **Sibling** distinct from **Half-sibling**; half-sibling relationships are never inferred by this automatic linking behavior.
 - When adding a new sibling, also connect them to every biological parent recorded for the existing sibling group. Adoptive and step-parent relationships are not inherited automatically.
+- Add owner/admin person deletion with explicit name confirmation; deleting a living person also removes all connected relationships. Deceased profiles remain protected. Existing media, saved-layout, or branch-share references block deletion.
 
 ### Improved
 - Family members and Relationships sections can be collapsed to keep large workspaces manageable.
