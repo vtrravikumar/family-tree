@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-type TreePerson = { id:string; display_name:string; life_status:string; birth_date_kind:string; birth_exact_date:string|null; birth_year:number|null; birth_range_start_year:number|null; birth_range_end_year:number|null; birth_original_text:string|null };
+type TreePerson = { id:string; display_name:string; gender?:string; life_status:string; birth_date_kind:string; birth_exact_date:string|null; birth_year:number|null; birth_range_start_year:number|null; birth_range_end_year:number|null; birth_original_text:string|null };
 type TreeRelationship = { id:string; from_person_id:string; to_person_id:string; relationship_type:string };
 type Node = { person:TreePerson; generation:number; x:number; y:number };
 type ViewMode = "generation" | "ancestors" | "descendants";
@@ -174,10 +174,11 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
       {layout.nodes.map(node=><g key={node.person.id} transform={`translate(${node.x},${node.y})`} onClick={()=>choosePerson(node.person.id)} style={{cursor:"pointer",opacity:!highlightActive||firstDegree.has(node.person.id)?1:0.24}}>
         <rect width="160" height="104" rx="9" fill={node.person.life_status==="deceased"?"#dededb":node.person.gender==="female"?"#fbf0f4":node.person.gender==="male"?"#edf4f9":"#fffefa"} stroke={selected===node.person.id?"#315b45":highlightActive&&firstDegree.has(node.person.id)?"#6d9b72":node.person.life_status==="deceased"?"#b9b9b3":node.person.gender==="female"?"#e8cbd6":node.person.gender==="male"?"#c9dbe8":"#d9dfd3"} strokeWidth={selected===node.person.id?3.5:highlightActive&&firstDegree.has(node.person.id)?2.5:1.5}/>
         <circle cx="22" cy="24" r="14" fill={node.person.life_status==="deceased"?"#c7c7c1":node.person.gender==="female"?"#f0dce5":node.person.gender==="male"?"#d9e7f1":"#e5eee2"}/>
-        <text x="22" y="29" textAnchor="middle" fontSize="13" fill={node.person.life_status==="deceased"?"#555a55":node.person.gender==="female"?"#86556c":node.person.gender==="male"?"#42647b":"#315b45"} fontWeight="600">{node.person.display_name.charAt(0).toUpperCase()}</text>
+        <text x="22" y="29" textAnchor="middle" fontSize="15" fill={node.person.gender==="female"?"#86556c":node.person.gender==="male"?"#42647b":"#315b45"} fontWeight="600">{node.person.gender==="female"?"♀":node.person.gender==="male"?"♂":node.person.display_name.charAt(0).toUpperCase()}</text>
+        {node.person.life_status==="deceased"&&<g><circle cx="37" cy="13" r="8" fill="#777b75" stroke="#dededb" strokeWidth="1.5"/><text x="37" y="17" textAnchor="middle" fontSize="11" fontWeight="700" fill="#fff">†</text></g>}
         <text x="12" y="57" fontSize="12" fontWeight="600" fill="#29382f">{node.person.display_name.length>19?node.person.display_name.slice(0,17)+"…":node.person.display_name}</text>
         <text x="12" y="77" fontSize="10" fill="#747c72">{birthLabel(node.person)}</text>
-        <text x="12" y="93" fontSize="9" fill={node.person.life_status==="deceased"?"#77776e":"#477454"}>{node.person.life_status==="deceased"?"DECEASED":"LIVING"}</text>
+        <text x="12" y="93" fontSize="9" fill={node.person.life_status==="deceased"?"#666b65":"#477454"}>{node.person.life_status==="deceased"?"† DECEASED":"LIVING"}</text>
       </g>)}
     </svg>{layout.nodes.length===0&&<p className="tree-hint">No people in this view yet. Search for a person to focus the branch.</p>}</div>
     {focused&&<div className="tree-person-detail"><strong>{focused.display_name}</strong><span>{focused.life_status==="deceased"?"Deceased":"Living"} · {birthLabel(focused)}</span><button className="button-secondary" onClick={()=>{setSelected(null);setSearch("");}}>Clear focus</button></div>}
