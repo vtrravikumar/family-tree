@@ -4,6 +4,7 @@ export interface Env {
   DEV_API_TOKEN?: string;
   GOOGLE_CLIENT_ID?: string;
   INITIAL_OWNER_EMAIL?: string;
+  SUPER_ADMIN_EMAIL?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -97,6 +98,10 @@ async function authRoute(request: Request,env: Env,url: URL): Promise<Response|n
       user={id:"dev-owner",email:identity.email,display_name:identity.name};
     }
     if(user.id!=="dev-owner")return fail(409,"account_not_linked","This Google account is not linked to the current development workspace owner.");
+    if(identity.email.toLowerCase()===(env.SUPER_ADMIN_EMAIL||"vtrravikumar@gmail.com").toLowerCase()){
+      await env.DB.prepare(`INSERT OR IGNORE INTO platform_super_admins(user_id,granted_by_user_id,granted_at,reason)
+        VALUES(?,NULL,?,'Initial platform super administrator bootstrap')`).bind(user.id,timestamp).run();
+    }
     await env.DB.prepare("UPDATE users SET email=?,display_name=?,avatar_url=?,updated_at=? WHERE id=?")
       .bind(identity.email,identity.name,identity.picture,timestamp,user.id).run();
     const random=new Uint8Array(32);crypto.getRandomValues(random);const sessionToken=base64Url(random);
@@ -133,6 +138,14 @@ async function ensureDevUser(db: D1Database) {
     VALUES('dev-owner','dev','dev-owner','dev-owner@vansvriksh.local','Development Owner',?,?)
     ON CONFLICT(identity_provider,provider_subject) DO UPDATE SET updated_at=excluded.updated_at`).bind(t,t).run();
 }
+async function isSuperAdmin(db:D1Database,userId:string):Promise<boolean>{
+  const row=await db.prepare("SELECT 1 AS allowed FROM platform_super_admins WHERE user_id=?").bind(userId).first<{allowed:number}>();
+  return !!row;
+}
+async function writePlatformAudit(db:D1Database,actorUserId:string,action:string,targetType:string,targetId:string|null,reason:string,metadata?:unknown){
+  await db.prepare("INSERT INTO platform_audit_logs(id,actor_user_id,action,target_type,target_id,reason,metadata,created_at) VALUES(?,?,?,?,?,?,?,?)")
+    .bind(id(),actorUserId,action,targetType,targetId,reason,metadata?JSON.stringify(metadata):null,now()).run();
+}
 async function roleFor(db: D1Database, familyId: string) {
   const row = await db.prepare("SELECT role FROM family_members WHERE family_id=? AND user_id='dev-owner'").bind(familyId).first<{role:string}>();
   return row?.role ?? null;
@@ -147,6 +160,58 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   const denied = await authorize(request, env);
   if (denied) return denied;
   await ensureDevUser(env.DB);
+  const session=await currentSession(request,env.DB);
+  const actorUserId=session?.id??"dev-owner";
+  const superAdmin=!!session&&await isSuperAdmin(env.DB,session.id);
+
+  if(url.pathname==="/v1/platform/me"&&request.method==="GET"){
+    return json({data:{isSuperAdmin:superAdmin,user:session?{id:session.id,email:session.email,displayName:session.displayName}:null}});
+  }
+  if(url.pathname==="/v1/platform/overview"&&request.method==="GET"){
+    if(!superAdmin)return fail(403,"platform_admin_required","Super Admin access is required.");
+    const [users,families]=await Promise.all([
+      env.DB.prepare("SELECT COUNT(*) AS count FROM users").first<{count:number}>(),
+      env.DB.prepare("SELECT COUNT(*) AS count FROM families").first<{count:number}>()
+    ]);
+    return json({data:{userCount:users?.count??0,familyCount:families?.count??0}});
+  }
+  if(url.pathname==="/v1/platform/users"&&request.method==="GET"){
+    if(!superAdmin)return fail(403,"platform_admin_required","Super Admin access is required.");
+    const result=await env.DB.prepare(`SELECT u.id,u.email,u.display_name,u.avatar_url,u.created_at,
+      CASE WHEN sa.user_id IS NULL THEN 0 ELSE 1 END AS is_super_admin,
+      (SELECT COUNT(*) FROM family_members fm WHERE fm.user_id=u.id) AS family_count
+      FROM users u LEFT JOIN platform_super_admins sa ON sa.user_id=u.id ORDER BY u.created_at DESC`).all();
+    return json({data:result.results});
+  }
+  if(url.pathname==="/v1/platform/families"&&request.method==="GET"){
+    if(!superAdmin)return fail(403,"platform_admin_required","Super Admin access is required.");
+    const result=await env.DB.prepare(`SELECT f.id,f.name,f.created_at,f.updated_at,u.email AS owner_email,
+      (SELECT COUNT(*) FROM family_members fm WHERE fm.family_id=f.id) AS member_count,
+      (SELECT COUNT(*) FROM persons p WHERE p.family_id=f.id) AS person_count
+      FROM families f JOIN users u ON u.id=f.owner_user_id ORDER BY f.created_at DESC`).all();
+    return json({data:result.results});
+  }
+  const supportAccess=url.pathname.match(/^\\/v1\\/platform\\/families\\/([^/]+)\\/support-access$/);
+  if(supportAccess&&request.method==="POST"){
+    if(!superAdmin)return fail(403,"platform_admin_required","Super Admin access is required.");
+    const familyId=supportAccess[1],input=await body(request),reason=typeof input?.reason==="string"?input.reason.trim():"";
+    if(reason.length<12||reason.length>500)return fail(400,"support_reason_required","Provide a clear support or recovery reason (12–500 characters).");
+    const family=await env.DB.prepare("SELECT id,name FROM families WHERE id=?").bind(familyId).first<{id:string;name:string}>();
+    if(!family)return fail(404,"family_not_found","Family not found.");
+    await writePlatformAudit(env.DB,actorUserId,"family.support_access","family",familyId,reason,{familyName:family.name});
+    const people=await env.DB.prepare(`SELECT id,given_name,middle_name,family_name,display_name,gender,life_status,
+      birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,
+      death_date_kind,death_exact_date,death_year,death_range_start_year,death_range_end_year,death_original_text,biography
+      FROM persons WHERE family_id=? ORDER BY family_name,given_name`).bind(familyId).all();
+    const relationships=await env.DB.prepare("SELECT id,from_person_id,to_person_id,relationship_type FROM relationships WHERE family_id=?").bind(familyId).all();
+    return json({data:{family,people:people.results,relationships:relationships.results,auditLogged:true}});
+  }
+  if(url.pathname==="/v1/platform/audit-logs"&&request.method==="GET"){
+    if(!superAdmin)return fail(403,"platform_admin_required","Super Admin access is required.");
+    const result=await env.DB.prepare(`SELECT l.id,l.actor_user_id,u.email AS actor_email,l.action,l.target_type,l.target_id,l.reason,l.metadata,l.created_at
+      FROM platform_audit_logs l JOIN users u ON u.id=l.actor_user_id ORDER BY l.created_at DESC LIMIT 200`).all();
+    return json({data:result.results});
+  }
 
   if (url.pathname === "/v1/families" && request.method === "GET") {
     const result = await env.DB.prepare(`SELECT f.id,f.name,f.created_at,f.updated_at,fm.role FROM families f
