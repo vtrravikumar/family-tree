@@ -1238,3 +1238,97 @@ a { color: #8ce9e4; }
     gap: 5px !important;
   }
 }
+
+
+/* 2030 theme contrast repair — establish the dark theme at the root */
+:root {
+  color-scheme: dark !important;
+  color: #eaf4ff !important;
+  background: #070d18 !important;
+}
+html, body, #root {
+  min-height: 100%;
+  color: #eaf4ff;
+  background-color: #070d18;
+}
+body {
+  background:
+    radial-gradient(ellipse at 14% 4%,rgba(42,104,157,.22),transparent 38rem),
+    radial-gradient(ellipse at 88% 10%,rgba(83,53,139,.19),transparent 36rem),
+    radial-gradient(ellipse at 52% 95%,rgba(17,123,126,.12),transparent 42rem),
+    #070d18 !important;
+}
+#root { isolation: isolate; }
+.welcome-panel { color: #eaf4ff; }
+.welcome-panel h1 {
+  color: #f1f8ff !important;
+  text-shadow: 0 2px 28px rgba(79,166,203,.12);
+}
+.welcome-panel h1 em { color: #79e6df !important; }
+.welcome-panel .intro,
+.welcome-panel .privacy-note { color: #a0b6ca !important; }
+.connect-card {
+  border: 1px solid rgba(130,190,224,.20) !important;
+  border-radius: 22px !important;
+  background: linear-gradient(145deg,rgba(22,43,66,.78),rgba(11,25,43,.72)) !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.045) !important;
+  color: #eaf4ff !important;
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+}
+.connect-card h2 { color: #f1f8ff !important; }
+.connect-card p,.connect-card label,.connect-card .helper-text {
+  color: #a8bfd2 !important;
+}
+.connect-card .dev-access {
+  border-top-color: rgba(136,190,224,.18) !important;
+}
+.connect-card .dev-access summary { color: #8fe9e3 !important; }
+.connect-card .dev-access label { color: #b7cadd !important; }
+.connect-card input {
+  background: rgba(5,15,29,.78) !important;
+  color: #f1f8ff !important;
+  border-color: rgba(136,190,224,.24) !important;
+}
+.connect-card input::placeholder { color: #7892aa !important; }
+.connect-card button:not(.google-signin-button) {
+  background: linear-gradient(110deg,#267e91,#5869ad) !important;
+  color: #fff !important;
+}
+.welcome-panel .message.error {
+  color: #ffd9df !important;
+  background: rgba(145,48,70,.22) !important;
+  border: 1px solid rgba(255,130,153,.25);
+}
+.empty-state { color: #eaf4ff !important; }
+.empty-state .empty-symbol {
+  color: #86f0e9 !important;
+  text-shadow: 0 0 28px rgba(105,226,221,.35);
+}
+.empty-state h2 { color: #f1f8ff !important; }
+.empty-state p { color: #9bb2c8 !important; }
+.workspace-heading h1 { color: #f1f8ff !important; }
+.workspace-heading .intro { color: #9bb2c8 !important; }
+.workspace-heading .eyebrow,
+.sidebar .eyebrow,
+.people-directory-heading .eyebrow { color: #76e5df !important; }
+.sidebar,.main-panel { color: #eaf4ff !important; }
+.sidebar .section-title h2,
+.main-panel h2,.main-panel h3 { color: #eaf4ff; }
+.sidebar .inline-form input {
+  color: #f1f8ff !important;
+  background: rgba(5,15,29,.72) !important;
+}
+.sidebar .inline-form input::placeholder { color: #7892aa !important; }
+.sidebar .inline-form button {
+  background: linear-gradient(110deg,#267e91,#5869ad) !important;
+  color: #fff !important;
+}
+.app-footer { color: #829bb4 !important; border-top-color: rgba(134,182,216,.14) !important; }
+.app-footer a { color: #83e8e2 !important; }
+::selection { color: #071321; background: #83e8e2; }
+@media (prefers-contrast: more) {
+  :root { color: #fff !important; }
+  .welcome-panel .intro,.welcome-panel .privacy-note,
+  .connect-card p,.connect-card label,.empty-state p { color: #d0dfec !important; }
+}
