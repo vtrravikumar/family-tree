@@ -200,6 +200,7 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
     setFitPending(true);
     setZoom(Math.max(20,Math.min(150,Math.floor(scale))));
   };
+  useEffect(()=>{fitTree();},[]);
   const choosePerson=(id:string)=>{if(selected===id){setSelected(null);setSearch("");return;}setSelected(id);setSearch(people.find(p=>p.id===id)?.display_name??"");};
   if(!people.length)return <div className="tree-empty">Add family members and connect their parent-child relationships to see the generations take shape.</div>;
   return <section className="tree-explorer">

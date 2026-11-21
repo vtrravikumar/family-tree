@@ -1,1 +1,2 @@
-ALTER TABLE persons ADD COLUMN birth_place TEXT;\nALTER TABLE persons ADD COLUMN birth_country TEXT;\n
+ALTER TABLE persons ADD COLUMN birth_place TEXT;
+ALTER TABLE persons ADD COLUMN birth_country TEXT;
