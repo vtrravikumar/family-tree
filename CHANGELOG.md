@@ -76,3 +76,12 @@ For every formal release, add a newest-first section using this structure:
 - A release is created only after CI is green and the intended deployment has succeeded. Development deployments from ordinary commits to `main` are not releases.
 - Release notes describe what users receive, not merely a list of code changes. Always identify data migrations, compatibility impact, and known limitations.
 - Each release entry records the exact included commit range or commit list so its contents are auditable.
+
+
+## Unreleased
+
+### Added
+- Identity association schema separating registered user accounts from family person records.
+- Family-scoped uniqueness constraints for linked accounts and people.
+- API foundation for identity claim requests, owner direct claims, Owner/Admin review, and audited unlinking.
+- Identity claim actions are audited and pending claims do not change family membership or role.

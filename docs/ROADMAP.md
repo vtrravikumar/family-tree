@@ -45,13 +45,15 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 - [ ] Verify secure session lifecycle, expiry and revocation
 - [x] Family invitations and membership baseline
 - [ ] Complete and test Owner/Admin/Editor/Viewer permission matrix
-- [ ] Implement identity claim requests against existing person records
-- [ ] Allow Family Owner and family Admin to approve/reject claims
-- [ ] Allow Family Owner to directly claim any person in the family
-- [ ] Ensure pending claims grant no additional permissions
-- [ ] Enforce one account per person and one person per account within each family, with authorized audited reassignment
+- [x] Identity-claim database foundation: separate person-account links and pending claim records
+- [x] API foundation: request claims, owner direct claim, Owner/Admin review, and Owner/Admin unlink
+- [x] Enforce one account and one person per family through database uniqueness constraints
+- [x] Audit claim request, approval, rejection, direct claim and unlink actions
+- [ ] Add identity-claim and review controls to the family UI
+- [ ] Verify pending claims grant no additional permissions with automated tests
+- [ ] Verify race conditions, self-review prevention, uniqueness and cross-family isolation
 - [ ] Display Google profile photo as an overlay, separate from the historical family portrait
-- [ ] Audit claim, approval, rejection, direct claim, unlink and reassignment events
+- [ ] Implement authorized audited reassignment workflow
 - [ ] Multi-user collaboration safeguards, concurrency handling and conflict feedback
 - [ ] Workspace access and isolation tests
 
@@ -62,18 +64,18 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 - [ ] Add negative tests for unauthorized roles and cross-family access
 - [ ] Preserve and validate IDs, relationships, memberships, roles and ownership in migration/import workflows
 
-## M4 — Professional UI/UX redesign (mandatory for v1)
-- [ ] Agree and document a cohesive design system: colours, typography, spacing, borders, elevation and iconography
-- [ ] Redesign application branding, navigation and page hierarchy
-- [ ] Redesign workspace dashboard and family overview
-- [ ] Refine member cards, identity/avatar overlays and profile views
-- [ ] Redesign tree visualization, connectors, legends and interaction states
-- [ ] Improve responsive layouts for desktop, tablet and mobile
-- [ ] Improve empty, loading, success, warning and error states
-- [ ] Consistent dialogs, forms, buttons, controls and feedback
-- [ ] Accessibility pass: contrast, keyboard navigation, focus states and screen-reader labels
-- [ ] Performance and visual-regression review across key screens
-- [ ] Final cross-browser and device QA
+## M4 — Professional UI/UX redesign (mandatory for v1) — COMPLETE
+- [x] Agree and document a cohesive design system: colours, typography, spacing, borders, elevation and iconography
+- [x] Redesign application branding, navigation and page hierarchy
+- [x] Redesign workspace dashboard and family overview
+- [x] Refine member cards and profile views
+- [x] Redesign tree visualization, connectors, legends and interaction states
+- [x] Improve responsive layouts for desktop, tablet and mobile
+- [x] Improve empty, loading, success, warning and error states
+- [x] Consistent dialogs, forms, buttons, controls and feedback
+- [x] Accessibility pass: contrast, keyboard navigation, focus states and screen-reader labels
+- [x] Performance and visual-regression review across key screens
+- [x] Final cross-browser and device QA (user-confirmed)
 
 ## M5 — Security, production migration and launch readiness
 - [ ] Comprehensive authorization and API security review
