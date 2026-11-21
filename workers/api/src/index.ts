@@ -325,6 +325,89 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     }
   }
 
+
+  // Identity claims are separate from family membership and never grant additional access.
+  const identityMatch=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/identity$/);
+  if(identityMatch&&request.method==="GET"){
+    const familyId=identityMatch[1],role=await roleFor(env.DB,familyId,actorUserId);
+    if(!role)return fail(404,"family_not_found","Family not found.");
+    const [link,claims,pending]=await Promise.all([
+      env.DB.prepare("SELECT l.person_id,p.display_name,l.linked_at FROM person_identity_links l JOIN persons p ON p.id=l.person_id WHERE l.family_id=? AND l.user_id=?").bind(familyId,actorUserId).first(),
+      env.DB.prepare("SELECT c.id,c.person_id,p.display_name,c.status,c.requested_at,c.reviewed_at,c.review_reason FROM person_identity_claims c JOIN persons p ON p.id=c.person_id WHERE c.family_id=? AND c.requester_user_id=? ORDER BY c.requested_at DESC").bind(familyId,actorUserId).all(),
+      role==="owner"||role==="admin" ? env.DB.prepare("SELECT c.id,c.person_id,p.display_name,c.requester_user_id,u.display_name AS requester_name,u.email AS requester_email,c.requested_at FROM person_identity_claims c JOIN persons p ON p.id=c.person_id JOIN users u ON u.id=c.requester_user_id WHERE c.family_id=? AND c.status='pending' ORDER BY c.requested_at").bind(familyId).all() : Promise.resolve({results:[]})
+    ]);
+    return json({data:{link:link??null,claims:claims.results,pendingClaims:pending.results,canReview:role==="owner"||role==="admin",canDirectClaim:role==="owner"}});
+  }
+  const claimCollection=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/identity-claims$/);
+  if(claimCollection&&request.method==="POST"){
+    const familyId=claimCollection[1],role=await roleFor(env.DB,familyId,actorUserId);
+    if(!role)return fail(404,"family_not_found","Family not found.");
+    const input=await body(request),personId=textOrNull(input?.personId);
+    if(!personId)return fail(400,"person_required","Select an existing person record.");
+    const person=await env.DB.prepare("SELECT id FROM persons WHERE id=? AND family_id=?").bind(personId,familyId).first();
+    if(!person)return fail(404,"person_not_found","That person does not belong to this family.");
+    const linked=await env.DB.prepare("SELECT user_id FROM person_identity_links WHERE family_id=? AND (user_id=? OR person_id=?) LIMIT 1").bind(familyId,actorUserId,personId).first();
+    if(linked)return fail(409,"identity_already_linked","This account or person is already linked.");
+    const t=now();
+    if(role==="owner"){
+      try{
+        await env.DB.batch([
+          env.DB.prepare("INSERT INTO person_identity_links(family_id,person_id,user_id,linked_by_user_id,linked_at) VALUES(?,?,?,?,?)").bind(familyId,personId,actorUserId,actorUserId,t),
+          env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'identity.claimed_directly',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({userId:actorUserId}),t)
+        ]);
+      }catch{return fail(409,"identity_conflict","This person or account has already been linked.");}
+      return json({data:{personId,status:"approved",linkedAt:t}},{status:201});
+    }
+    const claimId=id();
+    try{
+      await env.DB.prepare("INSERT INTO person_identity_claims(id,family_id,person_id,requester_user_id,status,requested_at) VALUES(?,?,?,?,'pending',?)").bind(claimId,familyId,personId,actorUserId,t).run();
+    }catch{return fail(409,"claim_already_pending","A pending claim already exists or an identity association is already in place.");}
+    await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'identity.claim_requested',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({claimId}),t).run();
+    return json({data:{id:claimId,personId,status:"pending",requestedAt:t}},{status:201});
+  }
+  const claimReview=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/identity-claims\\/([^/]+)\\/review$/);
+  if(claimReview&&request.method==="POST"){
+    const familyId=claimReview[1],claimId=claimReview[2],role=await roleFor(env.DB,familyId,actorUserId);
+    if(role!=="owner"&&role!=="admin")return fail(role?403:404,"forbidden","Only the family owner or admin can review claims.");
+    const input=await body(request),decision=input?.decision,reason=textOrNull(input?.reason);
+    if(decision!=="approve"&&decision!=="reject")return fail(400,"invalid_claim_decision","Choose approve or reject.");
+    const claim=await env.DB.prepare("SELECT id,person_id,requester_user_id,status FROM person_identity_claims WHERE id=? AND family_id=?").bind(claimId,familyId).first<{id:string;person_id:string;requester_user_id:string;status:string}>();
+    if(!claim||claim.status!=="pending")return fail(404,"claim_unavailable","This pending claim is no longer available.");
+    if(claim.requester_user_id===actorUserId)return fail(403,"self_review_forbidden","You cannot review your own claim.");
+    const t=now();
+    if(decision==="reject"){
+      await env.DB.batch([
+        env.DB.prepare("UPDATE person_identity_claims SET status='rejected',reviewed_by_user_id=?,reviewed_at=?,review_reason=? WHERE id=? AND status='pending'").bind(actorUserId,t,reason,claimId),
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'identity.claim_rejected',?,?)").bind(id(),familyId,actorUserId,claim.person_id,JSON.stringify({claimId,requesterUserId:claim.requester_user_id,reason}),t)
+      ]);
+      return json({data:{id:claimId,status:"rejected",reviewedAt:t}});
+    }
+    try{
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO person_identity_links(family_id,person_id,user_id,linked_by_user_id,linked_at) VALUES(?,?,?,?,?)").bind(familyId,claim.person_id,claim.requester_user_id,actorUserId,t),
+        env.DB.prepare("UPDATE person_identity_claims SET status='approved',reviewed_by_user_id=?,reviewed_at=?,review_reason=? WHERE id=? AND status='pending'").bind(actorUserId,t,reason,claimId),
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'identity.claim_approved',?,?)").bind(id(),familyId,actorUserId,claim.person_id,JSON.stringify({claimId,requesterUserId:claim.requester_user_id}),t)
+      ]);
+    }catch{return fail(409,"identity_conflict","This person or account has already been linked.");}
+    return json({data:{id:claimId,status:"approved",personId:claim.person_id,reviewedAt:t}});
+  }
+  const identityUnlink=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/identity$/);
+  if(identityUnlink&&request.method==="DELETE"){
+    const familyId=identityUnlink[1],role=await roleFor(env.DB,familyId,actorUserId);
+    if(role!=="owner"&&role!=="admin")return fail(role?403:404,"forbidden","Only the family owner or admin can unlink an identity.");
+    const input=await body(request),personId=textOrNull(input?.personId);
+    if(!personId)return fail(400,"person_required","Specify the person to unlink.");
+    const link=await env.DB.prepare("SELECT user_id FROM person_identity_links WHERE family_id=? AND person_id=?").bind(familyId,personId).first<{user_id:string}>();
+    if(!link)return fail(404,"identity_link_not_found","No linked account exists for this person.");
+    const t=now();
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM person_identity_links WHERE family_id=? AND person_id=?").bind(familyId,personId),
+      env.DB.prepare("UPDATE person_identity_claims SET status='withdrawn',reviewed_by_user_id=?,reviewed_at=?,review_reason='Identity association removed' WHERE family_id=? AND person_id=? AND status='approved'").bind(actorUserId,t,familyId,personId),
+      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'identity.unlinked',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({userId:link.user_id}),t)
+    ]);
+    return json({data:{personId,unlinked:true}});
+  }
+
   const peopleMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people$/);
   if (peopleMatch) {
     const familyId=peopleMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
