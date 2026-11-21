@@ -207,3 +207,16 @@
 .account-family-badge.linked{color:#e0ca8c;background:#405039}
 .account-family-badge.pending{color:#e2c17b;background:#493d27}
 @media(max-width:700px){.header-meta{gap:8px}.account-family-connections{align-items:flex-start;flex-direction:column;gap:9px}.account-family-connection-list{width:100%}.profile-menu-label small{max-width:155px;overflow:hidden;text-overflow:ellipsis}}
+
+
+/* Full-width family creation strip; family navigation lives in the account-level connections row. */
+.create-family-strip{display:flex;align-items:center;justify-content:space-between;gap:22px;width:100%;margin:0 0 22px;padding:15px 19px;border:1px solid #46523b;border-radius:9px;background:linear-gradient(105deg,#202f23,#1b2a20)}
+.create-family-heading{display:grid;gap:4px;min-width:190px}
+.create-family-heading .eyebrow{margin:0;color:#b99a60}
+.create-family-heading strong{font:19px Georgia,serif;color:#e5d5a9}
+.create-family-form{display:flex;align-items:center;gap:9px;flex:1;max-width:720px;margin:0}
+.create-family-form input{flex:1;min-width:0;min-height:40px;border:1px solid #4a553c;border-radius:6px;background:#18271c;color:#e5ddc7}
+.create-family-form input::placeholder{color:#87917e}
+.create-family-form button{display:flex;align-items:center;gap:9px;white-space:nowrap;padding:10px 15px;background:#8c7445;color:#f7f0dd;border:1px solid #a58a52;border-radius:6px;font-size:12px}
+.main-panel{width:100%;min-width:0}
+@media(max-width:650px){.create-family-strip{align-items:stretch;flex-direction:column;gap:12px;padding:14px}.create-family-form{width:100%;max-width:none}.create-family-form button{padding:10px 11px}.create-family-heading strong{font-size:18px}}
