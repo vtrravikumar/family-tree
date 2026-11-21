@@ -26,7 +26,8 @@ function parentConnectorPath(a:Node,b:Node,nodes:Node[]):string {
 function birthLabel(p:TreePerson){if(p.birth_date_kind==="exact"&&p.birth_exact_date){const [y,m,d]=p.birth_exact_date.split("-").map(Number);return new Date(Date.UTC(y,m-1,d)).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"});}if(p.birth_date_kind==="year"&&p.birth_year)return String(p.birth_year);if(p.birth_date_kind==="approximate_year"&&p.birth_year)return `c. ${p.birth_year}`;if(p.birth_date_kind==="range"&&p.birth_range_start_year&&p.birth_range_end_year)return `${p.birth_range_start_year}–${p.birth_range_end_year}`;return p.birth_original_text||"Birth date unknown";}
 
 export default function FamilyTree({people,relationships}:{people:TreePerson[];relationships:TreeRelationship[]}) {
-  const [zoom,setZoom]=useState(100);\n  const [fitPending,setFitPending]=useState(false);
+  const [zoom,setZoom]=useState(100);
+  const [fitPending,setFitPending]=useState(false);
   const [selected,setSelected]=useState<string|null>(null);
   const [mode,setMode]=useState<ViewMode>("generation");
   const [search,setSearch]=useState("");
