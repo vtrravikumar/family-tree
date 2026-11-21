@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type TreePerson = { id:string; display_name:string; gender?:string; life_status:string; birth_date_kind:string; birth_exact_date:string|null; birth_year:number|null; birth_range_start_year:number|null; birth_range_end_year:number|null; birth_original_text:string|null };
 type TreeRelationship = { id:string; from_person_id:string; to_person_id:string; relationship_type:string };
@@ -30,6 +30,7 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
   const [selected,setSelected]=useState<string|null>(null);
   const [mode,setMode]=useState<ViewMode>("generation");
   const [search,setSearch]=useState("");
+  const viewportRef=useRef<HTMLDivElement|null>(null);
   const matches=people.filter(p=>search.trim()&&p.display_name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())).slice(0,6);
   const layout=useMemo(()=>{
     const parents=relationships.filter(r=>parentTypes.includes(r.relationship_type));
@@ -128,8 +129,14 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
       };
       groupsOfPartners.sort((a,b)=>groupScore(a)-groupScore(b)||a.map(p=>p.display_name).sort()[0].localeCompare(b.map(p=>p.display_name).sort()[0]));
       const orderedList=groupsOfPartners.flatMap(unit=>unit.sort((a,b)=>a.display_name.localeCompare(b.display_name)));
+      if(selected&&orderedList.some(person=>person.id===selected)){
+        const focusIndex=orderedList.findIndex(person=>person.id===selected);
+        const [focusPerson]=orderedList.splice(focusIndex,1);
+        orderedList.splice(Math.floor(orderedList.length/2),0,focusPerson);
+      }
       maxCount=Math.max(maxCount,list.length);
-      orderedList.forEach((person,i)=>{const x=42+i*218,y=42+(g-minGeneration)*174;xById.set(person.id,x+80);result.push({person,generation:g,x,y});});
+      const rowOffset=Math.floor((maxCount-orderedList.length)/2);
+      orderedList.forEach((person,i)=>{const x=42+(rowOffset+i)*218,y=42+(g-minGeneration)*174;xById.set(person.id,x+80);result.push({person,generation:g,x,y});});
     }
     const maxY=Math.max(0,...result.map(n=>n.y));
     return {nodes:result,width:Math.max(350,maxCount*218+20),height:Math.max(210,maxY+145),parents:parents.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),spouses:mode==="ancestors"?[]:spouses.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),siblings:mode==="ancestors"?[]:siblings.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),visibleCount:visible.size};
@@ -156,6 +163,15 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
   const isDirectSpouseEdge=(from:string,to:string)=>!highlightActive||from===selected||to===selected;
   const isDirectSiblingEdge=(from:string,to:string)=>!highlightActive||from===selected||to===selected;
   const focused=people.find(p=>p.id===selected);
+  useEffect(()=>{
+    if(!selected)return;
+    const node=layout.nodes.find(item=>item.person.id===selected);
+    const viewport=viewportRef.current;
+    if(!node||!viewport)return;
+    const left=(node.x+80)*zoom/100-viewport.clientWidth/2;
+    const top=(node.y+52)*zoom/100-viewport.clientHeight/2;
+    viewport.scrollTo({left:Math.max(0,left),top:Math.max(0,top),behavior:"smooth"});
+  },[selected,layout.nodes,zoom]);
   const choosePerson=(id:string)=>{setSelected(id);setSearch(people.find(p=>p.id===id)?.display_name??"");};
   if(!people.length)return <div className="tree-empty">Add family members and connect their parent-child relationships to see the generations take shape.</div>;
   return <section className="tree-explorer">
@@ -167,19 +183,19 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
     </div>
     {mode!=="generation"&&!selected&&<p className="tree-hint">Search for a person and select them to view their {mode}.</p>}
     <div className="tree-legend"><span><i className="legend-parent"/>Parent / child</span><span><i className="legend-spouse"/>Spouse / partner</span><span><i className="legend-sibling"/>Sibling</span></div>
-    <div className="tree-viewport" role="region" aria-label="Scrollable family tree canvas" tabIndex={0}><svg width={Math.max(1,layout.width*zoom/100)} height={Math.max(1,layout.height*zoom/100)} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-label="Interactive family tree"><defs><radialGradient id="atlas-node-glow"><stop offset="0%" stopColor="#9ef8f4" stopOpacity=".65"/><stop offset="100%" stopColor="#63b9e8" stopOpacity="0"/></radialGradient></defs>
-      {layout.parents.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;return <path key={e.id} d={parentConnectorPath(a,b,layout.nodes)} fill="none" stroke={isDirectParentEdge(e.from_person_id,e.to_person_id)?"#7ee8e5":"#4c718e"} strokeWidth={isDirectParentEdge(e.from_person_id,e.to_person_id)?3:2} opacity={!selected||isDirectParentEdge(e.from_person_id,e.to_person_id)?1:0.12}/>;})}
-      {layout.spouses.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const left=Math.min(a.x,b.x)+80,right=Math.max(a.x,b.x)+80,top=Math.min(a.y,b.y)-12;return <path key={e.id} d={`M ${left} ${Math.min(a.y,b.y)} C ${left} ${top}, ${right} ${top}, ${right} ${Math.min(a.y,b.y)}`} fill="none" stroke={isDirectSpouseEdge(e.from_person_id,e.to_person_id)?"#e8a8f7":"#896d9d"} strokeWidth={isDirectSpouseEdge(e.from_person_id,e.to_person_id)?3.5:2.5} opacity={!selected||isDirectSpouseEdge(e.from_person_id,e.to_person_id)?1:0.12}/>;})}
-      {layout.siblings.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const leftNode=a.x<=b.x?a:b,rightNode=a.x<=b.x?b:a,top=Math.min(a.y,b.y)+72;return <path key={e.id} d={`M ${leftNode.x+160} ${leftNode.y+94} C ${leftNode.x+178} ${top}, ${rightNode.x-18} ${top}, ${rightNode.x} ${rightNode.y+94}`} fill="none" stroke={isDirectSiblingEdge(e.from_person_id,e.to_person_id)?"#8db9ff":"#526f9b"} strokeWidth={isDirectSiblingEdge(e.from_person_id,e.to_person_id)?3:2} strokeDasharray="5 4" opacity={!selected||isDirectSiblingEdge(e.from_person_id,e.to_person_id)?1:0.12}/>;})}
+    <div ref={viewportRef} className="tree-viewport" role="region" aria-label="Scrollable family tree canvas" tabIndex={0}><svg width={Math.max(1,layout.width*zoom/100)} height={Math.max(1,layout.height*zoom/100)} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-label="Interactive family tree"><defs><radialGradient id="atlas-node-glow"><stop offset="0%" stopColor="#9ef8f4" stopOpacity=".65"/><stop offset="100%" stopColor="#63b9e8" stopOpacity="0"/></radialGradient></defs>
+      {layout.parents.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;return <path key={e.id} d={parentConnectorPath(a,b,layout.nodes)} fill="none" stroke={isDirectParentEdge(e.from_person_id,e.to_person_id)?"#a99863":"#8a9075"} strokeWidth={isDirectParentEdge(e.from_person_id,e.to_person_id)?3:2} opacity={!selected||isDirectParentEdge(e.from_person_id,e.to_person_id)?1:0.12}/>;})}
+      {layout.spouses.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const left=Math.min(a.x,b.x)+80,right=Math.max(a.x,b.x)+80,top=Math.min(a.y,b.y)-12;return <path key={e.id} d={`M ${left} ${Math.min(a.y,b.y)} C ${left} ${top}, ${right} ${top}, ${right} ${Math.min(a.y,b.y)}`} fill="none" stroke={isDirectSpouseEdge(e.from_person_id,e.to_person_id)?"#b68a57":"#9a8866"} strokeWidth={isDirectSpouseEdge(e.from_person_id,e.to_person_id)?3.5:2.5} opacity={!selected||isDirectSpouseEdge(e.from_person_id,e.to_person_id)?1:0.12}/>;})}
+      {layout.siblings.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const leftNode=a.x<=b.x?a:b,rightNode=a.x<=b.x?b:a,top=Math.min(a.y,b.y)+72;return <path key={e.id} d={`M ${leftNode.x+160} ${leftNode.y+94} C ${leftNode.x+178} ${top}, ${rightNode.x-18} ${top}, ${rightNode.x} ${rightNode.y+94}`} fill="none" stroke={isDirectSiblingEdge(e.from_person_id,e.to_person_id)?"#9b9a70":"#888c75"} strokeWidth={isDirectSiblingEdge(e.from_person_id,e.to_person_id)?3:2} strokeDasharray="5 4" opacity={!selected||isDirectSiblingEdge(e.from_person_id,e.to_person_id)?1:0.12}/>;})}
       {layout.nodes.map(node=><g key={node.person.id} transform={`translate(${node.x},${node.y})`} onClick={()=>choosePerson(node.person.id)} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();choosePerson(node.person.id);}}} tabIndex={0} role="button" aria-label={`Select ${node.person.display_name}, ${node.person.life_status}, ${birthLabel(node.person)}`} aria-pressed={selected===node.person.id} style={{cursor:"pointer",opacity:!highlightActive||firstDegree.has(node.person.id)?1:0.24}}>
-        <circle cx="80" cy="31" r="29" fill="none" stroke={selected===node.person.id?"#8ff7ff":highlightActive&&firstDegree.has(node.person.id)?"#73c9ed":"#547b9a"} strokeWidth={selected===node.person.id?2.5:1} opacity={selected===node.person.id?1:.52}/>
-        <circle cx="80" cy="31" r="23" fill={node.person.life_status==="deceased"?"#30394b":node.person.gender==="female"?"#713e75":node.person.gender==="male"?"#245f83":"#285d68"} stroke={selected===node.person.id?"#c5ffff":"#7ba9c5"} strokeOpacity={selected===node.person.id?1:.35} strokeWidth="1.2"/>
+        <circle cx="80" cy="31" r={selected===node.person.id?36:29} fill="none" stroke={selected===node.person.id?"#d7bd79":highlightActive&&firstDegree.has(node.person.id)?"#b59a5c":"#8b9274"} strokeWidth={selected===node.person.id?2.5:1} opacity={selected===node.person.id?1:.52}/>
+        <circle cx="80" cy="31" r={selected===node.person.id?25:23} fill={node.person.life_status==="deceased"?"#59604b":node.person.gender==="female"?"#596b50":node.person.gender==="male"?"#315b43":"#52634b"} stroke={selected===node.person.id?"#f0d99b":"#b8ad7d"} strokeOpacity={selected===node.person.id?1:.35} strokeWidth="1.2"/>
         <circle cx="80" cy="31" r="18" fill="url(#atlas-node-glow)" opacity=".72"/>
-        <text x="80" y="36" textAnchor="middle" fontSize="17" fill="#f3fbff" fontWeight="600">{node.person.gender==="female"?"♀":node.person.gender==="male"?"♂":node.person.display_name.charAt(0).toUpperCase()}</text>
+        <text x="80" y="36" textAnchor="middle" fontSize="17" fill="#f6eed9" fontWeight="600">{node.person.gender==="female"?"♀":node.person.gender==="male"?"♂":node.person.display_name.charAt(0).toUpperCase()}</text>
         {node.person.life_status==="deceased"&&<g><circle cx="101" cy="13" r="8" fill="#64748b" stroke="#a9c2d4" strokeWidth="1"/><text x="101" y="17" textAnchor="middle" fontSize="11" fontWeight="700" fill="#fff">†</text></g>}
-        <text x="80" y="75" textAnchor="middle" fontSize="12" fontWeight="650" fill="#edf8ff">{node.person.display_name.length>21?node.person.display_name.slice(0,19)+"…":node.person.display_name}</text>
-        <text x="80" y="91" textAnchor="middle" fontSize="10" fill="#9eb9cc">{birthLabel(node.person)}</text>
-        <circle cx="80" cy="101" r="2.4" fill={node.person.life_status==="deceased"?"#9ca3af":"#64e2c0"}/>
+        <text x="80" y="75" textAnchor="middle" fontSize="12" fontWeight="650" fill="#34422f">{node.person.display_name.length>21?node.person.display_name.slice(0,19)+"…":node.person.display_name}</text>
+        <text x="80" y="91" textAnchor="middle" fontSize="10" fill="#7c8069">{birthLabel(node.person)}</text>
+        <circle cx="80" cy="101" r="2.4" fill={node.person.life_status==="deceased"?"#a79b7a":"#a9a06a"}/>
       </g>)}
     </svg>{layout.nodes.length===0&&<p className="tree-hint">No people in this view yet. Search for a person to focus the branch.</p>}</div>
     {focused&&<div className="tree-person-detail"><strong>{focused.display_name}</strong><span>{focused.life_status==="deceased"?"Deceased":"Living"} · {birthLabel(focused)}</span><button className="button-secondary" onClick={()=>{setSelected(null);setSearch("");}}>Clear focus</button></div>}
