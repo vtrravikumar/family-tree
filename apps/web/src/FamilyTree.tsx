@@ -59,9 +59,37 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
         if(!changed)break;
       }
     }
-    // Generation bands are determined exclusively by parent-child lineage.
-    // Spouse and sibling edges affect placement/connectors only; they must never
-    // promote or demote a person into another generation.
+    // Ancestor view contains only the selected person and their recorded ancestors.
+    // Generation is a shared horizontal band: spouses/partners and siblings
+    // must sit at the same height. Parent-child edges then propagate the
+    // resulting generation levels through the visible family.
+    const generationParent=new Map<string,string>();
+    const findGenerationRoot=(id:string):string=>{
+      const parent=generationParent.get(id);
+      if(!parent){generationParent.set(id,id);return id;}
+      if(parent===id)return id;
+      const root=findGenerationRoot(parent);generationParent.set(id,root);return root;
+    };
+    const unionGeneration=(a:string,b:string)=>{
+      if(!visible.has(a)||!visible.has(b))return;
+      const ra=findGenerationRoot(a),rb=findGenerationRoot(b);
+      if(ra!==rb)generationParent.set(rb,ra);
+    };
+    for(const p of people)if(visible.has(p.id))findGenerationRoot(p.id);
+    for(const edge of [...spouses,...siblings])unionGeneration(edge.from_person_id,edge.to_person_id);
+    let aligned=false;
+    for(let pass=0;pass<people.length*2;pass++){
+      aligned=false;
+      const bandLevels=new Map<string,number>();
+      for(const p of people){if(!visible.has(p.id))continue;const root=findGenerationRoot(p.id);bandLevels.set(root,Math.max(bandLevels.get(root)??Number.MIN_SAFE_INTEGER,generations.get(p.id)??0));}
+      for(const p of people){if(!visible.has(p.id))continue;const level=bandLevels.get(findGenerationRoot(p.id))??0;if((generations.get(p.id)??0)!==level){generations.set(p.id,level);aligned=true;}}
+      for(const edge of parents){
+        if(!visible.has(edge.from_person_id)||!visible.has(edge.to_person_id))continue;
+        const next=(generations.get(edge.from_person_id)??0)+1;
+        if(next>(generations.get(edge.to_person_id)??0)){generations.set(edge.to_person_id,next);aligned=true;}
+      }
+      if(!aligned)break;
+    }
     const groups=new Map<number,TreePerson[]>();
     for(const p of people){if(!visible.has(p.id))continue;const g=generations.get(p.id)??0;groups.set(g,[...(groups.get(g)??[]),p]);}
     const result:Node[]=[];const xById=new Map<string,number>();
@@ -110,7 +138,7 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
           units.splice(Math.floor(units.length/2),0,focusUnit);
         }
       }
-      const width=units.reduce((sum,unit,index)=>sum+160+Math.max(0,unit.length-1)*168+(index?58:0),0);
+      const width=units.reduce((sum,unit,index)=>sum+160+Math.max(0,unit.length-1)*174+(index?58:0),0);
       maxRowWidth=Math.max(maxRowWidth,width);
       rowSpecs.push({generation:g,units,width});
     }
@@ -119,7 +147,7 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
       const y=42+(row.generation-minGeneration)*174;
       for(const unit of row.units){
         unit.forEach((person,index)=>{
-          const x=cursor+index*168;
+          const x=cursor+index*174;
           xById.set(person.id,x+80);
           result.push({person,generation:row.generation,x,y});
         });
