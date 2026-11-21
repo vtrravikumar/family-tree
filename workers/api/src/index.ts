@@ -327,7 +327,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
 
   // Identity claims are separate from family membership and never grant additional access.
-  const identityMatch=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/identity$/);
+  const identityMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/identity$/);
   if(identityMatch&&request.method==="GET"){
     const familyId=identityMatch[1],role=await roleFor(env.DB,familyId,actorUserId);
     if(!role)return fail(404,"family_not_found","Family not found.");
@@ -338,7 +338,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     ]);
     return json({data:{link:link??null,claims:claims.results,pendingClaims:pending.results,canReview:role==="owner"||role==="admin",canDirectClaim:role==="owner"}});
   }
-  const claimCollection=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/identity-claims$/);
+  const claimCollection=url.pathname.match(/^\/v1\/families\/([^/]+)\/identity-claims$/);
   if(claimCollection&&request.method==="POST"){
     const familyId=claimCollection[1],role=await roleFor(env.DB,familyId,actorUserId);
     if(!role)return fail(404,"family_not_found","Family not found.");
@@ -365,7 +365,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'identity.claim_requested',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({claimId}),t).run();
     return json({data:{id:claimId,personId,status:"pending",requestedAt:t}},{status:201});
   }
-  const claimReview=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/identity-claims\\/([^/]+)\\/review$/);
+  const claimReview=url.pathname.match(/^\/v1\/families\/([^/]+)\/identity-claims\/([^/]+)\/review$/);
   if(claimReview&&request.method==="POST"){
     const familyId=claimReview[1],claimId=claimReview[2],role=await roleFor(env.DB,familyId,actorUserId);
     if(role!=="owner"&&role!=="admin")return fail(role?403:404,"forbidden","Only the family owner or admin can review claims.");
@@ -391,7 +391,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     }catch{return fail(409,"identity_conflict","This person or account has already been linked.");}
     return json({data:{id:claimId,status:"approved",personId:claim.person_id,reviewedAt:t}});
   }
-  const identityUnlink=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/identity$/);
+  const identityUnlink=url.pathname.match(/^\/v1\/families\/([^/]+)\/identity$/);
   if(identityUnlink&&request.method==="DELETE"){
     const familyId=identityUnlink[1],role=await roleFor(env.DB,familyId,actorUserId);
     if(role!=="owner"&&role!=="admin")return fail(role?403:404,"forbidden","Only the family owner or admin can unlink an identity.");
