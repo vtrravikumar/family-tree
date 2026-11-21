@@ -33,6 +33,12 @@ Use separate birth and death date records or equivalent typed fields with the sa
 ### invitations
 Family, inviter, invitee email or code hash, offered role, expiry, accepted/revoked timestamps and status.
 
+### person_identity_links
+Family-scoped association between one registered user account and one existing person record. Store family ID, person ID, user ID, linking actor and timestamp. Enforce one linked account per person and one linked person per account within each family.
+
+### person_identity_claims
+A request by a family member to associate their account with an existing person. Store family, person, requesting user, status (pending, approved, rejected, withdrawn), request/review timestamps, reviewing user and optional reason. Pending claims do not grant additional access.
+
 ### media
 Private R2 object key, owning family/person, media type, metadata and uploader.
 
