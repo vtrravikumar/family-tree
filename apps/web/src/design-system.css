@@ -574,3 +574,172 @@ html, body { overflow-x: clip; }
  .family-member-list article { align-items:flex-start; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto; } }
+
+
+/* UI refinement — calm family workspace and people-first directory */
+:root {
+  --color-forest: #315b45;
+  --color-ink: #26352d;
+  --color-muted: #747c72;
+  --color-line: #e4e3da;
+}
+button.person-profile-trigger,
+button.person-profile-trigger:not(.family-item) {
+  display: flex !important;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  min-height: 52px;
+  padding: 8px 12px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--color-ink) !important;
+  text-align: left;
+  box-shadow: none !important;
+}
+button.person-profile-trigger:hover,
+button.person-profile-trigger[aria-pressed="true"] {
+  background: #f2f5f0 !important;
+  color: var(--color-forest) !important;
+}
+.person-profile-trigger strong {
+  color: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+.person-profile-trigger small {
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.person-row {
+  position: relative;
+  gap: 10px;
+  min-height: 68px;
+  padding: 9px 0;
+  border-bottom: 1px solid #eeeee8;
+}
+.person-row:hover { background: linear-gradient(90deg,#f8faf7,transparent); }
+.person-row .status { flex: 0 0 auto; margin-inline: 4px 8px; }
+.person-actions-menu { position: relative; flex: 0 0 auto; }
+.person-actions-menu > summary {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  color: #69746b;
+  background: #fffefa;
+  cursor: pointer;
+  list-style: none;
+  font-size: 17px;
+  letter-spacing: 1px;
+}
+.person-actions-menu > summary::-webkit-details-marker { display: none; }
+.person-actions-menu[open] > summary { background: #edf2eb; color: var(--color-forest); }
+.person-actions-popover {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 7px);
+  right: 0;
+  display: grid;
+  gap: 5px;
+  min-width: 172px;
+  padding: 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #fffefa;
+  box-shadow: 0 12px 30px #26352d1a;
+}
+.person-actions-popover button {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: var(--color-ink) !important;
+  text-align: left;
+  font-size: 12px !important;
+  font-weight: 550;
+  box-shadow: none !important;
+}
+.person-actions-popover button:hover { background: #f1f4ef !important; }
+.person-actions-popover .relationship-delete { color: #9a4438 !important; }
+.person-actions-popover .mark-deceased { color: #6f655b !important; }
+.people-directory-tools {
+  grid-template-columns: minmax(0,1fr) minmax(220px,300px) auto;
+  align-items: center;
+  padding: 20px 0 14px;
+}
+.people-directory-tools .people-search-label { margin: 0; }
+.people-directory-tools > span { padding: 0; }
+.people-section.collapsible-section {
+  margin-top: 22px;
+  padding: 0 22px;
+  border-radius: 14px;
+  background: #fffefa;
+  box-shadow: 0 5px 24px #26352d08;
+}
+.people-section > summary { padding: 19px 0; }
+.people-section > summary h3 { font-size: 26px; }
+.add-person-card {
+  margin: 0 0 22px;
+  padding: 22px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: #fffefa;
+}
+.add-person-card > .section-title { margin-bottom: 14px; }
+.add-person-card .form-grid { gap: 16px; }
+.add-person-card .new-person-link {
+  margin-top: 18px;
+  background: #f7f8f4;
+  border-color: #e8ebe4;
+  border-radius: 10px;
+}
+.add-person-card .form-actions {
+  gap: 18px;
+  flex-wrap: wrap;
+  padding-top: 15px;
+  border-top: 1px solid #eeeee8;
+}
+.add-person-card .form-actions button { min-width: 132px; }
+.sidebar {
+  border-radius: 14px;
+  background: #fffefa;
+  box-shadow: 0 5px 24px #26352d08;
+}
+.main-panel {
+  border-radius: 14px;
+  background: #fffefa;
+  box-shadow: 0 5px 24px #26352d08;
+}
+.family-heading {
+  align-items: flex-start;
+  gap: 18px;
+  padding-bottom: 20px;
+}
+.family-heading h2 { font-size: clamp(26px,3vw,34px); }
+.family-heading-actions { justify-content: flex-end; }
+@media (max-width: 760px) {
+  .person-row { display: grid; grid-template-columns: 36px minmax(0,1fr) auto; gap: 7px 10px; }
+  .person-row .avatar { grid-row: 1; grid-column: 1; }
+  .person-row .person-profile-trigger { grid-row: 1; grid-column: 2; }
+  .person-row .status { grid-row: 2; grid-column: 2; justify-self: start; margin: 0 0 0 12px; }
+  .person-row .person-actions-menu { grid-row: 1 / span 2; grid-column: 3; align-self: center; }
+  .people-directory-tools { grid-template-columns: minmax(0,1fr) auto; }
+  .people-directory-tools .people-search-label { grid-column: 1 / -1; }
+  .people-directory-tools input { grid-column: 1; }
+  .people-directory-tools > span { grid-column: 2; white-space: normal; text-align: right; }
+  .people-section.collapsible-section { padding-inline: 15px; }
+  .add-person-card { padding: 17px; }
+  .family-heading { flex-direction: column; }
+  .family-heading-actions { justify-content: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .person-actions-popover, .person-row { transition: none !important; }
+}
