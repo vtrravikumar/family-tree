@@ -1534,3 +1534,141 @@ body {
   .version-history-note { color: #61758d !important; }
   ::selection { color: #fff; background: #287e91; }
 }
+
+
+/* Vansvriksha Heritage Atlas — botanical parchment and antique green/gold */
+:root {
+  --heritage-ink: #293a2b;
+  --heritage-green: #234532;
+  --heritage-moss: #66714d;
+  --heritage-gold: #a88b4f;
+  --heritage-paper: #f3eddd;
+  --heritage-muted: #817d68;
+}
+body { position: relative; isolation: isolate; }
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .12;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='560' viewBox='0 0 560 560'%3E%3Cg fill='none' stroke='%237d815e' stroke-width='1.2' stroke-linecap='round' opacity='.7'%3E%3Cpath d='M-30 390 C90 330 115 255 175 180 S290 90 360 5 M85 315 C35 280 18 240 26 202 C72 212 99 250 85 315 M140 230 C92 208 72 166 84 132 C128 150 151 187 140 230 M188 169 C153 130 156 91 180 64 C215 98 220 137 188 169 M228 132 C228 83 258 51 291 44 C297 91 272 123 228 132 M115 280 C161 283 194 312 201 350 C154 355 122 325 115 280 M294 82 C335 53 377 57 402 82 C367 113 326 111 294 82'/%3E%3Cpath d='M590 510 C470 455 445 385 390 315 S275 215 215 160 M485 445 C530 410 545 370 532 334 C488 351 467 391 485 445 M430 360 C476 340 492 299 476 265 C435 285 414 322 430 360 M382 305 C420 264 416 226 390 199 C356 235 350 274 382 305 M340 264 C339 217 310 187 277 180 C272 227 296 258 340 264'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 560px 560px;
+  background-position: left top, right bottom;
+  background-repeat: repeat;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-canvas: #f3eddd;
+    --color-surface: rgba(250,247,237,.78);
+    --color-surface-soft: rgba(239,232,211,.72);
+    --color-surface-glass: rgba(255,252,243,.70);
+    --color-ink: #293a2b;
+    --color-muted: #817d68;
+    --color-line: rgba(112,105,76,.22);
+    --color-forest: #31563c;
+    --color-forest-hover: #24442f;
+    --color-copper: #a88b4f;
+    --color-indigo: #687451;
+    --color-teal: #71805a;
+    --shadow-floating: 0 18px 55px rgba(69,60,38,.13);
+    --shadow-card: 0 7px 24px rgba(69,60,38,.06);
+  }
+  body::before { opacity: .18; }
+  .atlas-tree .tree-viewport {
+    border: 1px solid rgba(142,123,77,.22) !important;
+    border-radius: 20px;
+    background:
+      radial-gradient(ellipse at 50% 0%,rgba(203,181,126,.17),transparent 65%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420' viewBox='0 0 420 420'%3E%3Cg fill='none' stroke='%238f895f' stroke-width='1' opacity='.12'%3E%3Cpath d='M-20 300 Q100 250 135 150 T280 -20 M65 245 Q25 210 30 175 Q75 185 65 245 M130 160 Q95 130 105 95 Q145 112 130 160 M165 112 Q170 65 205 55 Q210 100 165 112 M280 420 Q330 320 400 280 M340 340 Q310 300 325 270 Q360 295 340 340'/%3E%3C/g%3E%3C/svg%3E"),
+      linear-gradient(145deg,#f6f0e1,#eee5cf) !important;
+    background-size: auto,420px 420px,auto !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.78),0 16px 48px rgba(75,65,42,.08) !important;
+  }
+  .atlas-tree .tree-toolbar h3 { color: #293a2b !important; }
+  .atlas-tree .tree-help,.atlas-tree .tree-legend { color: #77765f !important; }
+  .atlas-tree .tree-modes {
+    border-color: rgba(130,116,77,.22) !important;
+    background: rgba(249,245,232,.72) !important;
+  }
+  .atlas-tree .tree-mode { color: #686f54 !important; }
+  .atlas-tree .tree-mode.active {
+    color: #f6f0e1 !important;
+    border-color: transparent !important;
+    background: linear-gradient(120deg,#355b40,#66704e) !important;
+    box-shadow: 0 4px 12px rgba(54,79,52,.18) !important;
+  }
+  .atlas-tree .tree-search input {
+    color: #293a2b !important;
+    background: rgba(255,252,243,.9) !important;
+    border-color: rgba(130,116,77,.26) !important;
+  }
+  .atlas-tree .tree-search input::placeholder { color: #8a846e !important; }
+  .atlas-tree .tree-person-detail {
+    color: #293a2b !important;
+    border-color: rgba(168,139,79,.32) !important;
+    background: rgba(249,244,228,.9) !important;
+  }
+  .atlas-tree .tree-person-detail strong { color: #29452f !important; }
+  .atlas-tree .tree-person-detail span { color: #7d765f !important; }
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: #171d16;
+    --color-surface: rgba(34,43,31,.78);
+    --color-surface-soft: rgba(43,51,36,.68);
+    --color-surface-glass: rgba(40,49,35,.64);
+    --color-ink: #eee6d2;
+    --color-muted: #b3aa8e;
+    --color-line: rgba(194,174,119,.20);
+    --color-forest: #9caa77;
+    --color-forest-hover: #c4c99c;
+    --color-copper: #c5a76b;
+    --color-indigo: #a4a17b;
+    --color-teal: #9aa779;
+    --shadow-floating: 0 22px 65px rgba(0,0,0,.38);
+    --shadow-card: 0 8px 28px rgba(0,0,0,.20);
+  }
+  body::before { opacity: .10; }
+  .app-header {
+    background: rgba(24,31,23,.82) !important;
+    border-bottom-color: rgba(194,174,119,.18) !important;
+  }
+  .brand,.workspace-heading h1,.atlas-tree .tree-toolbar h3 { color: #eee6d2 !important; }
+  .workspace-heading .intro,.atlas-tree .tree-help,.atlas-tree .tree-legend { color: #b3aa8e !important; }
+  .atlas-tree .tree-viewport {
+    border: 1px solid rgba(194,174,119,.22) !important;
+    border-radius: 20px;
+    background:
+      radial-gradient(ellipse at 50% 0%,rgba(138,117,68,.12),transparent 65%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420' viewBox='0 0 420 420'%3E%3Cg fill='none' stroke='%23c2ae77' stroke-width='1' opacity='.10'%3E%3Cpath d='M-20 300 Q100 250 135 150 T280 -20 M65 245 Q25 210 30 175 Q75 185 65 245 M130 160 Q95 130 105 95 Q145 112 130 160 M165 112 Q170 65 205 55 Q210 100 165 112 M280 420 Q330 320 400 280 M340 340 Q310 300 325 270 Q360 295 340 340'/%3E%3C/g%3E%3C/svg%3E"),
+      linear-gradient(145deg,#252d22,#1b231b) !important;
+    background-size: auto,420px 420px,auto !important;
+    box-shadow: inset 0 1px 0 rgba(255,246,218,.035),0 18px 60px rgba(0,0,0,.24) !important;
+  }
+  .atlas-tree .tree-modes {
+    border-color: rgba(194,174,119,.22) !important;
+    background: rgba(35,43,32,.76) !important;
+  }
+  .atlas-tree .tree-mode { color: #c2b999 !important; }
+  .atlas-tree .tree-mode.active {
+    color: #f5eedb !important;
+    border-color: rgba(194,174,119,.35) !important;
+    background: linear-gradient(120deg,#3e6044,#727750) !important;
+    box-shadow: 0 0 22px rgba(173,151,92,.12) !important;
+  }
+  .atlas-tree .tree-search input {
+    color: #eee6d2 !important;
+    background: rgba(19,26,19,.86) !important;
+    border-color: rgba(194,174,119,.24) !important;
+  }
+  .atlas-tree .tree-search input::placeholder { color: #a39a7d !important; }
+  .atlas-tree .tree-person-detail {
+    color: #eee6d2 !important;
+    border-color: rgba(194,174,119,.28) !important;
+    background: rgba(48,57,39,.88) !important;
+  }
+  .atlas-tree .tree-person-detail strong { color: #f0e6c9 !important; }
+  .atlas-tree .tree-person-detail span { color: #c0b38e !important; }
+}
