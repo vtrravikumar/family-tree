@@ -1332,3 +1332,205 @@ body {
   .welcome-panel .intro,.welcome-panel .privacy-note,
   .connect-card p,.connect-card label,.empty-state p { color: #d0dfec !important; }
 }
+
+
+/* Native iOS / system appearance: follow the device light/dark preference */
+:root { color-scheme: light dark; }
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light !important;
+    color: #172337 !important;
+    background: #f5f8fc !important;
+  }
+  html,body,#root {
+    color: #172337;
+    background-color: #f5f8fc;
+  }
+  body {
+    background:
+      radial-gradient(ellipse at 12% 0%,rgba(93,173,211,.16),transparent 40rem),
+      radial-gradient(ellipse at 90% 8%,rgba(156,139,218,.13),transparent 38rem),
+      radial-gradient(ellipse at 50% 100%,rgba(97,191,177,.10),transparent 42rem),
+      #f5f8fc !important;
+  }
+  .app-header {
+    background: rgba(250,252,255,.76) !important;
+    border-bottom: 1px solid rgba(72,104,140,.14) !important;
+    box-shadow: 0 8px 32px rgba(38,65,94,.045) !important;
+  }
+  .brand { color: #172b43 !important; }
+  .header-meta,.account-chip { color: #61758d !important; }
+  .environment { color: #167e88 !important; }
+  .workspace-nav a { color: #536981 !important; }
+  .workspace-nav a:hover,.workspace-nav a:focus-visible {
+    background: rgba(37,145,157,.09) !important;
+    color: #126f7c !important;
+  }
+  .workspace-heading h1,.atlas-tree .tree-toolbar h3 { color: #172b43 !important; }
+  .workspace-heading .intro,.atlas-tree .tree-help { color: #61758d !important; }
+  .eyebrow,.workspace-heading .eyebrow,.sidebar .eyebrow,
+  .people-directory-heading .eyebrow { color: #187b78 !important; }
+  button,.button-secondary,.admin-nav-link {
+    color: #26415d !important;
+    border-color: rgba(68,111,151,.22) !important;
+    background: rgba(255,255,255,.78) !important;
+    box-shadow: 0 2px 8px rgba(38,65,94,.045) !important;
+  }
+  button:hover,.button-secondary:hover,.admin-nav-link:hover {
+    color: #086f78 !important;
+    border-color: rgba(25,145,153,.42) !important;
+    background: #f0fbfc !important;
+  }
+  input,select,textarea {
+    color-scheme: light !important;
+    color: #172b43 !important;
+    border-color: rgba(68,111,151,.24) !important;
+    background: rgba(255,255,255,.92) !important;
+    box-shadow: inset 0 1px 2px rgba(31,58,87,.035) !important;
+  }
+  input::placeholder,textarea::placeholder { color: #8293a7 !important; }
+  input:focus,select:focus,textarea:focus {
+    border-color: #258d99 !important;
+    box-shadow: 0 0 0 3px rgba(37,145,157,.13) !important;
+  }
+  .sidebar,.main-panel,.tree-explorer,.family-summary,.family-members-panel,
+  .people-section.collapsible-section,.add-person-card {
+    color: #20354d !important;
+  }
+  .sidebar { border-right-color: rgba(68,111,151,.16) !important; }
+  .sidebar .section-title h2,.main-panel h2,.main-panel h3,
+  .family-item strong,.family-circle-summary h3,
+  .family-member-identity strong { color: #1c3048 !important; }
+  .family-item small,.family-circle-summary p:not(.eyebrow),
+  .family-member-identity small { color: #6e8298 !important; }
+  .family-item.active {
+    background: linear-gradient(90deg,rgba(39,157,160,.12),transparent) !important;
+    box-shadow: inset 2px 0 #22969a !important;
+  }
+  .atlas-tree .tree-viewport {
+    border-color: rgba(76,126,166,.19) !important;
+    background:
+      radial-gradient(ellipse at 50% 40%,rgba(97,181,201,.15),transparent 62%),
+      radial-gradient(rgba(88,145,180,.18) .7px,transparent .7px),
+      linear-gradient(145deg,rgba(255,255,255,.96),rgba(237,245,251,.92)) !important;
+    background-size: auto,26px 26px,auto;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.85),0 20px 60px rgba(42,75,108,.09) !important;
+  }
+  .atlas-tree .tree-mode { color: #627990 !important; }
+  .atlas-tree .tree-mode.active {
+    color: #126d78 !important;
+    border-color: rgba(35,143,153,.30) !important;
+    background: linear-gradient(110deg,rgba(72,190,188,.16),rgba(117,126,208,.13)) !important;
+    box-shadow: 0 0 20px rgba(70,160,174,.10) !important;
+  }
+  .atlas-tree .tree-modes {
+    border-color: rgba(76,126,166,.17) !important;
+    background: rgba(255,255,255,.76) !important;
+  }
+  .atlas-tree .tree-legend { color: #667f97 !important; }
+  .atlas-tree .tree-person-detail {
+    border-color: rgba(35,143,153,.20) !important;
+    background: rgba(231,248,247,.86) !important;
+  }
+  .atlas-tree .tree-person-detail strong { color: #1b4556 !important; }
+  .atlas-tree .tree-person-detail span { color: #617b91 !important; }
+  .atlas-overview .family-summary {
+    border-color: rgba(76,126,166,.18) !important;
+  }
+  .atlas-overview .family-summary h3 { color: #187b78 !important; }
+  .atlas-overview .family-summary-row dt { color: #61758d !important; }
+  .atlas-overview .family-summary-row dd { color: #20354d !important; }
+  .atlas-overview .family-summary-note { color: #7a8da2 !important; }
+  .family-circle-compact { border-bottom-color: rgba(76,126,166,.16) !important; }
+  .family-circle-summary .family-circle-toggle {
+    border-color: rgba(35,143,153,.22) !important;
+    color: #167e88 !important;
+    background: rgba(37,145,157,.07) !important;
+  }
+  .family-circle-content { background: rgba(232,241,248,.70) !important; }
+  .family-member-list article,.person-row { border-color: rgba(76,126,166,.14) !important; }
+  .family-role-pill { background: rgba(37,145,157,.10) !important; color: #176d76 !important; }
+  .people-section > summary { color: #20354d !important; border-color: rgba(76,126,166,.16) !important; }
+  .person-row .person-profile-trigger,
+  button.person-profile-trigger,button.person-profile-trigger:not(.family-item) {
+    color: #20354d !important;
+  }
+  .person-row .person-profile-trigger:hover,
+  button.person-profile-trigger:hover,
+  button.person-profile-trigger[aria-pressed="true"] {
+    color: #116f78 !important;
+    background: rgba(37,145,157,.08) !important;
+  }
+  .person-profile-trigger small { color: #71869c !important; }
+  .person-actions-menu > summary,.person-actions-popover {
+    border-color: rgba(76,126,166,.20) !important;
+    background: rgba(255,255,255,.97) !important;
+    color: #20354d !important;
+  }
+  .person-actions-popover button { color: #20354d !important; }
+  .add-person-card { border-top-color: rgba(76,126,166,.16) !important; }
+  .connect-card {
+    color: #20354d !important;
+    border-color: rgba(76,126,166,.18) !important;
+    background: linear-gradient(145deg,rgba(255,255,255,.92),rgba(239,247,252,.90)) !important;
+    box-shadow: 0 24px 70px rgba(42,75,108,.10),inset 0 1px 0 #fff !important;
+  }
+  .connect-card h2 { color: #1c3048 !important; }
+  .connect-card p,.connect-card label,.connect-card .helper-text { color: #61758d !important; }
+  .connect-card .dev-access { border-top-color: rgba(76,126,166,.17) !important; }
+  .connect-card .dev-access summary { color: #167e88 !important; }
+  .connect-card .dev-access label { color: #536981 !important; }
+  .connect-card input {
+    background: rgba(255,255,255,.96) !important;
+    color: #172b43 !important;
+    border-color: rgba(76,126,166,.24) !important;
+  }
+  .connect-card input::placeholder { color: #8293a7 !important; }
+  .connect-card button:not(.google-signin-button) {
+    background: linear-gradient(110deg,#167f91,#626fc0) !important;
+    color: #fff !important;
+  }
+  .welcome-panel h1,.empty-state h2 { color: #172b43 !important; }
+  .welcome-panel h1 em { color: #187f85 !important; }
+  .welcome-panel .intro,.welcome-panel .privacy-note,
+  .empty-state p { color: #61758d !important; }
+  .empty-state { color: #20354d !important; }
+  .empty-state .empty-symbol { color: #188d91 !important; text-shadow: 0 0 24px rgba(24,141,145,.18); }
+  .sidebar .inline-form input { color: #172b43 !important; background: #fff !important; }
+  .sidebar .inline-form input::placeholder { color: #8293a7 !important; }
+  .sidebar .inline-form button { background: linear-gradient(110deg,#167f91,#626fc0) !important; color: #fff !important; }
+  .app-footer { color: #71869c !important; border-top-color: rgba(76,126,166,.16) !important; }
+  .app-footer a { color: #167e88 !important; }
+  .people-directory-heading { border-bottom-color: rgba(76,126,166,.16) !important; }
+  .people-directory-count {
+    border-color: rgba(35,143,153,.22) !important;
+    background: rgba(37,145,157,.08) !important;
+    color: #167e88 !important;
+  }
+  .family-summary { color: #20354d !important; }
+  .family-members-panel { background: transparent !important; }
+  .family-member-avatar { background: #e5f0f4 !important; color: #236d7e !important; }
+  .relationship-row { background: rgba(228,239,246,.76) !important; color: #263f58 !important; }
+  .message.error { color: #8b293c !important; background: #fff0f1 !important; }
+  .message.success { color: #17614d !important; background: #e9f7ef !important; }
+  .modal-backdrop { background: rgba(18,34,52,.58) !important; }
+  .death-dialog,.edit-dialog,.invite-landing-card,.platform-panel,.version-entry {
+    color: #20354d !important;
+    border-color: rgba(76,126,166,.20) !important;
+    background: #fbfdff !important;
+  }
+  .death-dialog h3,.invite-landing-card h1,.platform-panel h2,
+  .platform-section-heading h2,.version-entry-heading h2 { color: #1c3048 !important; }
+  .death-dialog p:not(.eyebrow),.invite-landing-card p:not(.eyebrow),
+  .platform-note,.version-entry-summary { color: #61758d !important; }
+  .platform-metrics article { background: #f0f6fa !important; border-color: #dce7ef !important; }
+  .platform-metrics strong { color: #176d76 !important; }
+  .platform-table th { color: #657d94 !important; }
+  .platform-table td { color: #30475f !important; border-bottom-color: #e5edf3 !important; }
+  .platform-table td small { color: #71869c !important; }
+  .platform-audit-list article { border-bottom-color: #e5edf3 !important; }
+  .platform-audit-list article p { color: #61758d !important; }
+  .version-entry ul { color: #30475f !important; }
+  .version-history-note { color: #61758d !important; }
+  ::selection { color: #fff; background: #287e91; }
+}
