@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 type TreePerson = { id:string; display_name:string; gender?:string; life_status:string; birth_date_kind:string; birth_exact_date:string|null; birth_year:number|null; birth_range_start_year:number|null; birth_range_end_year:number|null; birth_original_text:string|null };
 type TreeRelationship = { id:string; from_person_id:string; to_person_id:string; relationship_type:string };
 type Node = { person:TreePerson; generation:number; x:number; y:number };
-type ViewMode = "generation" | "ancestors" | "descendants";
+type ViewMode = "generation" | "focus" | "ancestors" | "descendants";
 const parentTypes=["biological_parent","adoptive_parent","step_parent"];
 function parentConnectorPath(a:Node,b:Node,nodes:Node[]):string {
   const sx=a.x+80, sy=a.y+104, tx=b.x+80, ty=b.y;
@@ -39,7 +39,20 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
     const siblings=relationships.filter(r=>r.relationship_type==="sibling");
     let visible=new Set(people.map(p=>p.id));
     let generations=new Map<string,number>();
-    if(mode!=="generation"){
+    if(mode==="focus"){
+      visible=new Set(selected?[selected]:[]);
+      if(selected){
+        generations.set(selected,0);
+        for(const edge of parents){
+          if(edge.to_person_id===selected){visible.add(edge.from_person_id);generations.set(edge.from_person_id,-1);}
+          if(edge.from_person_id===selected){visible.add(edge.to_person_id);generations.set(edge.to_person_id,1);}
+        }
+        for(const edge of [...spouses,...siblings]){
+          if(edge.from_person_id===selected){visible.add(edge.to_person_id);generations.set(edge.to_person_id,0);}
+          if(edge.to_person_id===selected){visible.add(edge.from_person_id);generations.set(edge.from_person_id,0);}
+        }
+      }
+    }else if(mode!=="generation"){
       if(selected){
         visible=new Set([selected]);generations.set(selected,0);
         for(let pass=0;pass<people.length;pass++){
@@ -220,7 +233,7 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
     <div className="tree-toolbar"><div><p className="eyebrow">EXPLORE YOUR HERITAGE</p><h3>Family tree</h3><p className="tree-help">Explore generations, spouses and sibling connections. Select a person to focus a branch.</p></div>
       <div className="tree-controls"><button className="button-secondary" onClick={()=>{setMode("generation");setSelected(null);setSearch("");setZoom(100);}}>Reset view</button><button className="button-secondary" onClick={fitTree}>Fit</button><button className="button-secondary" aria-label="Zoom out" onClick={()=>setZoom(v=>Math.max(60,v-10))}>−</button><span aria-live="polite">{zoom}%</span><button className="button-secondary" aria-label="Zoom in" onClick={()=>setZoom(v=>Math.min(150,v+10))}>+</button></div>
     </div>
-    <div className="tree-view-options"><div className="tree-modes">{(["generation","ancestors","descendants"] as ViewMode[]).map(v=><button key={v} className={mode===v?"tree-mode active":"tree-mode"} onClick={()=>{setMode(v);setZoom(100);if(v==="generation")setSelected(null);}}>{v==="generation"?"All generations":v==="ancestors"?"Ancestors":"Descendants"}</button>)}{selected&&<button className="tree-mode tree-clear-focus" onClick={()=>{setSelected(null);setSearch("");}} aria-label="Clear focused person">Clear focus</button>}</div>
+    <div className="tree-view-options"><div className="tree-modes">{(["generation","focus","ancestors","descendants"] as ViewMode[]).map(v=><button key={v} className={mode===v?"tree-mode active":"tree-mode"} onClick={()=>{setMode(v);setZoom(100);if(v==="generation")setSelected(null);}}>{v==="generation"?"All generations":v==="focus"?"Focus":v==="ancestors"?"Ancestors":"Descendants"}</button>)}{selected&&<button className="tree-mode tree-clear-focus" onClick={()=>{setSelected(null);setSearch("");}} aria-label="Clear focused person">Clear focus</button>}</div>
       <div className="tree-search"><input aria-label="Search family members" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search a person…"/>{matches.length>0&&<div className="tree-search-results">{matches.map(p=><button key={p.id} onClick={()=>choosePerson(p.id)}>{p.display_name}</button>)}</div>}</div>
     </div>
     {mode!=="generation"&&!selected&&<p className="tree-hint">Search for a person and select them to view their {mode}.</p>}
