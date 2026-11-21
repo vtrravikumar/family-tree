@@ -1776,32 +1776,37 @@ body::before {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
-.heritage-disclosure-label {
-  color: #857650;
-  font-size: 11px;
-  letter-spacing: .035em;
-  white-space: nowrap;
-}
 .heritage-disclosure-mark {
   display: inline-grid;
   place-items: center;
-  width: 27px;
-  height: 27px;
-  border: 1px solid rgba(168,139,79,.26);
-  border-radius: 50%;
-  color: #8e7746;
-  font-size: 17px;
-  line-height: 1;
-  transition: transform .2s ease,background .2s ease;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(190,169,112,.48);
+  border-radius: 9px;
+  background: #526447;
+  color: #fff8e8;
+  box-shadow: 0 2px 5px rgba(39,49,35,.12);
+  transition: background .18s ease,box-shadow .18s ease,transform .18s ease;
 }
-.people-directory-disclosure[open] > summary .heritage-disclosure-mark,
-.heritage-relationships[open] > summary .heritage-disclosure-mark {
-  transform: rotate(180deg);
-  background: rgba(168,139,79,.09);
+.heritage-disclosure-mark::before {
+  content: "+";
+  font: 500 23px/1 Arial,sans-serif;
+  transform: translateY(-1px);
+}
+.people-directory-disclosure[open] > summary .heritage-disclosure-mark::before,
+.heritage-relationships[open] > summary .heritage-disclosure-mark::before {
+  content: "−";
 }
 .people-directory-disclosure > summary:hover .heritage-disclosure-mark,
 .heritage-relationships > summary:hover .heritage-disclosure-mark {
-  background: rgba(168,139,79,.17);
+  background: #405438;
+  box-shadow: 0 3px 8px rgba(39,49,35,.2);
+}
+.people-directory-disclosure > summary:focus-visible .heritage-disclosure-mark,
+.heritage-relationships > summary:focus-visible .heritage-disclosure-mark {
+  outline: 2px solid #b99a60;
+  outline-offset: 3px;
 }
 .people-directory-disclosure > summary:focus-visible,
 .heritage-relationships > summary:focus-visible {
