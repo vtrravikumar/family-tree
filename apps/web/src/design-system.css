@@ -398,3 +398,77 @@ input:focus, select:focus, textarea:focus {
   .profile-facts > div { padding: 10px; }
   .profile-connections > div { align-items: flex-start; flex-direction: column; gap: 4px; }
 }
+
+
+/* UI-4 — spacious family atlas canvas and touch-ready tree controls */
+.tree-explorer {
+  margin: 28px 0 12px;
+  padding: clamp(18px,2.8vw,30px);
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: linear-gradient(160deg,rgba(255,255,255,.96),rgba(240,241,236,.68));
+  box-shadow: var(--shadow-card);
+}
+.tree-toolbar { align-items: flex-start; }
+.tree-toolbar h3 { color: var(--color-ink); font-size: clamp(25px,3vw,34px); }
+.tree-help { max-width: 58ch; line-height: 1.65; }
+.tree-controls { flex-wrap: wrap; }
+.tree-controls button { min-width: 40px; }
+.tree-view-options { align-items: center; margin: 22px 0 14px; }
+.tree-modes { padding: 4px; border: 1px solid var(--color-line); border-radius: 14px; background: rgba(240,241,236,.72); }
+.tree-mode { border-radius: 10px !important; }
+.tree-mode.active { background: var(--color-forest) !important; border-color: var(--color-forest) !important; color: white !important; }
+.tree-search input { border-radius: 12px; }
+.tree-search-results { border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-floating); }
+.tree-search-results button { min-height: 42px; }
+.tree-legend { gap: 18px; margin: 14px 0; font-size: 11px; }
+.tree-viewport {
+  min-height: 230px;
+  max-height: min(68vh,760px);
+  padding: clamp(12px,2vw,22px);
+  border: 1px solid #dfe4da;
+  border-radius: 18px;
+  background-color: #f8f8f4;
+  background-image: radial-gradient(rgba(113,132,111,.22) .8px,transparent .8px);
+  background-size: 22px 22px;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+.tree-viewport svg { display: block; overflow: visible; }
+.tree-viewport g[role="button"]:focus { outline: none; }
+.tree-viewport g[role="button"]:focus rect { stroke: var(--color-copper); stroke-width: 4; }
+.tree-person-detail {
+  margin-top: 14px;
+  padding: 15px 17px;
+  border: 1px solid #d7e2d5;
+  border-radius: 14px;
+  background: rgba(232,238,230,.76);
+}
+.tree-person-detail strong { color: var(--color-ink); font-size: 14px; }
+.tree-person-detail span { font-size: 12px; line-height: 1.5; }
+.tree-empty {
+  padding: 24px;
+  border: 1px dashed #cbd6c8;
+  border-radius: 16px;
+  background: rgba(255,255,255,.6);
+  color: var(--color-muted);
+  line-height: 1.65;
+}
+@media (max-width: 760px) {
+  .tree-explorer { padding: 16px; border-radius: 18px; }
+  .tree-toolbar { gap: 12px; }
+  .tree-controls { width: 100%; justify-content: flex-start; }
+  .tree-controls button:first-child { margin-right: auto; }
+  .tree-view-options { gap: 12px; }
+  .tree-modes { display: flex; width: 100%; }
+  .tree-mode { flex: 1; min-width: 0; padding-inline: 6px !important; font-size: 10px; }
+  .tree-search { width: 100%; }
+  .tree-viewport { max-height: 62vh; padding: 10px; }
+  .tree-person-detail { gap: 8px; }
+}
+@media (max-width: 420px) {
+  .tree-explorer { margin-inline: -4px; padding: 13px; }
+  .tree-controls button { padding-inline: 9px !important; }
+  .tree-legend { gap: 10px; font-size: 10px; }
+}
