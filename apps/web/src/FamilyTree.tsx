@@ -213,6 +213,9 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
     setFitPending(true);
     setZoom(Math.max(20,Math.min(150,Math.floor(scale))));
   };
+  // Apply the initial fit once the viewport has measurable dimensions.
+  // Disconnect immediately so later zoom/scrollbar changes cannot overwrite
+  // the user's manual zoom level.
   useEffect(()=>{
     const viewport=viewportRef.current;
     if(!viewport||!people.length)return;
@@ -221,12 +224,15 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
       if(frame)cancelAnimationFrame(frame);
       frame=requestAnimationFrame(()=>{
         frame=0;
-        if(viewport.clientWidth>0&&viewport.clientHeight>0)fitTree();
+        if(viewport.clientWidth>0&&viewport.clientHeight>0){
+          fitTree();
+          observer.disconnect();
+        }
       });
     });
     observer.observe(viewport);
     return ()=>{observer.disconnect();if(frame)cancelAnimationFrame(frame);};
-  },[people.length,layout.width,layout.height]);
+  },[people.length]);
   const choosePerson=(id:string)=>{if(selected===id){setSelected(null);setSearch("");return;}setSelected(id);setSearch(people.find(p=>p.id===id)?.display_name??"");};
   if(!people.length)return <div className="tree-empty">Add family members and connect their parent-child relationships to see the generations take shape.</div>;
   return <section className="tree-explorer">
