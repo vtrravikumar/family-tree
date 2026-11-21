@@ -27,6 +27,7 @@ function birthLabel(p:TreePerson){if(p.birth_date_kind==="exact"&&p.birth_exact_
 
 export default function FamilyTree({people,relationships}:{people:TreePerson[];relationships:TreeRelationship[]}) {
   const [zoom,setZoom]=useState(100);
+  const [fitPending,setFitPending]=useState(false);
   const [selected,setSelected]=useState<string|null>(null);
   const [mode,setMode]=useState<ViewMode>("generation");
   const [search,setSearch]=useState("");
@@ -180,19 +181,30 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
   const isDirectSiblingEdge=(from:string,to:string)=>!highlightActive||from===selected||to===selected;
   const focused=people.find(p=>p.id===selected);
   useEffect(()=>{
+    const viewport=viewportRef.current;
+    if(!viewport)return;
+    if(fitPending){viewport.scrollTo({left:0,top:0,behavior:"smooth"});setFitPending(false);return;}
     if(!selected)return;
     const node=layout.nodes.find(item=>item.person.id===selected);
-    const viewport=viewportRef.current;
-    if(!node||!viewport)return;
+    if(!node)return;
     const left=(node.x+80)*zoom/100-viewport.clientWidth/2;
     const top=(node.y+52)*zoom/100-viewport.clientHeight/2;
     viewport.scrollTo({left:Math.max(0,left),top:Math.max(0,top),behavior:"smooth"});
-  },[selected,layout.nodes,zoom]);
+  },[selected,layout.nodes,zoom,fitPending]);
+  const fitTree=()=>{
+    const viewport=viewportRef.current;
+    if(!viewport)return;
+    const availableWidth=Math.max(1,viewport.clientWidth-36);
+    const availableHeight=Math.max(1,viewport.clientHeight-36);
+    const scale=Math.min(availableWidth/layout.width,availableHeight/layout.height)*100;
+    setFitPending(true);
+    setZoom(Math.max(20,Math.min(150,Math.floor(scale))));
+  };
   const choosePerson=(id:string)=>{if(selected===id){setSelected(null);setSearch("");return;}setSelected(id);setSearch(people.find(p=>p.id===id)?.display_name??"");};
   if(!people.length)return <div className="tree-empty">Add family members and connect their parent-child relationships to see the generations take shape.</div>;
   return <section className="tree-explorer">
     <div className="tree-toolbar"><div><p className="eyebrow">EXPLORE YOUR HERITAGE</p><h3>Family tree</h3><p className="tree-help">Explore generations, spouses and sibling connections. Select a person to focus a branch.</p></div>
-      <div className="tree-controls"><button className="button-secondary" onClick={()=>{setMode("generation");setSelected(null);setSearch("");setZoom(100);}}>Reset view</button><button className="button-secondary" onClick={()=>setZoom(100)}>Fit</button><button className="button-secondary" aria-label="Zoom out" onClick={()=>setZoom(v=>Math.max(60,v-10))}>−</button><span aria-live="polite">{zoom}%</span><button className="button-secondary" aria-label="Zoom in" onClick={()=>setZoom(v=>Math.min(150,v+10))}>+</button></div>
+      <div className="tree-controls"><button className="button-secondary" onClick={()=>{setMode("generation");setSelected(null);setSearch("");setZoom(100);}}>Reset view</button><button className="button-secondary" onClick={fitTree}>Fit</button><button className="button-secondary" aria-label="Zoom out" onClick={()=>setZoom(v=>Math.max(60,v-10))}>−</button><span aria-live="polite">{zoom}%</span><button className="button-secondary" aria-label="Zoom in" onClick={()=>setZoom(v=>Math.min(150,v+10))}>+</button></div>
     </div>
     <div className="tree-view-options"><div className="tree-modes">{(["generation","ancestors","descendants"] as ViewMode[]).map(v=><button key={v} className={mode===v?"tree-mode active":"tree-mode"} onClick={()=>{setMode(v);setZoom(100);if(v==="generation")setSelected(null);}}>{v==="generation"?"All generations":v==="ancestors"?"Ancestors":"Descendants"}</button>)}{selected&&<button className="tree-mode tree-clear-focus" onClick={()=>{setSelected(null);setSearch("");}} aria-label="Clear focused person">Clear focus</button>}</div>
       <div className="tree-search"><input aria-label="Search family members" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search a person…"/>{matches.length>0&&<div className="tree-search-results">{matches.map(p=><button key={p.id} onClick={()=>choosePerson(p.id)}>{p.display_name}</button>)}</div>}</div>

@@ -204,7 +204,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if(!family)return fail(404,"family_not_found","Family not found.");
     await writePlatformAudit(env.DB,actorUserId,"family.support_access","family",familyId,reason,{familyName:family.name});
     const people=await env.DB.prepare(`SELECT id,given_name,middle_name,family_name,display_name,gender,life_status,
-      birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,
+      birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,birth_place,birth_country,
       death_date_kind,death_exact_date,death_year,death_range_start_year,death_range_end_year,death_original_text,biography
       FROM persons WHERE family_id=? ORDER BY family_name,given_name`).bind(familyId).all();
     const relationships=await env.DB.prepare("SELECT id,from_person_id,to_person_id,relationship_type FROM relationships WHERE family_id=?").bind(familyId).all();
@@ -331,7 +331,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (request.method === "GET") {
       const result=await env.DB.prepare(`SELECT id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,
-        birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,
+        birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,birth_place,birth_country,
         death_date_kind,death_exact_date,death_year,death_range_start_year,death_range_end_year,death_original_text,biography,created_at,updated_at
         FROM persons WHERE family_id=? ORDER BY family_name,given_name`).bind(familyId).all();
       return json({data:result.results});
@@ -350,12 +350,12 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       const displayName=[textOrNull(input.givenName),textOrNull(input.middleName),textOrNull(input.familyName)].filter(Boolean).join(" ");
       try {
         await env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,
-          birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,
+          birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,birth_place,birth_country,
           death_date_kind,death_exact_date,death_year,death_range_start_year,death_range_end_year,death_original_text,
-          created_by_user_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
+          created_by_user_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
           personId,familyId,input.givenName.trim(),textOrNull(input.middleName),textOrNull(input.familyName),displayName,
           textOrNull(input.gender),life,birthKind,textOrNull(input.birthExactDate),yearOrNull(input.birthYear),
-          yearOrNull(input.birthRangeStartYear),yearOrNull(input.birthRangeEndYear),textOrNull(input.birthOriginalText),
+          yearOrNull(input.birthRangeStartYear),yearOrNull(input.birthRangeEndYear),textOrNull(input.birthOriginalText),textOrNull(input.birthPlace),textOrNull(input.birthCountry),
           deathKind,textOrNull(input.deathExactDate),yearOrNull(input.deathYear),yearOrNull(input.deathRangeStartYear),
           yearOrNull(input.deathRangeEndYear),textOrNull(input.deathOriginalText),actorUserId,t,t).run();
         await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,?,'person',?,'person.created',?)")
@@ -493,13 +493,13 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const t=now(), display=[given,middle,family].filter(Boolean).join(" ");
     try {
       await env.DB.prepare(`UPDATE persons SET given_name=?,middle_name=?,family_name=?,display_name=?,gender=?,
-        birth_date_kind=?,birth_exact_date=?,birth_year=?,birth_range_start_year=?,birth_range_end_year=?,birth_original_text=?,
+        birth_date_kind=?,birth_exact_date=?,birth_year=?,birth_range_start_year=?,birth_range_end_year=?,birth_original_text=?,birth_place=?,birth_country=?,
         biography=?,updated_at=? WHERE id=? AND family_id=? AND life_status='alive'`).bind(
         given,middle,family,display,gender,birthKind,birthKind==="exact"?exact:null,
         (birthKind==="year"||birthKind==="approximate_year")?year:null,birthKind==="range"?start:null,
-        birthKind==="range"?end:null,original,textOrNull(input.biography),t,personId,familyId).run();
+        birthKind==="range"?end:null,original,textOrNull(input.birthPlace),textOrNull(input.birthCountry),textOrNull(input.biography),t,personId,familyId).run();
       await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'person.updated',?,?)")
-        .bind(id(),familyId,actorUserId,personId,JSON.stringify({fields:["name","gender","birth_date","biography"]}),t).run();
+        .bind(id(),familyId,actorUserId,personId,JSON.stringify({fields:["name","gender","birth_date","birth_place","birth_country","biography"]}),t).run();
       return json({data:{id:personId,displayName:display,updatedAt:t}});
     } catch { return fail(409,"person_immutable","This profile could not be changed. It may have been marked deceased."); }
   }
