@@ -99,6 +99,8 @@ export default function App(){
  const loadFamilies=useCallback(async()=>{const r=await request("/v1/families") as {data:Family[]};setFamilies(r.data);},[request]);
  const loadData=useCallback(async(id:string)=>{if(!id){setPeople([]);setRels([]);return;}const [p,r]=await Promise.all([request("/v1/families/"+id+"/people"),request("/v1/families/"+id+"/relationships")]) as [{data:Person[]},{data:Relationship[]}];setPeople(p.data);setRels(r.data);},[request]);
  useEffect(()=>{if(connected&&familyId)loadData(familyId).catch(e=>setError(e.message));},[connected,familyId,loadData]);
+ const selected=families.find(f=>f.id===familyId);
+ const viewerMode=selected?.role==="viewer"||(!selected&&families.length>0&&families.every(f=>f.role==="viewer"));
  useEffect(()=>{if(!connected||!familyId||!viewerMode){setIdentityState(null);setViewerSelectedPersonId(null);return;}let active=true;request("/v1/families/"+familyId+"/identity").then((r:{data:{link: {person_id:string;display_name:string;linked_at:string}|null;claims:Array<{id:string;person_id:string;display_name:string;status:string;requested_at:string;review_reason?:string|null}>}})=>{if(active)setIdentityState(r.data);}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[connected,familyId,viewerMode,request]);
  async function run(fn:()=>Promise<void>){setBusy(true);setError("");setNotice("");try{await fn();}catch(e){setError(e instanceof Error?e.message:"Something went wrong.");}finally{setBusy(false);}}
  useEffect(()=>{
@@ -111,8 +113,6 @@ export default function App(){
   const timer=window.setInterval(()=>{if(window.google){window.clearInterval(timer);initialize();}},100);
   return()=>{cancelled=true;window.clearInterval(timer);};
  },[loadFamilies]);
- const selected=families.find(f=>f.id===familyId);
- const viewerMode=selected?.role==="viewer"||(!selected&&families.length>0&&families.every(f=>f.role==="viewer"));
  const visiblePeople=people.filter(p=>p.display_name.toLocaleLowerCase().includes(peopleSearch.trim().toLocaleLowerCase()));
  const profilePerson=people.find(p=>p.id===profilePersonId)||null;
  const profileRelationships=profilePerson?rels.filter(r=>r.from_person_id===profilePerson.id||r.to_person_id===profilePerson.id):[];
