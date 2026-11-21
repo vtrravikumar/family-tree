@@ -544,6 +544,9 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   const deceasedMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/deceased$/);
   if (deceasedMatch && request.method === "POST") {
+    const familyId=deceasedMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
+    if (!role) return fail(404,"family_not_found","Family not found.");
+    if (role !== "owner" && role !== "admin") return fail(403,"forbidden","Only a family owner or admin can mark someone deceased.");
     const familyId=deceasedMatch[1], personId=deceasedMatch[2], role=await roleFor(env.DB,familyId,actorUserId);
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (role !== "owner" && role !== "admin") return fail(403,"forbidden","Only a family owner or admin can mark someone deceased.");

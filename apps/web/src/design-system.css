@@ -2597,3 +2597,10 @@ details[open] > .heritage-section-heading .heritage-disclosure-mark {
   .people-directory-tools > span { white-space: normal; }
   .relationship-form { padding: 12px; }
 }
+
+
+/* Viewer workspaces: deliberately minimal, read-only family selection. */
+.viewer-family-picker { display:flex; flex-wrap:wrap; gap:10px; margin:0 auto 20px; max-width:1440px; }
+.viewer-family-picker .family-item { display:flex; align-items:center; gap:12px; min-width:min(260px,100%); padding:10px 14px; border:1px solid var(--color-line); color:var(--color-ink); background:var(--color-surface); text-align:left; }
+.viewer-family-picker .family-item strong,.viewer-family-picker .family-item small { display:block; }
+.viewer-family-picker .family-item small { color:var(--color-muted); margin-top:3px; }
