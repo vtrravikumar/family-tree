@@ -1174,3 +1174,31 @@ a { color: #8ce9e4; }
   .atlas-tree .tree-viewport { animation: atlas-arrive 900ms cubic-bezier(.2,.7,.2,1) both; }
   @keyframes atlas-arrive { from { opacity:.5; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 }
+
+
+/* People directory is a destination, not a disclosure control */
+.people-directory-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  cursor: default !important;
+  list-style: none;
+  padding: 0 0 18px;
+  border-bottom: 1px solid rgba(139,183,220,.14);
+}
+.people-directory-heading h3 { margin: 0; }
+.people-directory-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgba(105,226,221,.20);
+  border-radius: 999px;
+  background: rgba(65,190,193,.08);
+  color: #8debe7;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.people-directory-section { display: block; }
