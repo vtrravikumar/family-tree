@@ -110,7 +110,7 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
           units.splice(Math.floor(units.length/2),0,focusUnit);
         }
       }
-      const width=units.reduce((sum,unit,index)=>sum+160+Math.max(0,unit.length-1)*174+(index?58:0),0);
+      const width=units.reduce((sum,unit,index)=>sum+160+Math.max(0,unit.length-1)*168+(index?58:0),0);
       maxRowWidth=Math.max(maxRowWidth,width);
       rowSpecs.push({generation:g,units,width});
     }
@@ -119,7 +119,7 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
       const y=42+(row.generation-minGeneration)*174;
       for(const unit of row.units){
         unit.forEach((person,index)=>{
-          const x=cursor+index*174;
+          const x=cursor+index*168;
           xById.set(person.id,x+80);
           result.push({person,generation:row.generation,x,y});
         });
