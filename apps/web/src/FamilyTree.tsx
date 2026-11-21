@@ -92,7 +92,7 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
     }
     const groups=new Map<number,TreePerson[]>();
     for(const p of people){if(!visible.has(p.id))continue;const g=generations.get(p.id)??0;groups.set(g,[...(groups.get(g)??[]),p]);}
-    const result:Node[]=[];const xById=new Map<string,number>();let maxCount=1;
+    const result:Node[]=[];const xById=new Map<string,number>();
     const minGeneration=Math.min(0,...groups.keys()),maxGeneration=Math.max(0,...groups.keys());
     const order=mode==="ancestors"?Array.from({length:maxGeneration-minGeneration+1},(_,i)=>maxGeneration-i):Array.from({length:maxGeneration-minGeneration+1},(_,i)=>minGeneration+i);
     const rowSpecs:Array<{generation:number;units:TreePerson[][];width:number}>=[];
