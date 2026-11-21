@@ -321,3 +321,80 @@ input:focus, select:focus, textarea:focus {
 @media (prefers-reduced-motion: reduce) {
   .app-header { backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
+
+
+/* UI-3 — searchable people directory and readable person profiles */
+.people-directory-tools {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(180px,300px) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 18px 0 12px;
+}
+.people-search-label { color: var(--color-muted); font-size: 12px; font-weight: 600; }
+.people-directory-tools input { width: 100%; min-width: 0; }
+.people-directory-tools > span { padding: 0 0 12px; color: var(--color-muted); font-size: 11px; white-space: nowrap; }
+.person-profile-trigger {
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  text-align: left;
+  box-shadow: none;
+}
+.person-profile-trigger:hover { background: transparent; color: var(--color-forest); box-shadow: none; }
+.person-profile-trigger[aria-pressed="true"] strong { color: var(--color-forest); }
+.person-profile-panel {
+  margin: 16px 0 22px;
+  padding: clamp(18px,3vw,28px);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: linear-gradient(145deg,#fff,rgba(240,241,236,.72));
+  box-shadow: var(--shadow-card);
+}
+.profile-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--color-line);
+}
+.profile-heading h3 { margin: 6px 0; color: var(--color-ink); font: 400 clamp(25px,3vw,34px)/1.15 Georgia,serif; }
+.profile-heading p:last-child { margin: 0; color: var(--color-muted); font-size: 12px; }
+.profile-facts {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 10px;
+  padding: 18px 0;
+}
+.profile-facts > div { min-width: 0; padding: 13px; border-radius: 12px; background: rgba(255,255,255,.76); }
+.profile-facts span, .profile-facts strong { display: block; }
+.profile-facts span { color: var(--color-muted); font-size: 11px; }
+.profile-facts strong { margin-top: 6px; color: var(--color-ink); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; text-transform: capitalize; }
+.profile-biography { padding: 12px 0; }
+.profile-biography h4, .profile-connections h4 { margin: 0 0 9px; font: 19px Georgia,serif; }
+.profile-biography p { max-width: 75ch; margin: 0; color: var(--color-muted); font-size: 13px; line-height: 1.75; white-space: pre-wrap; }
+.profile-connections { padding-top: 12px; }
+.profile-connections h4 { display: flex; align-items: center; gap: 9px; }
+.profile-connections h4 span { display: inline-grid; min-width: 23px; height: 23px; place-items: center; border-radius: 50%; background: var(--color-surface-soft); color: var(--color-forest); font: 600 11px system-ui; }
+.profile-connections > div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-line); font-size: 12px; }
+.profile-connections small { color: var(--color-muted); }
+.profile-connections > p { color: var(--color-muted); font-size: 12px; }
+.profile-edit-action { margin-top: 16px; }
+@media (max-width: 760px) {
+  .people-directory-tools { grid-template-columns: 1fr auto; gap: 6px 10px; }
+  .people-search-label { grid-column: 1/-1; }
+  .people-directory-tools input { grid-column: 1; }
+  .people-directory-tools > span { grid-column: 2; padding-bottom: 12px; }
+  .profile-facts { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 480px) {
+  .profile-heading { flex-direction: column; }
+  .profile-heading .button-secondary { width: 100%; }
+  .profile-facts { gap: 7px; }
+  .profile-facts > div { padding: 10px; }
+  .profile-connections > div { align-items: flex-start; flex-direction: column; gap: 4px; }
+}
