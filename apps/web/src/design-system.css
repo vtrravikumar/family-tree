@@ -205,3 +205,119 @@ input:focus, select:focus, textarea:focus {
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .connect-card { background: rgba(255,255,255,.96); }
 }
+
+
+/* UI-2 — family workspace shell and navigation */
+.app-shell {
+  width: min(100% - 48px, 1320px);
+  margin-inline: auto;
+}
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  min-height: 76px;
+  margin-inline: -24px;
+  padding: 12px 24px;
+  border-bottom: 1px solid rgba(226,228,220,.82);
+  background: rgba(246,245,241,.88);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+.app-header .brand { flex: 0 0 auto; }
+.workspace-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.workspace-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 13px;
+  border-radius: 12px;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.workspace-nav a:hover,
+.workspace-nav a:focus-visible {
+  color: var(--color-forest);
+  background: rgba(255,255,255,.82);
+}
+.header-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+.account-chip {
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.overview-region { scroll-margin-top: 100px; }
+.overview-intro {
+  padding: 28px 0 4px;
+}
+.overview-intro h2 {
+  margin: 7px 0 8px;
+  color: var(--color-ink);
+  font: 400 clamp(28px, 3vw, 38px)/1.15 Georgia, serif;
+  letter-spacing: -.7px;
+}
+.overview-intro h2 em { color: var(--color-forest); }
+.overview-intro > p:last-child {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.family-summary {
+  scroll-margin-top: 100px;
+  border-radius: var(--radius-card);
+  background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(240,241,236,.72));
+  border: 1px solid var(--color-line);
+  outline: 0;
+  box-shadow: var(--shadow-card);
+}
+.members-region, #people, #family-tree, #settings {
+  scroll-margin-top: 100px;
+}
+#members { margin-top: 18px; }
+#settings { scroll-margin-top: 110px; }
+.workspace-heading { padding-top: 38px; }
+.workspace-grid { align-items: start; }
+@media (max-width: 980px) {
+  .app-header { flex-wrap: wrap; gap: 10px 18px; padding-block: 10px; }
+  .workspace-nav { order: 3; flex-basis: 100%; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
+  .workspace-nav::-webkit-scrollbar { display: none; }
+  .header-meta { margin-left: auto; }
+}
+@media (max-width: 600px) {
+  .app-shell { width: calc(100% - 28px); }
+  .app-header { margin-inline: -14px; padding: 10px 14px 8px; min-height: 0; }
+  .app-header .brand { font-size: 19px; }
+  .header-meta { gap: 6px; }
+  .environment { font-size: 8px; }
+  .account-chip { display: none; }
+  .workspace-nav { gap: 2px; margin-inline: -4px; }
+  .workspace-nav a { min-height: 40px; padding-inline: 11px; font-size: 12px; }
+  .overview-intro { padding-top: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-header { backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
