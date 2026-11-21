@@ -1336,7 +1336,7 @@ body {
 
 /* Native iOS / system appearance: follow the device light/dark preference */
 :root { color-scheme: light dark; }
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: light) and (max-width: 0px) {
   :root {
     color-scheme: light !important;
     color: #172337 !important;
@@ -1558,7 +1558,7 @@ body::before {
   background-position: left top, right bottom;
   background-repeat: repeat;
 }
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: light) and (max-width: 0px) {
   :root {
     --color-canvas: #f3eddd;
     --color-surface: rgba(250,247,237,.78);
@@ -1673,7 +1673,7 @@ body::before {
   .atlas-tree .tree-person-detail span { color: #c0b38e !important; }
 }
 
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: light) and (max-width: 0px) {
   html,body,#root { background-color: #f3eddd !important; color: #293a2b !important; }
   body {
     background:
@@ -2379,7 +2379,7 @@ button.person-profile-trigger[aria-pressed="true"] {
 .sidebar .inline-form button { background: #536d48 !important; color: #fff7e4 !important; }
 .sidebar .inline-form input { background: #1b281e !important; color: #e9e2cf !important; }
 .sidebar .inline-form input::placeholder { color: #968f7b !important; }
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: light) and (max-width: 0px) {
   :root {
     color-scheme: light !important;
     --color-canvas: #f1efe5 !important;
@@ -2575,7 +2575,7 @@ details[open] > .heritage-section-heading .heritage-disclosure-mark {
 }
 .profile-fact-location span { color: #b5ad96; font-size: 12px; }
 .profile-fact-location strong { color: #e9e2cf; font-weight: 600; }
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: light) and (max-width: 0px) {
   .people-directory-disclosure,.heritage-relationships {
     background: #fbfaf4 !important;
     border-color: #d8d4c1 !important;
