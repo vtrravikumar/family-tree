@@ -1,8 +1,8 @@
 # Product Specification
 
-**Version:** 0.1  
-**Status:** Initial baseline  
-**Product name:** Undecided  
+**Version:** 1.0 (focused production v1 scope)  
+**Status:** Agreed scope; implementation and validation pending  
+**Product name:** Vansvriksha  
 **Repository:** family-tree  
 **Initial market:** India, with international-ready foundations
 
@@ -10,7 +10,7 @@
 
 Build a modern, collaborative family heritage platform where individuals and families can create, maintain, explore and preserve family history.
 
-Users can create family trees, join existing family workspaces, record people and relationships, collaborate with authorized relatives, and export attractive family-tree images.
+Users can create family trees, join existing family workspaces, record people and relationships, collaborate with authorized relatives, and preserve family history accurately.
 
 ## 2. Product principles
 
@@ -20,12 +20,15 @@ Users can create family trees, join existing family workspaces, record people an
 - Simple data entry for non-technical family members.
 - Clear ownership, roles and server-enforced permissions.
 - Preserve family history for future generations.
+- A professional, intuitive and visually appealing experience is a v1 release requirement, not optional post-launch polish.
 
 ## 3. Accounts and workspaces
 
 Google sign-in is the primary authentication method. The backend must validate Google ID tokens and establish a secure application session.
 
-A user may create multiple family workspaces and join multiple others. Invitations may be sent by email or revocable invitation links/codes. Joining users should be able to link their account to an existing person profile rather than creating duplicates.
+A user may create multiple family workspaces and join multiple others. Invitations may be sent by email or revocable invitation links/codes. Joining users should be able to associate their account with an existing person profile through the identity-claim workflow in section 8.
+
+The platform has a Platform Super Admin role, distinct from family-level Owner, Admin, Editor and Viewer roles. Platform Super Admin privileges must be explicitly enforced server-side and audited.
 
 ## 4. Person profiles
 
@@ -62,7 +65,7 @@ Store relationships independently from person profiles. Initial types include bi
 
 Support multiple marriages, remarriage, half-siblings, adoption, step-family relationships, unknown parents and incomplete ancestry. Prevent circular parent-child relationships and contradictory records. Do not assume every person has exactly two known parents.
 
-## 6. Visualization
+## 6. Visualization and user experience
 
 Initial views:
 - Traditional generation-based tree.
@@ -82,48 +85,100 @@ Rearranging a visualization must not mutate the underlying family relationships.
 
 Living and deceased people must be distinguishable with clear, accessible status labels. Unknown dates must be shown honestly or omitted.
 
+A professional redesign is mandatory for v1. Navigation, workspace overview, member cards, profiles, tree visualization, forms, dialogs, responsive layouts, empty/loading/error states and accessibility must be reviewed as one coherent product experience. Ease of use and visual appeal are core acceptance criteria.
+
 ## 7. Roles and collaboration
 
-Roles:
-- Owner: full workspace administration and ownership transfer/deletion.
-- Admin: manage members, invitations and eligible family data.
-- Editor: add and modify eligible people and relationships.
-- Viewer: view permitted family information.
+Family-level roles:
+- **Owner:** full workspace administration, ownership transfer/deletion, and the ability to directly claim any person in that family.
+- **Admin:** manage members, invitations and eligible family data; may approve or reject identity-claim requests.
+- **Editor:** add and modify eligible people and relationships within the permissions enforced by the server; cannot import/export or approve identity claims.
+- **Viewer:** view permitted family information; cannot modify data, import/export or approve identity claims.
 
-Deceased-profile immutability overrides every role. Enforce permissions on the server for every operation. Start with optimistic concurrency controls; add live collaboration later.
+**Platform Super Admin** is a platform-level role, not a family membership role. It has platform administration powers and is permitted to perform family data import/export operations.
 
-## 8. Sharing and export
+All permissions must be enforced by the API for every operation. Hiding a control in the frontend is not authorization. Deceased-profile immutability overrides every role. Start with optimistic concurrency controls; add live collaboration later.
 
-PNG is the primary export format. Support full-tree and selected-branch export, high resolution, background/theme choices, and optional photos/dates/details. Layout must avoid overlapping cards and connectors and must be independent of the current viewport zoom.
+## 8. Account-to-person identity claims
 
-Read-only sharing links must be opt-in, revocable and scoped. Private data must never become public merely because a URL is known.
+A signed-in user may select an existing person record in a family and request to associate their Google account with that person.
 
-## 9. Privacy and security
+- A claim request must identify the family, person and authenticated account.
+- A pending request grants no additional access or editing permissions.
+- The Family Owner and family Admin may approve or reject a pending claim.
+- The Family Owner may directly claim any person in that family without an approval step.
+- Editors and Viewers cannot approve claims.
+- The system must enforce one account-to-person association per family and one account per person per family, except through an explicitly authorized reassignment process.
+- Approval, rejection, direct claim, unlinking and reassignment must be recorded in the audit log.
+- Claiming a person is an identity association only; it does not transfer family ownership or grant permissions beyond the user's existing family role.
+- On approval or direct claim, the linked Google profile photo is displayed as an overlay/badge on the person's family-tree/profile image.
+- The Google avatar must remain separate from the person's historical family portrait; it must never overwrite the family portrait.
+- Unlinking or reassignment must be restricted to authorized roles, validated server-side and audited.
+
+The account's Google profile image is sourced from the authenticated Google identity. If unavailable, the UI must gracefully show the normal default avatar.
+
+## 9. Import and export permissions
+
+Family data import and export are restricted administrative operations.
+
+Permitted:
+- Family Owner of that family.
+- Family Admin of that family.
+- Platform Super Admin.
+
+Not permitted:
+- Editor.
+- Viewer.
+- A user who is not authorized for the target family, unless acting with an explicitly authorized Platform Super Admin capability.
+
+These restrictions apply to every import/export API endpoint and workflow, including preview, validation, commit, download and any alternate route. Frontend control visibility is supplementary only. Attempts by unauthorized roles must be rejected server-side and covered by negative authorization tests.
+
+Family data import/export is in v1 for administrative migration and data portability, subject to the permission rules above. Tree image/PDF/Excel presentation exports are not part of v1.
+
+## 10. Sharing
+
+Public/read-only sharing links are not required for the focused v1 release. Any future sharing must be opt-in, revocable and scoped. Private data must never become public merely because a URL is known.
+
+## 11. Privacy and security
 
 - Workspaces private by default.
 - Server-side authorization on every operation.
 - Secure sessions and authentication token validation.
 - Restricted media access.
 - Invitation expiry and revocation.
-- Audit logging.
+- Audit logging for administrative and identity-association actions.
 - Account and workspace deletion workflows.
 - Backup and recovery plan.
 - Special care for living relatives and minors.
+- Separate development and production environments and data stores.
+- Production migration must preserve existing family data, relationships, memberships, roles and ownership; it must be backed up and validated before cutover.
 
-## 10. Initial release acceptance criteria
+## 12. Focused production v1 acceptance criteria
 
-A user can:
-1. Sign in with Google.
-2. Create a family workspace.
-3. Add people and relationships.
-4. Record living/deceased status.
-5. Enter exact, approximate, range or unknown dates.
-6. Invite relatives and assign roles.
-7. Explore a family tree interactively.
-8. Export the tree as a PNG.
-9. Share a revocable read-only link.
-10. Trust that deceased profiles cannot be edited through UI or API.
+A v1 release is acceptable only when:
+1. Users can sign in securely with Google.
+2. Users can create and access family workspaces.
+3. Users can add people and relationships with appropriate date precision and life status.
+4. Deceased profiles cannot be edited through UI or API by any ordinary role.
+5. Family invitations and Owner/Admin/Editor/Viewer permissions work correctly.
+6. Family Owner and Admin can approve/reject identity claims; Owner can directly claim any person.
+7. Pending identity claims grant no extra permissions.
+8. Approved identity associations display the Google avatar separately from the historical portrait.
+9. Only Family Owner, family Admin and Platform Super Admin can import/export family data; Editor and Viewer are denied server-side.
+10. Cross-family isolation, role boundaries and identity-claim uniqueness are verified by tests.
+11. The professional UI/UX redesign is complete and validated on desktop, tablet and mobile.
+12. Existing family workspaces are backed up, migrated to production without data loss, and validated against source counts and relationships.
+13. Production infrastructure, monitoring, backup/recovery and operational procedures are verified.
+14. The three current test users can complete end-to-end acceptance testing with their intended roles.
 
-## 11. Future opportunities
+Tree image/PDF/Excel export, public share links, photo upload, family timelines and stories, independently managed family branches and cross-family connections are not v1 release requirements.
 
-Family timeline, stories and memories, audio recordings, family event calendar, family-history book generation, printable posters, duplicate detection, relationship explanations and multilingual UI. AI must never invent or silently alter historical facts.
+## 13. Deferred beyond v1
+
+- Tree image/PDF/Excel presentation exports.
+- Public/read-only family sharing links.
+- Photo upload and media management.
+- Family timeline, stories, memories and event calendar.
+- Independently managed family branches and cross-family connections, including consent-based links between separate family workspaces.
+- Advanced real-time collaboration and notifications.
+- AI-assisted historical research; AI must never invent or silently alter historical facts.
