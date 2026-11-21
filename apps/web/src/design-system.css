@@ -1947,3 +1947,213 @@ body::before {
   .people-directory-disclosure .people-list,
   .people-directory-disclosure > .empty-hint { margin-left: 14px; margin-right: 14px; }
 }
+
+
+/* Vansvriksha unified bottle-green heritage theme — site-wide control language */
+:root {
+  color-scheme: dark;
+  --color-canvas: #1d261d;
+  --color-surface: #252f24;
+  --color-surface-soft: #2d382a;
+  --color-surface-glass: rgba(39,49,36,.88);
+  --color-ink: #eee7d3;
+  --color-muted: #b8b29e;
+  --color-line: rgba(190,174,123,.28);
+  --color-forest: #526447;
+  --color-forest-hover: #637653;
+  --color-copper: #b99a60;
+  --color-indigo: #899276;
+  --color-teal: #879477;
+  --color-danger: #b76d5e;
+  --color-success: #91a27b;
+  --color-warning: #c5a56a;
+  --focus-ring: 0 0 0 2px #c7ae73, 0 0 0 5px rgba(199,174,115,.22);
+  --shadow-floating: 0 18px 48px rgba(0,0,0,.32);
+  --shadow-card: 0 5px 24px rgba(0,0,0,.16);
+}
+html {
+  color-scheme: dark;
+  background: #1d261d;
+}
+body {
+  color: var(--color-ink);
+  background: #1d261d;
+}
+.app-header {
+  background: rgba(29,38,29,.94) !important;
+  border-bottom: 1px solid var(--color-line) !important;
+  box-shadow: none !important;
+}
+.brand, .workspace-heading h1, .overview-intro h2,
+.family-heading h2, .section-title h2, .section-title h3 {
+  color: var(--color-ink) !important;
+}
+.eyebrow, .environment, .section-kicker {
+  color: #b6a16b !important;
+  letter-spacing: .16em;
+}
+.intro, .workspace-heading .intro, .tree-help,
+.privacy-note, .helper-text, .empty-hint {
+  color: var(--color-muted) !important;
+}
+
+/* One consistent control surface for buttons, tabs and navigation actions. */
+button:not(.family-item),
+.button-secondary, .admin-nav-link, .platform-back,
+.family-heading-actions .button-secondary,
+.tree-mode, .edit-person, .profile-edit-action,
+.invite-return, .version-back-link {
+  min-height: 40px;
+  border: 1px solid rgba(190,174,123,.34) !important;
+  border-radius: 11px !important;
+  background: rgba(82,100,71,.20) !important;
+  color: #e9e1ca !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+button:not(.family-item):hover:not(:disabled),
+.button-secondary:hover:not(:disabled), .admin-nav-link:hover,
+.platform-back:hover, .tree-mode:hover:not(:disabled),
+.edit-person:hover:not(:disabled), .profile-edit-action:hover:not(:disabled) {
+  background: rgba(99,118,83,.42) !important;
+  border-color: rgba(199,174,115,.62) !important;
+  color: #fff5dc !important;
+}
+button:not(.family-item):active:not(:disabled) { transform: translateY(1px); }
+button:focus-visible, a:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible {
+  outline: none !important;
+  box-shadow: var(--focus-ring) !important;
+}
+.tree-mode.active, .workspace-nav a[aria-current="page"] {
+  background: #526447 !important;
+  border-color: #b99a60 !important;
+  color: #fff5dc !important;
+}
+.workspace-nav a {
+  color: #d1c9b2 !important;
+}
+.workspace-nav a:hover, .workspace-nav a:focus-visible {
+  background: rgba(82,100,71,.36) !important;
+  color: #fff5dc !important;
+}
+
+/* Destructive actions remain clearly distinct, but use the same geometry. */
+button.button-danger, .button-danger,
+button.relationship-delete, .relationship-delete,
+button.member-remove, .member-remove {
+  border: 1px solid rgba(183,109,94,.52) !important;
+  background: rgba(122,61,51,.28) !important;
+  color: #e8b6a8 !important;
+}
+button.button-danger:hover, .button-danger:hover,
+button.relationship-delete:hover, .relationship-delete:hover,
+button.member-remove:hover, .member-remove:hover {
+  background: rgba(145,69,56,.42) !important;
+  color: #ffe0d5 !important;
+}
+
+/* Inputs and selects share the existing heritage member-link field treatment. */
+input, select, textarea,
+.tree-search input, .people-directory-tools input,
+.add-person-card input, .add-person-card select,
+.family-member-list select, .invite-fields input, .invite-fields select,
+.edit-dialog input, .edit-dialog select, .edit-dialog textarea,
+.new-person-link select {
+  min-height: 44px;
+  border: 1px solid rgba(190,174,123,.38) !important;
+  border-radius: 10px !important;
+  background: #202a20 !important;
+  color: #eee7d3 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+input::placeholder, textarea::placeholder {
+  color: #a39d89 !important;
+  opacity: 1;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: #b99a60 !important;
+  background: #232e22 !important;
+  box-shadow: 0 0 0 2px rgba(185,154,96,.18) !important;
+}
+select option {
+  color: #eee7d3;
+  background: #202a20;
+}
+label, .connect-card label, form label,
+.new-person-link label, .invite-fields label {
+  color: #d6ccb0 !important;
+}
+input[type="checkbox"], input[type="radio"] {
+  accent-color: #8b9a70;
+}
+
+/* Calm, consistent surfaces across login, family workspace and management. */
+.connect-card, .sidebar, .main-panel, .tree-explorer,
+.family-summary, .family-members-panel, .people-section.collapsible-section,
+.add-person-card, .invite-landing-card, .platform-panel,
+.person-profile-panel, .death-dialog, .version-entry {
+  color: var(--color-ink);
+  border: 1px solid var(--color-line) !important;
+  border-radius: 16px !important;
+  background: #252f24 !important;
+  box-shadow: var(--shadow-card) !important;
+  backdrop-filter: none !important;
+}
+.family-summary, .family-summary-row, .profile-facts > div,
+.relationship-row, .new-person-link, .invitation-created {
+  background: #2b3629 !important;
+  border-color: var(--color-line) !important;
+}
+.family-summary h3, .family-summary-row dd,
+.family-summary-row dt, .profile-facts strong,
+.profile-heading h3, .heritage-section-heading h3,
+.people-directory-heading h3, .family-circle-summary h3 {
+  color: var(--color-ink) !important;
+}
+.family-circle-summary p:not(.eyebrow), .family-summary-note,
+.profile-facts span, .profile-biography p, .profile-connections small {
+  color: var(--color-muted) !important;
+}
+.family-circle-summary .family-circle-toggle {
+  border-color: rgba(190,174,123,.38) !important;
+  background: rgba(82,100,71,.2);
+  color: #e9e1ca !important;
+}
+.tree-modes {
+  border-color: var(--color-line) !important;
+  background: #222c21 !important;
+}
+.tree-mode { color: #d1c9b2 !important; }
+.tree-viewport {
+  border-color: rgba(190,174,123,.3) !important;
+  background-color: #222b21 !important;
+  background-image: radial-gradient(rgba(180,170,132,.16) .8px,transparent .8px) !important;
+}
+.tree-person-detail, .tree-search-results, .person-actions-popover {
+  border-color: var(--color-line) !important;
+  background: #293428 !important;
+  color: var(--color-ink) !important;
+}
+.tree-search-results button, .person-actions-popover button {
+  color: var(--color-ink) !important;
+}
+.tree-search-results button:hover, .person-actions-popover button:hover {
+  background: #354331 !important;
+}
+.private-tag, .status, .family-role-pill, .version-build {
+  background: rgba(137,151,112,.18) !important;
+  color: #d8d6b8 !important;
+  border: 1px solid rgba(190,174,123,.2);
+}
+.message.success { background: rgba(83,119,75,.24) !important; color: #d5e0c5 !important; }
+.message.error { background: rgba(130,63,52,.24) !important; color: #f0c2b5 !important; }
+.app-footer { border-color: var(--color-line) !important; color: var(--color-muted) !important; }
+a, .version-link, .admin-nav-link { color: #d1bc83; }
+a:hover, .version-link:hover { color: #f0d9a0; }
+::selection { color: #fff5dc; background: #526447; }
+@media (max-width: 767px) {
+  button:not(.family-item) { min-height: 44px; }
+  .family-heading-actions { gap: 8px; }
+}
