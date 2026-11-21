@@ -1879,3 +1879,66 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   .heritage-disclosure-mark { transition: none; }
 }
+
+
+/* Family directory and Relationships share one heritage section language */
+.people-directory-disclosure,
+.heritage-relationships {
+  display: block;
+  border: 1px solid rgba(168,139,79,.22) !important;
+  border-radius: 16px !important;
+  background: rgba(246,240,224,.58) !important;
+  overflow: hidden;
+}
+.people-directory-disclosure > summary,
+.heritage-relationships > summary {
+  padding: 17px 20px !important;
+  border-bottom: 0;
+}
+.people-directory-disclosure[open] > summary,
+.heritage-relationships[open] > summary {
+  border-bottom: 1px solid rgba(168,139,79,.18);
+}
+.people-directory-heading {
+  margin: 0;
+  border-bottom: 0 !important;
+}
+.people-directory-disclosure .people-directory-tools,
+.people-directory-disclosure .people-list,
+.people-directory-disclosure > .empty-hint { margin-left: 20px; margin-right: 20px; }
+.people-directory-disclosure .people-directory-tools { padding: 18px 0 12px; }
+.people-directory-disclosure .people-list { padding: 0 0 16px; }
+.people-directory-disclosure > .empty-hint { padding-bottom: 18px; }
+.tree-legend .legend-male,
+.tree-legend .legend-female,
+.tree-legend .legend-deceased {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.tree-legend .legend-male { background: #477fa3; box-shadow: 0 0 0 2px rgba(71,127,163,.16); }
+.tree-legend .legend-female { background: #b87991; box-shadow: 0 0 0 2px rgba(184,121,145,.16); }
+.tree-legend .legend-deceased { background: #85898c; box-shadow: 0 0 0 2px rgba(133,137,140,.16); }
+.tree-legend .legend-parent { background: #8f9b70; }
+.tree-legend .legend-spouse { background: #d8b765; }
+.tree-legend .legend-sibling { background: #a88b4f; }
+@media (prefers-color-scheme: dark) {
+  .people-directory-disclosure,
+  .heritage-relationships {
+    background: rgba(42,49,35,.72) !important;
+    border-color: rgba(194,174,119,.22) !important;
+  }
+  .people-directory-disclosure[open] > summary,
+  .heritage-relationships[open] > summary { border-bottom-color: rgba(194,174,119,.18); }
+}
+@media (max-width: 700px) {
+  .tree-legend { flex-wrap: wrap; row-gap: 8px; }
+  .people-directory-disclosure > summary,
+  .heritage-relationships > summary { padding: 14px !important; }
+  .people-directory-disclosure .people-directory-tools,
+  .people-directory-disclosure .people-list,
+  .people-directory-disclosure > .empty-hint { margin-left: 14px; margin-right: 14px; }
+}

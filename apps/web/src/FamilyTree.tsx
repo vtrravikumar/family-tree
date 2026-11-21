@@ -92,9 +92,11 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
     }
     const groups=new Map<number,TreePerson[]>();
     for(const p of people){if(!visible.has(p.id))continue;const g=generations.get(p.id)??0;groups.set(g,[...(groups.get(g)??[]),p]);}
-    const result:Node[]=[];const xById=new Map<string,number>();let maxCount=1;
+    const result:Node[]=[];const xById=new Map<string,number>();
     const minGeneration=Math.min(0,...groups.keys()),maxGeneration=Math.max(0,...groups.keys());
     const order=mode==="ancestors"?Array.from({length:maxGeneration-minGeneration+1},(_,i)=>maxGeneration-i):Array.from({length:maxGeneration-minGeneration+1},(_,i)=>minGeneration+i);
+    const rowSpecs:Array<{generation:number;units:TreePerson[][];width:number}>=[];
+    let maxRowWidth=160;
     for(const g of order){
       const list=groups.get(g)??[];
       const score=(person:TreePerson)=>{
@@ -103,10 +105,9 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
         return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:Number.MAX_SAFE_INTEGER;
       };
       list.sort((a,b)=>score(a)-score(b)||a.display_name.localeCompare(b.display_name));
-      // Build spouse/partner groups as indivisible visual units. Parent alignment
-      // influences where a group sits, never the distance between partners.
+      // Keep every spouse/partner component together as one compact visual unit.
       const remaining=new Set(list.map(p=>p.id));
-      const groupsOfPartners:Array<TreePerson[]>=[];
+      const units:TreePerson[][]=[];
       while(remaining.size){
         const seedId=remaining.values().next().value as string;
         const component=new Set<string>([seedId]);
@@ -121,25 +122,40 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
             }
           }
         }
-        groupsOfPartners.push(list.filter(p=>component.has(p.id)));
+        units.push(list.filter(p=>component.has(p.id)));
       }
       const groupScore=(unit:TreePerson[])=>{
         const scores=unit.map(score).filter(v=>v!==Number.MAX_SAFE_INTEGER);
         return scores.length?scores.reduce((a,b)=>a+b,0)/scores.length:Number.MAX_SAFE_INTEGER;
       };
-      groupsOfPartners.sort((a,b)=>groupScore(a)-groupScore(b)||a.map(p=>p.display_name).sort()[0].localeCompare(b.map(p=>p.display_name).sort()[0]));
-      const orderedList=groupsOfPartners.flatMap(unit=>unit.sort((a,b)=>a.display_name.localeCompare(b.display_name)));
-      if(selected&&orderedList.some(person=>person.id===selected)){
-        const focusIndex=orderedList.findIndex(person=>person.id===selected);
-        const [focusPerson]=orderedList.splice(focusIndex,1);
-        orderedList.splice(Math.floor(orderedList.length/2),0,focusPerson);
+      units.forEach(unit=>unit.sort((a,b)=>a.display_name.localeCompare(b.display_name)));
+      units.sort((a,b)=>groupScore(a)-groupScore(b)||a.map(p=>p.display_name).sort()[0].localeCompare(b.map(p=>p.display_name).sort()[0]));
+      // Centre the whole spouse group when focusing either partner; never split a couple.
+      if(selected){
+        const focusIndex=units.findIndex(unit=>unit.some(person=>person.id===selected));
+        if(focusIndex>=0){
+          const [focusUnit]=units.splice(focusIndex,1);
+          units.splice(Math.floor(units.length/2),0,focusUnit);
+        }
       }
-      maxCount=Math.max(maxCount,list.length);
-      const rowOffset=Math.floor((maxCount-orderedList.length)/2);
-      orderedList.forEach((person,i)=>{const x=42+(rowOffset+i)*218,y=42+(g-minGeneration)*174;xById.set(person.id,x+80);result.push({person,generation:g,x,y});});
+      const width=units.reduce((sum,unit,index)=>sum+160+Math.max(0,unit.length-1)*174+(index?58:0),0);
+      maxRowWidth=Math.max(maxRowWidth,width);
+      rowSpecs.push({generation:g,units,width});
+    }
+    for(const row of rowSpecs){
+      let cursor=42+(maxRowWidth-row.width)/2;
+      const y=42+(row.generation-minGeneration)*174;
+      for(const unit of row.units){
+        unit.forEach((person,index)=>{
+          const x=cursor+index*174;
+          xById.set(person.id,x+80);
+          result.push({person,generation:row.generation,x,y});
+        });
+        cursor+=160+Math.max(0,unit.length-1)*174+58;
+      }
     }
     const maxY=Math.max(0,...result.map(n=>n.y));
-    return {nodes:result,width:Math.max(350,maxCount*218+20),height:Math.max(210,maxY+145),parents:parents.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),spouses:mode==="ancestors"?[]:spouses.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),siblings:mode==="ancestors"?[]:siblings.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),visibleCount:visible.size};
+    return {nodes:result,width:Math.max(350,maxRowWidth+84),height:Math.max(210,maxY+145),parents:parents.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),spouses:mode==="ancestors"?[]:spouses.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),siblings:mode==="ancestors"?[]:siblings.filter(e=>visible.has(e.from_person_id)&&visible.has(e.to_person_id)),visibleCount:visible.size};
   },[people,relationships,mode,selected]);
   const byId=new Map(layout.nodes.map(n=>[n.person.id,n]));
   const firstDegree=new Set<string>();
@@ -182,17 +198,17 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
       <div className="tree-search"><input aria-label="Search family members" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search a person…"/>{matches.length>0&&<div className="tree-search-results">{matches.map(p=><button key={p.id} onClick={()=>choosePerson(p.id)}>{p.display_name}</button>)}</div>}</div>
     </div>
     {mode!=="generation"&&!selected&&<p className="tree-hint">Search for a person and select them to view their {mode}.</p>}
-    <div className="tree-legend"><span><i className="legend-parent"/>Parent / child</span><span><i className="legend-spouse"/>Spouse / partner</span><span><i className="legend-sibling"/>Sibling</span></div>
+    <div className="tree-legend"><span><i className="legend-parent"/>Parent / child</span><span><i className="legend-spouse"/>Spouse / partner</span><span><i className="legend-sibling"/>Sibling</span><span><i className="legend-male"/>Male</span><span><i className="legend-female"/>Female</span><span><i className="legend-deceased"/>Deceased</span></div>
     <div ref={viewportRef} className="tree-viewport" role="region" aria-label="Scrollable family tree canvas" tabIndex={0}><svg width={Math.max(1,layout.width*zoom/100)} height={Math.max(1,layout.height*zoom/100)} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-label="Interactive family tree"><defs><radialGradient id="atlas-node-glow"><stop offset="0%" stopColor="#9ef8f4" stopOpacity=".65"/><stop offset="100%" stopColor="#63b9e8" stopOpacity="0"/></radialGradient></defs>
       {layout.parents.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;return <path key={e.id} d={parentConnectorPath(a,b,layout.nodes)} fill="none" stroke={isDirectParentEdge(e.from_person_id,e.to_person_id)?"#a99863":"#8a9075"} strokeWidth={isDirectParentEdge(e.from_person_id,e.to_person_id)?3:2} opacity={!selected||isDirectParentEdge(e.from_person_id,e.to_person_id)?1:0.12}/>;})}
-      {layout.spouses.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const left=Math.min(a.x,b.x)+80,right=Math.max(a.x,b.x)+80,top=Math.min(a.y,b.y)-12;return <path key={e.id} d={`M ${left} ${Math.min(a.y,b.y)} C ${left} ${top}, ${right} ${top}, ${right} ${Math.min(a.y,b.y)}`} fill="none" stroke={isDirectSpouseEdge(e.from_person_id,e.to_person_id)?"#e0bd70":"#a88b4f"} strokeWidth={isDirectSpouseEdge(e.from_person_id,e.to_person_id)?4.5:2.5} opacity={!selected||isDirectSpouseEdge(e.from_person_id,e.to_person_id)?1:0.24}/>;})}
-      {layout.siblings.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const leftNode=a.x<=b.x?a:b,rightNode=a.x<=b.x?b:a,top=Math.min(a.y,b.y)+72;return <path key={e.id} d={`M ${leftNode.x+160} ${leftNode.y+94} C ${leftNode.x+178} ${top}, ${rightNode.x-18} ${top}, ${rightNode.x} ${rightNode.y+94}`} fill="none" stroke={isDirectSiblingEdge(e.from_person_id,e.to_person_id)?"#9b9a70":"#888c75"} strokeWidth={isDirectSiblingEdge(e.from_person_id,e.to_person_id)?3:2} strokeDasharray="5 4" opacity={!selected||isDirectSiblingEdge(e.from_person_id,e.to_person_id)?1:0.12}/>;})}
+      {layout.spouses.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const left=a.x<=b.x?a:b,right=a.x<=b.x?b:a;const cy=left.y+31;return <path key={e.id} d={`M ${left.x+109} ${cy} C ${left.x+132} ${cy-34}, ${right.x+28} ${cy-34}, ${right.x+51} ${cy}`} fill="none" stroke={isDirectSpouseEdge(e.from_person_id,e.to_person_id)?"#e0bd70":"#a88b4f"} strokeWidth={isDirectSpouseEdge(e.from_person_id,e.to_person_id)?4.5:3} strokeLinecap="round" opacity={!selected||isDirectSpouseEdge(e.from_person_id,e.to_person_id)?1:0.36}/>;})}
+      {layout.siblings.map(e=>{const a=byId.get(e.from_person_id),b=byId.get(e.to_person_id);if(!a||!b)return null;const leftNode=a.x<=b.x?a:b,rightNode=a.x<=b.x?b:a;const startY=leftNode.y+108,busY=leftNode.y+126;return <path key={e.id} d={`M ${leftNode.x+80} ${startY} V ${busY} H ${rightNode.x+80} V ${rightNode.y+108}`} fill="none" stroke={isDirectSiblingEdge(e.from_person_id,e.to_person_id)?"#9b9a70":"#888c75"} strokeWidth={isDirectSiblingEdge(e.from_person_id,e.to_person_id)?2.5:2} strokeDasharray="4 4" strokeLinecap="round" opacity={!selected||isDirectSiblingEdge(e.from_person_id,e.to_person_id)?1:0.3}/>;})}
       {layout.nodes.map(node=><g key={node.person.id} transform={`translate(${node.x},${node.y})`} onClick={()=>choosePerson(node.person.id)} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();choosePerson(node.person.id);}}} tabIndex={0} role="button" aria-label={`Select ${node.person.display_name}, ${node.person.life_status}, ${birthLabel(node.person)}`} aria-pressed={selected===node.person.id} style={{cursor:"pointer",opacity:!highlightActive||firstDegree.has(node.person.id)?1:0.24}}>
         <circle cx="80" cy="31" r={selected===node.person.id?36:29} fill="none" stroke={selected===node.person.id?"#d7bd79":highlightActive&&firstDegree.has(node.person.id)?"#b59a5c":"#8b9274"} strokeWidth={selected===node.person.id?2.5:1} opacity={selected===node.person.id?1:.52}/>
-        <circle cx="80" cy="31" r={selected===node.person.id?25:23} fill={node.person.life_status==="deceased"?"#59604b":node.person.gender==="female"?"#596b50":node.person.gender==="male"?"#315b43":"#52634b"} stroke={selected===node.person.id?"#f0d99b":"#b8ad7d"} strokeOpacity={selected===node.person.id?1:.35} strokeWidth="1.2"/>
+        <circle cx="80" cy="31" r={selected===node.person.id?25:23} fill={node.person.life_status==="deceased"?"#666a6d":node.person.gender==="female"?"#86566c":node.person.gender==="male"?"#315f80":"#68704e"} stroke={selected===node.person.id?"#f0d99b":"#b8ad7d"} strokeOpacity={selected===node.person.id?1:.35} strokeWidth="1.2"/>
         <circle cx="80" cy="31" r="18" fill="url(#atlas-node-glow)" opacity=".72"/>
-        <text x="80" y="36" textAnchor="middle" fontSize="17" fill={node.person.gender==="female"?"#e6b9a5":node.person.gender==="male"?"#a9c9a5":"#e4d5ad"} fontWeight="700">{node.person.gender==="female"?"♀":node.person.gender==="male"?"♂":node.person.display_name.charAt(0).toUpperCase()}</text>
-        {node.person.life_status==="deceased"&&<g><circle cx="101" cy="13" r="8" fill="#64748b" stroke="#a9c2d4" strokeWidth="1"/><text x="101" y="17" textAnchor="middle" fontSize="11" fontWeight="700" fill="#fff">†</text></g>}
+        <text x="80" y="36" textAnchor="middle" fontSize="17" fill={node.person.life_status==="deceased"?"#e0e0dc":node.person.gender==="female"?"#f5d5e1":node.person.gender==="male"?"#c9e4f3":"#e4d5ad"} fontWeight="700">{node.person.gender==="female"?"♀":node.person.gender==="male"?"♂":node.person.display_name.charAt(0).toUpperCase()}</text>
+        {node.person.life_status==="deceased"&&<g><circle cx="101" cy="13" r="8" fill="#73777a" stroke="#d3d4d1" strokeWidth="1"/><text x="101" y="17" textAnchor="middle" fontSize="11" fontWeight="700" fill="#fff">†</text></g>}
         <text x="80" y="75" textAnchor="middle" fontSize="12" fontWeight="650" fill={selected===node.person.id?"#e4c77e":"#c7ad70"}>{node.person.display_name.length>21?node.person.display_name.slice(0,19)+"…":node.person.display_name}</text>
         <text x="80" y="91" textAnchor="middle" fontSize="10" fill="#7c8069">{birthLabel(node.person)}</text>
         <circle cx="80" cy="101" r="2.4" fill={node.person.life_status==="deceased"?"#a79b7a":"#a9a06a"}/>
