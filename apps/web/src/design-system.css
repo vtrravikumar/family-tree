@@ -1707,3 +1707,175 @@ body::before {
     background: rgba(188,162,102,.10) !important;
   }
 }
+
+
+/* Heritage Atlas refinement — accessible labels and quiet disclosure controls */
+.atlas-tree .tree-viewport svg text {
+  paint-order: stroke fill;
+  stroke: rgba(27,35,25,.30);
+  stroke-width: .55px;
+  stroke-linejoin: round;
+}
+.atlas-tree .tree-viewport svg text[font-size="12"] {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .12px;
+}
+.atlas-tree .tree-legend .legend-spouse {
+  background: #d8b765 !important;
+  box-shadow: 0 0 0 1px rgba(216,183,101,.26),0 0 8px rgba(216,183,101,.24);
+}
+.atlas-tree .tree-legend .legend-parent { background: #8f9b70 !important; }
+.atlas-tree .tree-legend .legend-sibling { background: #a88b4f !important; }
+.people-directory-disclosure { display: block; }
+.people-directory-disclosure > summary,
+.heritage-relationships > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+.people-directory-disclosure > summary::-webkit-details-marker,
+.heritage-relationships > summary::-webkit-details-marker { display: none; }
+.people-directory-heading,
+.heritage-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 17px 0;
+  border-bottom: 1px solid rgba(168,139,79,.22);
+  color: #314632;
+}
+.people-directory-heading h3,
+.heritage-section-heading h3 {
+  margin: 0;
+  color: #314632;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(23px,2.4vw,29px);
+  font-weight: 500;
+  letter-spacing: -.025em;
+}
+.people-directory-summary-meta,
+.heritage-section-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.people-directory-count,
+.heritage-section-meta .count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 29px;
+  height: 29px;
+  padding: 0 8px;
+  border: 1px solid rgba(168,139,79,.28);
+  border-radius: 50%;
+  background: rgba(168,139,79,.09);
+  color: #8b713e;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.heritage-disclosure-label {
+  color: #857650;
+  font-size: 11px;
+  letter-spacing: .035em;
+  white-space: nowrap;
+}
+.heritage-disclosure-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border: 1px solid rgba(168,139,79,.26);
+  border-radius: 50%;
+  color: #8e7746;
+  font-size: 17px;
+  line-height: 1;
+  transition: transform .2s ease,background .2s ease;
+}
+.people-directory-disclosure[open] > summary .heritage-disclosure-mark,
+.heritage-relationships[open] > summary .heritage-disclosure-mark {
+  transform: rotate(180deg);
+  background: rgba(168,139,79,.09);
+}
+.people-directory-disclosure > summary:hover .heritage-disclosure-mark,
+.heritage-relationships > summary:hover .heritage-disclosure-mark {
+  background: rgba(168,139,79,.17);
+}
+.people-directory-disclosure > summary:focus-visible,
+.heritage-relationships > summary:focus-visible {
+  outline: 2px solid #a88b4f;
+  outline-offset: 4px;
+  border-radius: 5px;
+}
+.people-directory-disclosure .people-directory-tools { padding-top: 18px; }
+.heritage-relationships {
+  border: 1px solid rgba(168,139,79,.22) !important;
+  border-radius: 16px !important;
+  background: rgba(246,240,224,.58) !important;
+  overflow: hidden;
+}
+.heritage-relationships > summary { padding: 17px 20px; }
+.heritage-relationships[open] > summary { border-bottom: 1px solid rgba(168,139,79,.18); }
+.heritage-relationships .relationship-form,
+.heritage-relationships .relationship-list { padding: 18px 20px; }
+.new-person-link {
+  border: 1px solid rgba(168,139,79,.24) !important;
+  border-radius: 14px !important;
+  background: linear-gradient(135deg,rgba(248,244,231,.88),rgba(235,230,210,.72)) !important;
+  padding: 18px !important;
+}
+.new-person-link label {
+  color: #596448 !important;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .015em;
+}
+.new-person-link select {
+  min-height: 46px;
+  border: 1px solid rgba(130,112,70,.34) !important;
+  border-radius: 10px !important;
+  color: #344532 !important;
+  background-color: rgba(255,252,242,.96) !important;
+  box-shadow: 0 2px 8px rgba(69,60,38,.045) !important;
+  padding: 0 40px 0 14px !important;
+}
+.new-person-link select:focus {
+  outline: 2px solid rgba(168,139,79,.45);
+  outline-offset: 2px;
+  border-color: #a88b4f !important;
+}
+.new-person-link select option { color: #293a2b; background: #f7f2e5; }
+@media (prefers-color-scheme: dark) {
+  .people-directory-heading,.heritage-section-heading { color: #e9e0c9; border-bottom-color: rgba(194,174,119,.22); }
+  .people-directory-heading h3,.heritage-section-heading h3 { color: #e9e0c9; }
+  .people-directory-count,.heritage-section-meta .count { color: #d4b978; border-color: rgba(194,174,119,.28); background: rgba(194,174,119,.10); }
+  .heritage-disclosure-label { color: #b9ad8b; }
+  .heritage-disclosure-mark { color: #d0b678; border-color: rgba(194,174,119,.3); }
+  .heritage-relationships { background: rgba(42,49,35,.72) !important; border-color: rgba(194,174,119,.22) !important; }
+  .heritage-relationships[open] > summary { border-bottom-color: rgba(194,174,119,.18); }
+  .new-person-link {
+    border-color: rgba(194,174,119,.24) !important;
+    background: linear-gradient(135deg,rgba(46,55,39,.88),rgba(35,43,31,.82)) !important;
+  }
+  .new-person-link label { color: #d4c8a5 !important; }
+  .new-person-link select {
+    color: #eee6d2 !important;
+    border-color: rgba(194,174,119,.34) !important;
+    background-color: rgba(25,32,24,.94) !important;
+  }
+  .new-person-link select option { color: #eee6d2; background: #252d22; }
+  .atlas-tree .tree-viewport svg text[font-size="12"] { stroke: rgba(27,35,25,.72); }
+}
+@media (max-width: 600px) {
+  .people-directory-summary-meta,.heritage-section-meta { gap: 7px; }
+  .heritage-disclosure-label { display: none; }
+  .heritage-relationships > summary { padding: 14px; }
+  .heritage-relationships .relationship-form,
+  .heritage-relationships .relationship-list { padding: 14px; }
+  .new-person-link { padding: 13px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .heritage-disclosure-mark { transition: none; }
+}
