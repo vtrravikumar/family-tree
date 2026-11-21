@@ -25,7 +25,7 @@ function parentConnectorPath(a:Node,b:Node,nodes:Node[]):string {
 }
 function birthLabel(p:TreePerson){if(p.birth_date_kind==="exact"&&p.birth_exact_date){const [y,m,d]=p.birth_exact_date.split("-").map(Number);return new Date(Date.UTC(y,m-1,d)).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"});}if(p.birth_date_kind==="year"&&p.birth_year)return String(p.birth_year);if(p.birth_date_kind==="approximate_year"&&p.birth_year)return `c. ${p.birth_year}`;if(p.birth_date_kind==="range"&&p.birth_range_start_year&&p.birth_range_end_year)return `${p.birth_range_start_year}–${p.birth_range_end_year}`;return p.birth_original_text||"Birth date unknown";}
 
-export default function FamilyTree({people,relationships}:{people:TreePerson[];relationships:TreeRelationship[]}) {
+export default function FamilyTree({people,relationships,onSelectPerson}:{people:TreePerson[];relationships:TreeRelationship[];onSelectPerson?:(personId:string|null)=>void}) {
   const [zoom,setZoom]=useState(100);
   const [fitPending,setFitPending]=useState(false);
   const [selected,setSelected]=useState<string|null>(null);
@@ -233,13 +233,13 @@ export default function FamilyTree({people,relationships}:{people:TreePerson[];r
     observer.observe(viewport);
     return ()=>{observer.disconnect();if(frame)cancelAnimationFrame(frame);};
   },[people.length]);
-  const choosePerson=(id:string)=>{if(selected===id){setSelected(null);setMode("generation");setSearch("");setZoom(100);return;}setSelected(id);setSearch(people.find(p=>p.id===id)?.display_name??"");};
+  const choosePerson=(id:string)=>{if(selected===id){setSelected(null);setMode("generation");setSearch("");setZoom(100);onSelectPerson?.(null);return;}setSelected(id);setSearch(people.find(p=>p.id===id)?.display_name??"");onSelectPerson?.(id);};
   if(!people.length)return <div className="tree-empty">Add family members and connect their parent-child relationships to see the generations take shape.</div>;
   return <section className="tree-explorer">
     <div className="tree-toolbar"><div><p className="eyebrow">EXPLORE YOUR HERITAGE</p><h3>Family tree</h3><p className="tree-help">Explore generations, spouses and sibling connections. Select a person to focus a branch.</p></div>
-      <div className="tree-controls"><button className="button-secondary" onClick={()=>{setMode("generation");setSelected(null);setSearch("");setZoom(100);}}>Reset view</button><button className="button-secondary" onClick={fitTree}>Fit</button><button className="button-secondary" aria-label="Zoom out" onClick={()=>setZoom(v=>Math.max(60,v-10))}>−</button><span aria-live="polite">{zoom}%</span><button className="button-secondary" aria-label="Zoom in" onClick={()=>setZoom(v=>Math.min(150,v+10))}>+</button></div>
+      <div className="tree-controls"><button className="button-secondary" onClick={()=>{setMode("generation");setSelected(null);setSearch("");setZoom(100);onSelectPerson?.(null);}}>Reset view</button><button className="button-secondary" onClick={fitTree}>Fit</button><button className="button-secondary" aria-label="Zoom out" onClick={()=>setZoom(v=>Math.max(60,v-10))}>−</button><span aria-live="polite">{zoom}%</span><button className="button-secondary" aria-label="Zoom in" onClick={()=>setZoom(v=>Math.min(150,v+10))}>+</button></div>
     </div>
-    <div className="tree-view-options"><div className="tree-modes"><button className={mode==="generation"?"tree-mode active":"tree-mode"} onClick={()=>{setMode("generation");setZoom(100);}}>All generations</button>{selected&&<>{(["focus","ancestors","descendants"] as ViewMode[]).map(v=><button key={v} className={mode===v?"tree-mode active":"tree-mode"} onClick={()=>{setMode(v);setZoom(100);}}>{v==="focus"?"Focus":v==="ancestors"?"Ancestors":"Descendants"}</button>)}<button className="tree-mode tree-clear-focus" onClick={()=>{setSelected(null);setMode("generation");setSearch("");setZoom(100);}} aria-label="Clear focused person">Clear focus</button></>}</div>
+    <div className="tree-view-options"><div className="tree-modes"><button className={mode==="generation"?"tree-mode active":"tree-mode"} onClick={()=>{setMode("generation");setZoom(100);}}>All generations</button>{selected&&<>{(["focus","ancestors","descendants"] as ViewMode[]).map(v=><button key={v} className={mode===v?"tree-mode active":"tree-mode"} onClick={()=>{setMode(v);setZoom(100);}}>{v==="focus"?"Focus":v==="ancestors"?"Ancestors":"Descendants"}</button>)}<button className="tree-mode tree-clear-focus" onClick={()=>{setSelected(null);setMode("generation");setSearch("");setZoom(100);onSelectPerson?.(null);}} aria-label="Clear focused person">Clear focus</button></>}</div>
       <div className="tree-search"><input aria-label="Search family members" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search a person…"/>{matches.length>0&&<div className="tree-search-results">{matches.map(p=><button key={p.id} onClick={()=>choosePerson(p.id)}>{p.display_name}</button>)}</div>}</div>
     </div>
     {mode!=="generation"&&!selected&&<p className="tree-hint">Search for a person and select them to view their {mode}.</p>}
