@@ -472,3 +472,68 @@ input:focus, select:focus, textarea:focus {
   .tree-controls button { padding-inline: 9px !important; }
   .tree-legend { gap: 10px; font-size: 10px; }
 }
+
+
+/* UI-5 — family collaboration, membership and invitation surfaces */
+.family-members-panel {
+  margin: 22px 0 28px;
+  padding: clamp(18px,2.5vw,28px);
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: rgba(255,255,255,.88);
+  box-shadow: var(--shadow-card);
+}
+.family-members-heading { align-items: center; padding-bottom: 18px; border-bottom: 1px solid var(--color-line); }
+.family-members-heading h3 { color: var(--color-ink); font-size: 25px; }
+.family-members-heading p:not(.eyebrow) { max-width: 60ch; line-height: 1.6; }
+.members-total { display: grid; place-items: center; min-width: 58px; min-height: 58px; padding: 7px; border-radius: 16px; background: var(--color-surface-soft); color: var(--color-forest); font: 25px Georgia,serif; }
+.members-total small { color: var(--color-muted); font: 10px system-ui,sans-serif; }
+.family-member-list { display: grid; gap: 0; }
+.family-member-list article {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 70px;
+  padding: 12px 2px;
+  border-bottom: 1px solid rgba(226,228,220,.82);
+}
+.family-member-avatar { width: 42px; height: 42px; flex: 0 0 42px; overflow: hidden; border: 1px solid var(--color-line); background: #edf1eb; color: var(--color-forest); font: 19px Georgia,serif; }
+.family-member-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.family-member-identity { min-width: 0; }
+.family-member-identity strong { color: var(--color-ink); font-size: 13px; }
+.family-member-identity small { overflow-wrap: anywhere; }
+.family-member-list select { min-height: 38px; border-radius: 10px; }
+.family-role-pill { border-radius: 999px; padding: 7px 11px; background: var(--color-surface-soft); color: var(--color-muted); font-size: 10px; font-weight: 700; }
+.family-role-pill.owner { background: #e7efe5; color: var(--color-forest); }
+.family-role-pill.admin { background: #edf0f7; color: var(--color-indigo); }
+.family-role-pill.editor { background: #f6eee8; color: #8d5b3e; }
+.member-remove { min-height: 36px; border-radius: 10px; }
+.members-loading { padding: 22px 0; color: var(--color-muted); font-size: 13px; }
+.invite-form { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--color-line); }
+.invite-form-intro h4 { margin: 0; color: var(--color-ink); font: 22px Georgia,serif; }
+.invite-form-intro p { max-width: 62ch; margin: 7px 0 15px; color: var(--color-muted); font-size: 12px; line-height: 1.6; }
+.invite-fields { grid-template-columns: minmax(0,1fr) minmax(190px,240px) auto; align-items: end; gap: 12px; }
+.invite-fields label { display: grid; gap: 6px; margin: 0; color: var(--color-muted); font-size: 11px; font-weight: 600; }
+.invite-fields input, .invite-fields select { width: 100%; min-width: 0; min-height: 46px; }
+.invite-fields button { min-height: 46px; white-space: nowrap; }
+.invitation-created { border-radius: 14px; background: #f2f6ef; border-color: #d9e4d6; }
+.invite-link-row input { background: #fff; }
+.invite-landing-card { border-radius: 22px; box-shadow: var(--shadow-floating); }
+@media (max-width: 760px) {
+  .family-member-list article { flex-wrap: wrap; }
+  .family-member-identity { flex: 1 1 calc(100% - 60px); }
+  .family-member-list select { margin-left: 55px; }
+  .invite-fields { grid-template-columns: 1fr 1fr; }
+  .invite-email-field { grid-column: 1/-1; }
+  .invite-fields button { grid-column: 1/-1; width: 100%; }
+}
+@media (max-width: 480px) {
+  .family-members-panel { padding: 16px; }
+  .family-members-heading { align-items: flex-start; }
+  .members-total { min-width: 50px; min-height: 50px; font-size: 21px; }
+  .family-member-list article { gap: 9px; }
+  .family-member-list select { margin-left: 50px; flex: 1; }
+  .family-member-list .member-remove { flex: 0 0 auto; }
+  .invite-fields { grid-template-columns: 1fr; }
+  .invite-email-field, .invite-role-field, .invite-fields button { grid-column: auto; }
+}
