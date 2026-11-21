@@ -177,3 +177,33 @@
 .viewer-identity-banner .identity-status.pending{color:#e1c27e;background:#463b25;border:1px solid #78633a}
 .viewer-identity-banner>button:not(.identity-dismiss){padding:9px 15px;background:#8c7445;color:#f7f0dd;border:1px solid #a58a52;border-radius:5px;font-size:12px}
 @media(max-width:600px){.viewer-identity-banner{align-items:flex-start;flex-wrap:wrap;padding:13px;gap:10px}.viewer-identity-banner-copy{flex:1 1 calc(100% - 48px)}.viewer-identity-banner .identity-status,.viewer-identity-banner>button:not(.identity-dismiss){margin-left:44px}.viewer-identity-banner>button:not(.identity-dismiss){width:calc(100% - 44px)}}
+
+
+/* Account identity and family connections shared across every workspace role. */
+.header-meta{display:flex;align-items:center;gap:18px}
+.profile-menu{position:relative}
+.profile-menu-trigger{display:flex;align-items:center;gap:9px;list-style:none;cursor:pointer;padding:6px 9px;border:1px solid #48523c;border-radius:8px;background:#202e22;color:#e5ddc7}
+.profile-menu-trigger::-webkit-details-marker{display:none}
+.profile-avatar{display:grid;place-items:center;width:31px;height:31px;border-radius:50%;background:#40533b;color:#e4c77e;font:16px Georgia,serif}
+.profile-menu-label{display:grid;gap:2px;text-align:left}
+.profile-menu-label strong{font-size:12px;color:#e5ddc7}
+.profile-menu-label small{font-size:10px;color:#a9ad94}
+.profile-menu-chevron{color:#c3a568;font-size:16px}
+.profile-menu[open] .profile-menu-trigger{border-color:#9c8553}
+.profile-menu-popover{position:absolute;z-index:50;right:0;top:calc(100% + 9px);min-width:210px;padding:7px;border:1px solid #4a553c;border-radius:8px;background:#202f23;box-shadow:0 12px 30px #0005}
+.profile-menu-popover a,.profile-menu-popover button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:10px 11px;border:0;border-radius:5px;background:transparent;color:#e5ddc7;text-decoration:none;text-align:left;font-size:12px}
+.profile-menu-popover a:hover,.profile-menu-popover button:hover{background:#344331}
+.profile-menu-admin{color:#d9bd7b!important}
+.account-family-connections{display:flex;align-items:center;gap:18px;margin:14px 0 25px;padding:12px 15px;border:1px solid #414d38;border-radius:8px;background:#1d2c20}
+.account-family-connections-heading{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+.account-family-connections-heading .eyebrow{margin:0;color:#b99a60}
+.account-family-connections-heading>span{font-size:10px;color:#8f9a80}
+.account-family-connection-list{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.account-family-connection{display:flex;align-items:center;gap:8px;padding:7px 10px!important;border:1px solid #45523c!important;border-radius:6px!important;background:#263728!important;color:#e4dcc7!important}
+.account-family-connection.active{border-color:#a88b50!important;background:#344331!important}
+.account-family-name{font:14px Georgia,serif;color:#e5d5a9}
+.account-family-role{font-size:10px;color:#a4aa91;text-transform:capitalize}
+.account-family-badge{font-size:9px;font-weight:700;white-space:nowrap;padding:4px 6px;border-radius:12px}
+.account-family-badge.linked{color:#e0ca8c;background:#405039}
+.account-family-badge.pending{color:#e2c17b;background:#493d27}
+@media(max-width:700px){.header-meta{gap:8px}.account-family-connections{align-items:flex-start;flex-direction:column;gap:9px}.account-family-connection-list{width:100%}.profile-menu-label small{max-width:155px;overflow:hidden;text-overflow:ellipsis}}
