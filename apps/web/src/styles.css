@@ -163,3 +163,17 @@
   .identity-review-actions{display:grid;grid-template-columns:1fr 1fr}
   .identity-review-actions button{width:100%;min-height:42px}
 }
+
+
+/* Compact identity banner in the viewer family header; aligned with the dark botanical atlas palette. */
+.viewer-identity-banner{display:flex;align-items:center;gap:15px;margin:0 0 18px;padding:14px 18px;border:1px solid #4a553c;border-radius:9px;background:linear-gradient(110deg,#202f23,#1b2a20);color:#e5ddc7}
+.viewer-identity-banner-mark{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border:1px solid #8e7547;border-radius:50%;color:#d2b36c;font-size:17px}
+.viewer-identity-banner-copy{flex:1;min-width:0}
+.viewer-identity-banner-copy .eyebrow{margin:0 0 4px;color:#b99a60}
+.viewer-identity-banner-copy h3{margin:0 0 3px;color:#e5d5a9;font:20px Georgia,serif}
+.viewer-identity-banner-copy p:last-child{margin:0;color:#a9ad94;font-size:12px;line-height:1.45}
+.viewer-identity-banner .identity-status{flex-shrink:0}
+.viewer-identity-banner .identity-status.approved{color:#d8c48a;background:#344331;border:1px solid #596044}
+.viewer-identity-banner .identity-status.pending{color:#e1c27e;background:#463b25;border:1px solid #78633a}
+.viewer-identity-banner>button:not(.identity-dismiss){padding:9px 15px;background:#8c7445;color:#f7f0dd;border:1px solid #a58a52;border-radius:5px;font-size:12px}
+@media(max-width:600px){.viewer-identity-banner{align-items:flex-start;flex-wrap:wrap;padding:13px;gap:10px}.viewer-identity-banner-copy{flex:1 1 calc(100% - 48px)}.viewer-identity-banner .identity-status,.viewer-identity-banner>button:not(.identity-dismiss){margin-left:44px}.viewer-identity-banner>button:not(.identity-dismiss){width:calc(100% - 44px)}}
