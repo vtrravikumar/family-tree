@@ -26,3 +26,22 @@ APP_ENV = "development"
 GOOGLE_CLIENT_ID = "569004813603-bgdrv8dmth1po7hvn84ke5jq9vmkkalt.apps.googleusercontent.com"
 INITIAL_OWNER_EMAIL = "vtrravikumar@gmail.com"
 SUPER_ADMIN_EMAIL = "vtrravikumar@gmail.com"
+ALLOWED_ORIGINS = "https://vansvriksh-web-dev.pages.dev,https://vansvriksh.vtrrk.in,http://localhost:5173,http://127.0.0.1:5173"
+
+# This production database was created empty for the friends-and-family beta.
+# Keep production migrations and deployment manual until explicitly approved.
+[env.production]
+name = "family-tree-api-production"
+workers_dev = false
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "vansvriksh-production"
+database_id = "661c073a-20be-491c-bed0-104594e5c4cb"
+migrations_dir = "migrations"
+
+[env.production.vars]
+APP_ENV = "production"
+GOOGLE_CLIENT_ID = "569004813603-bgdrv8dmth1po7hvn84ke5jq9vmkkalt.apps.googleusercontent.com"
+SUPER_ADMIN_EMAIL = "vtrravikumar@gmail.com"
+ALLOWED_ORIGINS = "https://vansvriksh.vtrrk.in"
