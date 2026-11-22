@@ -32,6 +32,14 @@ Google Identity Services supplies an identity token. The API validates it with G
 
 Maintain separate development, staging and production configuration. D1 databases, R2 buckets, secrets and allowed origins must not be shared across environments.
 
+### Current and intended web routing
+
+- Development frontend: `https://vansvriksh-web-dev.pages.dev`; development API: `https://api-dev.vtrrk.in`.
+- Temporary current mapping: `https://vansvriksh.vtrrk.in` serves the development frontend and calls the development API.
+- Intended production mapping: keep the Pages development address dedicated to development and route `https://vansvriksh.vtrrk.in` to an isolated production frontend and API once its Worker, D1 database, secrets, allowed origins, and release process are ready and verified. This is the intended production web address until a dedicated product domain is selected.
+- The production API hostname is not yet established: `https://api.vtrrk.in` currently does not serve the application's `/v1` API routes. Confirm or provision its production routing before cutover.
+- Do not switch the vanity hostname until the production frontend/API and data environment are ready; keep development accessible through its dedicated frontend and API.
+
 ## Tree layout
 
 Use React Flow for interactive rendering and evaluate ELK.js for automatic graph layout. The domain layer produces a graph representation; the layout adapter translates it into visualization nodes and edges.
