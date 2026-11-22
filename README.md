@@ -12,7 +12,7 @@ A collaborative family heritage platform. Product branding is intentionally unde
 - Development Pages project: `vansvriksh-web-dev.pages.dev`; proposed signed-in development frontend: `https://dev.vansvriksh.vtrrk.in`.
 - Current development API: `https://api-dev.vtrrk.in`; proposed development API: `https://api-dev.vansvriksh.vtrrk.in`.
 - Temporary current routing (checked 2026-11-22): `https://vansvriksh.vtrrk.in` serves the development frontend bundle and calls the development API. This is not production today.
-- Intended routing: retain `https://vansvriksh-web-dev.pages.dev` as the dedicated development frontend; move `https://vansvriksh.vtrrk.in` to the production frontend only after an isolated production frontend, Worker, database, secrets and API origin are configured and verified. This is the production web address until a dedicated product domain is chosen.
+- Intended routing: keep `https://vansvriksh-web-dev.pages.dev` as the Pages project preview and attach `https://dev.vansvriksh.vtrrk.in` as its signed-in development frontend. Pair it with `https://api-dev.vansvriksh.vtrrk.in` after the Worker Custom Domain is verified. Move `https://vansvriksh.vtrrk.in` to production only after the isolated production frontend, Worker, database, and API are ready. The branded address is the production web address until a dedicated product domain is chosen.
 - `https://api.vtrrk.in` is currently used by TweetPilot and must remain untouched during Vansvriksh setup. Proposed production API hostname: `https://api.vansvriksh.vtrrk.in`. A future TweetPilot move to `https://api.tweetpilot.vtrrk.in` should be handled as a separate migration after its clients and integrations are updated.
 - M3.3 PR #41: merged with CI passing; development Worker health and unauthenticated API authorization were verified on 2026-11-22
 - The empty production D1 database is created and its Wrangler environment is staged in PR #44. No production migrations or deployment have run. The production Pages project and API route still need configuration; the branded domain remains on development.
@@ -79,4 +79,4 @@ One-time setup:
    - `CLOUDFLARE_ACCOUNT_ID`
 4. Push to `main`. GitHub Actions will validate, build, and deploy the frontend and API.
 
-The API uses the Wrangler `dev` environment (`family-tree-api-dev`). Do not attach production data stores or custom domains to this development deployment.
+The API uses the Wrangler `dev` environment (`family-tree-api-dev`). Its planned dev-only custom domains are `api-dev.vansvriksh.vtrrk.in` and `dev.vansvriksh.vtrrk.in`; do not attach production data stores or production domains to this deployment.
