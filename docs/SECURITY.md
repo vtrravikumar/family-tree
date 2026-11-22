@@ -80,6 +80,14 @@ The domain service and API must reject all ordinary profile update/delete operat
 
 Family workspaces are private by default. Public/read-only sharing is outside focused production v1 scope. If introduced later, it must be explicitly enabled, scoped and revocable. Avoid exposing living persons' sensitive information in public previews, exports or metadata.
 
+### Session, invitation and audit-log retention
+
+- Application sessions expire after seven days. The browser receives a random opaque token in an HttpOnly, Secure, SameSite=Lax cookie; D1 stores its SHA-256 hash. Logout revokes the current session. There is no account-deletion or revoke-all-sessions flow yet, and expired session rows are not currently cleaned up.
+- Invitations expire after seven days, store only a hash of the invitation code, and are consumed once or revoked by an Owner/Admin. Expired and revoked invitation rows have no scheduled cleanup.
+- Family and platform audit records have no approved retention period or cleanup process. Platform audit entries may include the Super Admin's reason and target metadata; the platform audit screen's 200-row display limit does not limit stored records.
+- Rate-limit counters are cleaned during requests after their window is stale; this is separate from application-data and audit-log retention.
+- Before production, approve retention periods for sessions, invitations, family audit records and platform audit records, and define user-requested deletion, backup expiry and legal-hold behavior. Add an operational cleanup process that preserves required audit evidence.
+
 ## Production migration safety
 
 - Keep the development environment intact as a fallback during production migration.
