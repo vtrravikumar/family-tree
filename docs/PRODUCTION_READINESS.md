@@ -7,8 +7,8 @@ Vansvriksh is still a development deployment. This checklist separates implement
 - Google sign-in, family membership, Owner/Admin/Editor/Viewer roles, identity claims and a platform Super Admin are implemented.
 - The app currently uses Cloudflare Pages and a Worker with a development D1 database. A dedicated production Worker, database, secrets and domain are not configured in this repository.
 - M3.2 was deployed with CI passing. The latest baseline CI run on `9766744` was verified green.
-- M3.3 changes include a development Bearer parsing fix, invitation acceptance/revocation handling, reason-gated Super Admin import/export, UI role gating and authorization tests. Local tests, type checks and web build pass; PR #41 validation and its Cloudflare Pages preview are green. The Worker development-deploy job was skipped; no production deployment or database migration was performed.
-- The new rate-limit and invitation actor migrations apply cleanly to local SQLite. Wrangler could not inspect development D1 because `CLOUDFLARE_API_TOKEN` is not available in this environment.
+- M3.3 changes include a development Bearer parsing fix, invitation acceptance/revocation handling, reason-gated Super Admin import/export, UI role gating and authorization tests. Local tests, type checks and web build pass; PR #41 validation and its Cloudflare Pages preview are green. The Worker development-deploy job was skipped; no production deployment was performed.
+- The new rate-limit and invitation actor migrations apply cleanly to local SQLite and were applied to the remote development D1 database on 2026-11-22. Wrangler's final migration output showed both `0008_invitation_actor_audit.sql` and `0009_api_rate_limits.sql` completed. Live authorization and invitation lifecycle tests against D1 are still outstanding.
 - No production data migration, backup, rollback or launch has been performed or approved.
 
 ## Required before production

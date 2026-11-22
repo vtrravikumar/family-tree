@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import worker, { type Env } from "./index";
 
-function makeEnv(role: string | null = "owner", session = false, batchChanges = 1, superAdmin = false, initialRateCount = 0, targetRole = "editor", expiredSession = false, personStatus = "alive"): Env {
+function makeEnv(role: string | null = "owner", session = false, batchChanges = 1, superAdmin = false, initialRateCount = 0, targetRole = "editor", expiredSession = false, personStatus = "alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString()): Env {
   let rateCount=initialRateCount;
   const db = {
     prepare(sql: string) {
@@ -16,10 +16,10 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
           if (sql.includes("FROM platform_super_admins")) return superAdmin ? { allowed: 1 } : null;
           if (sql.includes("FROM families WHERE id=?")) return { id: "family-1", name: "Family" };
           if (sql.includes("FROM invitations WHERE invite_code_hash")) return {
-            id: "invite-1", family_id: "family-1", invitee_email: "member@example.com", offered_role: "editor",
-            status: "pending", expires_at: new Date(Date.now() + 60_000).toISOString(),
+            id: "invite-1", family_id: "family-1", invitee_email: invitationEmail, offered_role: "editor",
+            status: "pending", expires_at: invitationExpiresAt,
           };
-          if(sql.includes("FROM persons WHERE id=? AND family_id=?"))return {id:"person-1",display_name:"Asha",life_status:personStatus};
+          if(sql.includes("FROM persons WHERE id=? AND family_id=?"))return bound[0]==="person-1"&&bound[1]==="family-1"?{id:"person-1",display_name:"Asha",life_status:personStatus}:null;
           if(sql.includes("SELECT life_status FROM persons"))return {life_status:personStatus};
           if(sql.includes("FROM relationships WHERE id=? AND family_id=?"))return {id:"relationship-1",from_person_id:"person-1",to_person_id:"person-2",relationship_type:"sibling"};
           if (sql.includes("FROM family_members")) {
@@ -41,12 +41,12 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
   return { APP_ENV: "development", DEV_API_TOKEN: "test-token", GOOGLE_CLIENT_ID:"test-client", DB: db };
 }
 
-async function request(path: string, role: string | null, method = "GET", payload?: unknown, session = false, batchChanges = 1, superAdmin = false, initialRateCount=0, targetRole="editor", expiredSession=false, personStatus="alive") {
+async function request(path: string, role: string | null, method = "GET", payload?: unknown, session = false, batchChanges = 1, superAdmin = false, initialRateCount=0, targetRole="editor", expiredSession=false, personStatus="alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString()) {
   return worker.fetch(new Request("https://api.example.test" + path, {
     method,
     headers: { Authorization: "Bearer test-token", ...(session ? { Cookie: "vansvriksh_session=test-session" } : {}), ...(payload ? { "Content-Type": "application/json" } : {}) },
     ...(payload ? { body: JSON.stringify(payload) } : {}),
-  }), makeEnv(role, session, batchChanges, superAdmin, initialRateCount, targetRole, expiredSession, personStatus));
+  }), makeEnv(role, session, batchChanges, superAdmin, initialRateCount, targetRole, expiredSession, personStatus, invitationEmail, invitationExpiresAt));
 }
 
 describe("server-side authorization", () => {
@@ -150,6 +150,7 @@ describe("server-side authorization", () => {
 
   it("denies cross-family ID substitution even when the caller belongs to another family", async () => {
     expect((await request("/v1/families/other-family/people", "owner")).status).toBe(404);
+    expect((await request("/v1/families/family-1/identity-claims", "editor", "POST", { personId: "person-from-another-family" })).status).toBe(404);
   });
 
   it.each(["owner", "admin"])("allows %s to list and revoke pending invitations", async (role) => {
@@ -178,6 +179,12 @@ describe("server-side authorization", () => {
 
   it("accepts an invitation when the request wins the pending-state transition", async () => {
     expect((await request("/v1/invitations/opaque-code/accept", null, "POST", {}, true, 1)).status).toBe(200);
+  });
+
+  it("rejects invitation acceptance from a different Google account and rejects expired invitations", async () => {
+    const path="/v1/invitations/opaque-code/accept";
+    expect((await request(path, null, "POST", {}, true, 1, false, 0, "editor", false, "alive", "someone-else@example.com")).status).toBe(403);
+    expect((await request(path, null, "POST", {}, true, 1, false, 0, "editor", false, "alive", "member@example.com", new Date(Date.now() - 60_000).toISOString())).status).toBe(404);
   });
 
   it("rejects a concurrent invitation acceptance that loses the pending-state transition", async () => {
