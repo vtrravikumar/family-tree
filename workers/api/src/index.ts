@@ -41,6 +41,21 @@ function base64Url(value: Uint8Array): string {
 async function sha256(value: string): Promise<string> {
   return base64Url(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value))));
 }
+async function enforceRateLimit(request:Request,db:D1Database,scope:string,limit:number,windowMs:number,keySuffix=""):Promise<Response|null>{
+  const timestamp=Date.now(),windowStart=Math.floor(timestamp/windowMs)*windowMs;
+  const address=request.headers.get("CF-Connecting-IP")?.trim()||"unknown";
+  const keyHash=await sha256(`${scope}:${address}:${keySuffix}:${windowStart}`);
+  const result=await db.prepare(`INSERT INTO api_rate_limits(scope,key_hash,window_started_at,request_count) VALUES(?,?,?,1)
+    ON CONFLICT(scope,key_hash) DO UPDATE SET request_count=api_rate_limits.request_count+1 RETURNING request_count`)
+    .bind(scope,keyHash,windowStart).first<{request_count:number}>();
+  await db.prepare("DELETE FROM api_rate_limits WHERE scope=? AND window_started_at<?").bind(scope,windowStart-windowMs*2).run();
+  if(!result)return fail(503,"rate_limit_unavailable","Request security checks are temporarily unavailable.");
+  if(result.request_count>limit){
+    const retryAfter=Math.max(1,Math.ceil((windowStart+windowMs-timestamp)/1000));
+    return json({error:{code:"rate_limited",message:"Too many requests. Please try again later."}},{status:429,headers:{"retry-after":String(retryAfter)}});
+  }
+  return null;
+}
 function cookieValue(request: Request,name: string): string | null {
   const cookie=request.headers.get("Cookie")||"";
   for(const part of cookie.split(";")){const [key,...rest]=part.trim().split("=");if(key===name)return rest.join("=")||"";}
@@ -80,6 +95,8 @@ async function currentSession(request: Request,db: D1Database): Promise<{id:stri
 async function authRoute(request: Request,env: Env,url: URL): Promise<Response|null> {
   if(url.pathname==="/v1/auth/google"&&request.method==="POST"){
     if(!env.GOOGLE_CLIENT_ID)return fail(503,"google_auth_not_configured","Google sign-in is not configured on the API.");
+    const limited=await enforceRateLimit(request,env.DB,"google_sign_in",20,15*60*1000);
+    if(limited)return limited;
     const input=await body(request),credential=typeof input?.credential==="string"?input.credential:"";
     if(!credential)return fail(400,"missing_credential","A Google identity credential is required.");
     const identity=await verifyGoogleCredential(credential,env.GOOGLE_CLIENT_ID);
@@ -103,7 +120,8 @@ async function authRoute(request: Request,env: Env,url: URL): Promise<Response|n
         user={id:newUserId,email:identity.email,display_name:identity.name};
       }
     }
-    if(identity.email.toLowerCase()===(env.SUPER_ADMIN_EMAIL||"vtrravikumar@gmail.com").toLowerCase()){
+    const superAdminEmail=env.SUPER_ADMIN_EMAIL?.trim().toLowerCase();
+    if(superAdminEmail&&identity.email.toLowerCase()===superAdminEmail){
       await env.DB.prepare("INSERT OR IGNORE INTO platform_super_admins(user_id,granted_by_user_id,granted_at,reason) VALUES(?,NULL,?,'Initial platform super administrator bootstrap')").bind(user.id,timestamp).run();
     }
     await env.DB.prepare("UPDATE users SET email=?,display_name=?,avatar_url=?,updated_at=? WHERE id=?")
@@ -133,7 +151,7 @@ async function authorize(request: Request, env: Env): Promise<Response | null> {
   if(await currentSession(request,env.DB))return null;
   if (env.APP_ENV !== "development") return fail(401, "unauthorized", "Please sign in with Google.");
   if (!env.DEV_API_TOKEN) return fail(503, "dev_token_not_configured", "Configure the DEV_API_TOKEN Worker secret.");
-  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "") ?? "";
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
   return safeEqual(token, env.DEV_API_TOKEN) ? null : fail(401, "unauthorized", "A valid sign-in session is required.");
 }
 async function ensureDevUser(db: D1Database) {
@@ -210,6 +228,20 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const relationships=await env.DB.prepare("SELECT id,from_person_id,to_person_id,relationship_type FROM relationships WHERE family_id=?").bind(familyId).all();
     return json({data:{family,people:people.results,relationships:relationships.results,auditLogged:true}});
   }
+  const platformExport=url.pathname.match(/^\/v1\/platform\/families\/([^/]+)\/export$/);
+  if(platformExport&&request.method==="POST"){
+    if(!superAdmin)return fail(403,"platform_admin_required","Super Admin access is required.");
+    const familyId=platformExport[1],input=await body(request),reason=typeof input?.reason==="string"?input.reason.trim():"";
+    if(reason.length<12||reason.length>500)return fail(400,"support_reason_required","Provide a clear export reason (12–500 characters).");
+    const family=await env.DB.prepare("SELECT id,name FROM families WHERE id=?").bind(familyId).first<{id:string;name:string}>();
+    if(!family)return fail(404,"family_not_found","Family not found.");
+    await writePlatformAudit(env.DB,actorUserId,"family.export","family",familyId,reason,{familyName:family.name});
+    const [people,relationships]=await Promise.all([
+      env.DB.prepare("SELECT * FROM persons WHERE family_id=? ORDER BY family_name,given_name").bind(familyId).all(),
+      env.DB.prepare("SELECT id,from_person_id,to_person_id,relationship_type,metadata_json,created_at FROM relationships WHERE family_id=? ORDER BY created_at").bind(familyId).all(),
+    ]);
+    return json({data:{family,people:people.results,relationships:relationships.results,auditLogged:true}});
+  }
   if(url.pathname==="/v1/platform/audit-logs"&&request.method==="GET"){
     if(!superAdmin)return fail(403,"platform_admin_required","Super Admin access is required.");
     const result=await env.DB.prepare(`SELECT l.id,l.actor_user_id,u.email AS actor_email,l.action,l.target_type,l.target_id,l.reason,l.metadata,l.created_at
@@ -245,6 +277,10 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   if(familyInvitationsMatch&&request.method==="POST"){
     const familyId=familyInvitationsMatch[1],role=await roleFor(env.DB,familyId,actorUserId);
     if(role!=="owner"&&role!=="admin")return fail(role?403:404,"forbidden","Only a family owner or admin can invite collaborators.");
+    const ipLimited=await enforceRateLimit(request,env.DB,"invitation_create_ip",20,60*60*1000);
+    if(ipLimited)return ipLimited;
+    const userLimited=await enforceRateLimit(request,env.DB,"invitation_create_user",10,60*60*1000,actorUserId);
+    if(userLimited)return userLimited;
     const input=await body(request),email=textOrNull(input?.email)?.toLowerCase()||null;
     const offeredRole=typeof input?.role==="string"?input.role:"viewer";
     if(!email||email.length>254||!/^\S+@\S+\.\S+$/.test(email))return fail(400,"invalid_invitee_email","Provide a valid email address for the invitation.");
@@ -259,20 +295,50 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       .bind(id(),familyId,actorUserId,email,JSON.stringify({email,role:offeredRole,expiresAt:expires}),created).run();
     return json({data:{inviteCode:code,email,role:offeredRole,expiresAt:expires}},{status:201});
   }
+  if(familyInvitationsMatch&&request.method==="GET"){
+    const familyId=familyInvitationsMatch[1],role=await roleFor(env.DB,familyId,actorUserId);
+    if(role!=="owner"&&role!=="admin")return fail(role?403:404,"forbidden","Only a family owner or admin can view invitations.");
+    const invitations=await env.DB.prepare(`SELECT id,invitee_email,offered_role,status,expires_at,created_at
+      FROM invitations WHERE family_id=? AND status='pending' AND expires_at>? ORDER BY created_at DESC`).bind(familyId,now()).all();
+    return json({data:invitations.results});
+  }
+  const invitationRevokeMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/invitations\/([^/]+)$/);
+  if(invitationRevokeMatch&&request.method==="DELETE"){
+    const familyId=invitationRevokeMatch[1],invitationId=invitationRevokeMatch[2],role=await roleFor(env.DB,familyId,actorUserId);
+    if(role!=="owner"&&role!=="admin")return fail(role?403:404,"forbidden","Only a family owner or admin can revoke invitations.");
+    const timestamp=now();
+    const results=await env.DB.batch([
+      env.DB.prepare("UPDATE invitations SET status='revoked',revoked_at=?,revoked_by_user_id=? WHERE id=? AND family_id=? AND status='pending' AND expires_at>?").bind(timestamp,actorUserId,invitationId,familyId,timestamp),
+      env.DB.prepare(`INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at)
+        SELECT ?,?,?, 'invitation',?,'invitation.revoked',?,? WHERE changes()=1`).bind(id(),familyId,actorUserId,invitationId,JSON.stringify({invitationId}),timestamp),
+    ]);
+    const changes=(results[0] as {meta?:{changes?:number}}|undefined)?.meta?.changes??0;
+    if(!changes)return fail(404,"invitation_unavailable","This pending invitation is no longer available.");
+    return json({data:{id:invitationId,revoked:true}});
+  }
   const invitationAcceptMatch=url.pathname.match(/^\/v1\/invitations\/([^/]+)\/accept$/);
   if(invitationAcceptMatch&&request.method==="POST"){
+    const ipLimited=await enforceRateLimit(request,env.DB,"invitation_accept_ip",30,60*60*1000);
+    if(ipLimited)return ipLimited;
     if(!session)return fail(401,"not_authenticated","Sign in with Google before accepting an invitation.");
+    const userLimited=await enforceRateLimit(request,env.DB,"invitation_accept_user",20,60*60*1000,actorUserId);
+    if(userLimited)return userLimited;
     const code=invitationAcceptMatch[1],hash=await sha256(code),timestamp=now();
     const invitation=await env.DB.prepare("SELECT id,family_id,invitee_email,offered_role,status,expires_at FROM invitations WHERE invite_code_hash=?").bind(hash).first<{id:string;family_id:string;invitee_email:string|null;offered_role:string;status:string;expires_at:string}>();
     if(!invitation||invitation.status!=="pending"||invitation.expires_at<=timestamp)return fail(404,"invitation_unavailable","This invitation is invalid, expired or no longer available.");
     if(invitation.invitee_email&&invitation.invitee_email.toLowerCase()!==session.email.toLowerCase())return fail(403,"invitation_email_mismatch","Sign in with the Google account that received this invitation.");
     const member=await env.DB.prepare("SELECT role FROM family_members WHERE family_id=? AND user_id=?").bind(invitation.family_id,actorUserId).first();
     if(member)return fail(409,"already_a_member","You are already a member of this family.");
-    await env.DB.batch([
-      env.DB.prepare("INSERT INTO family_members(family_id,user_id,role,joined_at) VALUES(?,?,?,?)").bind(invitation.family_id,actorUserId,invitation.offered_role,timestamp),
-      env.DB.prepare("UPDATE invitations SET status='accepted',accepted_at=? WHERE id=? AND status='pending'").bind(timestamp,invitation.id),
-      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'invitation',?,'invitation.accepted',?,?)").bind(id(),invitation.family_id,actorUserId,invitation.id,JSON.stringify({role:invitation.offered_role}),timestamp)
+    const results=await env.DB.batch([
+      env.DB.prepare("UPDATE invitations SET status='accepted',accepted_at=?,accepted_by_user_id=? WHERE id=? AND status='pending' AND expires_at>?").bind(timestamp,actorUserId,invitation.id,timestamp),
+      env.DB.prepare(`INSERT INTO family_members(family_id,user_id,role,joined_at)
+        SELECT family_id,?,?,? FROM invitations WHERE id=? AND changes()=1`).bind(actorUserId,invitation.offered_role,timestamp,invitation.id),
+      env.DB.prepare(`INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at)
+        SELECT ?,family_id,?,'invitation',?,'invitation.accepted',?,? FROM invitations WHERE id=? AND changes()=1`)
+        .bind(id(),actorUserId,invitation.id,JSON.stringify({role:invitation.offered_role}),timestamp,invitation.id)
     ]);
+    const changes=(results[0] as {meta?:{changes?:number}}|undefined)?.meta?.changes??0;
+    if(!changes)return fail(404,"invitation_unavailable","This invitation is invalid, expired or no longer available.");
     return json({data:{familyId:invitation.family_id,role:invitation.offered_role,accepted:true}});
   }
   const familyMemberRoleMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/members\/([^/]+)$/);
@@ -451,11 +517,19 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   const importMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/import$/);
   if (importMatch && request.method === "POST") {
     const familyId=importMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
-    if (role !== "owner" && role !== "admin") return fail(role?403:404,"forbidden","Only a family owner or admin can import family records.");
+    const familyAdmin=role==="owner"||role==="admin",platformImport=superAdmin&&!familyAdmin;
+    if(!familyAdmin&&!platformImport)return fail(role?403:404,"forbidden","Only a family owner, admin or explicitly authorized Super Admin can import family records.");
     const input=await body(request);
     if (input?.confirmed !== true || input?.confirmDeceasedRecords !== true || !Array.isArray(input.people))
       return fail(400,"confirmation_required","Confirm the import and deceased records before proceeding.");
+    const importReason=typeof input.reason==="string"?input.reason.trim():"";
+    if(platformImport&&(importReason.length<12||importReason.length>500))return fail(400,"support_reason_required","Provide a clear import reason (12–500 characters).");
     if (input.people.length > 100) return fail(400,"import_too_large","Import exceeds the supported record limit.");
+    if(platformImport){
+      const family=await env.DB.prepare("SELECT id,name FROM families WHERE id=?").bind(familyId).first<{id:string;name:string}>();
+      if(!family)return fail(404,"family_not_found","Family not found.");
+      await writePlatformAudit(env.DB,actorUserId,"family.import","family",familyId,importReason,{familyName:family.name,peopleCount:input.people.length});
+    }
     const existing=await env.DB.prepare("SELECT id,display_name,given_name,family_name FROM persons WHERE family_id=?").bind(familyId).all<{id:string;display_name:string;given_name:string;family_name:string|null}>();
     const normalize=(value:string)=>value.toLocaleLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu," ").trim().replace(/\s+/g," ");
     const existingByName=new Map(existing.results.map(p=>[normalize(p.display_name||[p.given_name,p.family_name].filter(Boolean).join(" ")),p.id]));

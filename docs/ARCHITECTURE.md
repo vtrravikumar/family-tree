@@ -38,7 +38,7 @@ Use React Flow for interactive rendering and evaluate ELK.js for automatic graph
 
 ## Export
 
-Generate export output from the full graph/layout model, not a screenshot of the currently visible viewport. PNG generation should support high-resolution output and selected subgraphs.
+The current Excel-compatible family-data export is generated in the browser for Owner/Admin users. UI visibility does not enforce security because family members can read the source data through the API. Add a server-authorized export flow for Platform Super Admin access; require a reason, family scope and platform audit event. Generate presentation exports from the full graph/layout model, not a screenshot of the currently visible viewport. PNG generation should support high-resolution output and selected subgraphs.
 
 ## Deferred decisions
 

@@ -31,7 +31,10 @@ A reusable structured date representation:
 Use separate birth and death date records or equivalent typed fields with the same structure. Validate allowed combinations.
 
 ### invitations
-Family, inviter, invitee email or code hash, offered role, expiry, accepted/revoked timestamps and status.
+Family, inviter, invitee email or code hash, offered role, expiry, accepted/revoked timestamps and status. Record which user accepted or revoked the invitation. Acceptance is a single-use state transition; only the request that changes pending to accepted may create membership and an audit event.
+
+### api_rate_limits
+Scoped fixed-window request counters keyed by a per-window hash of client IP and, where applicable, the authenticated user ID. Store no raw IP addresses; delete expired windows as traffic continues.
 
 ### person_identity_links
 Family-scoped association between one registered user account and one existing person record. Store family ID, person ID, user ID, linking actor and timestamp. Enforce one linked account per person and one linked person per account within each family.

@@ -4,9 +4,13 @@ All notable Vansvriksha releases are documented here. Versions use the format `v
 
 ## [Unreleased]
 
-Changes merged to `main` after the most recent formal release. These changes are part of the next release, but are not yet assigned a release number.
+Changes prepared since the most recent formal release. They are not yet assigned a release number and may include work awaiting review.
 
 ### Added
+- Owner/admin invitation listing and revocation with family audit records.
+- Reason-gated, family-scoped Super Admin import and JSON export APIs with platform audit entries.
+- Fixed-window rate limits for Google sign-in and invitation creation/acceptance.
+- A production-readiness checklist that tracks required implementation, operations and migration evidence.
 - Independent Google accounts can register and sign in without replacing the original workspace owner identity.
 - Family workspaces are listed and created according to the authenticated user's actual membership.
 - Family member directory with owner/admin/editor/viewer role visibility.
@@ -19,10 +23,17 @@ Changes merged to `main` after the most recent formal release. These changes are
 - Add owner/admin person deletion with explicit name confirmation; deleting a living person also removes all connected relationships. Deceased profiles remain protected. Existing media, saved-layout, or branch-share references block deletion.
 
 ### Improved
+- Invitation acceptance now atomically consumes a pending invitation before creating membership, preventing reuse under concurrent requests.
+- Import and export controls are limited to family owners and admins in the workspace UI.
 - Family data changes and audit events are attributed to the authenticated collaborator rather than the legacy development owner.
 - Family members and Relationships sections can be collapsed to keep large workspaces manageable.
 - Returning to All generations clears the selected-person focus.
 - Ancestors and descendants views are not dimmed by first-degree focus behavior.
+
+### Security
+- Corrected parsing of development Bearer authorization headers.
+- Added acceptance and revocation actor identifiers to invitation records.
+- Removed implicit hard-coded Super Admin bootstrap; the authorized identity must be configured explicitly per environment.
 
 ### Release history
 No formal releases have been published yet.
