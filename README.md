@@ -15,7 +15,7 @@ A collaborative family heritage platform. Product branding is intentionally unde
 - Intended routing: keep `https://vansvriksh-web-dev.pages.dev` and `https://dev.vansvriksh.vtrrk.in` for development, paired with `https://api-dev.vansvriksh.vtrrk.in`. Move `https://vansvriksh.vtrrk.in` to an isolated production Pages project only after the production Worker, database, API, and frontend are configured and verified. The branded address is the production web address until a dedicated product domain is chosen.
 - `https://api.vtrrk.in` is currently used by TweetPilot and must remain untouched during Vansvriksh setup. Proposed production API hostname: `https://api.vansvriksh.vtrrk.in`. A future TweetPilot move to `https://api.tweetpilot.vtrrk.in` should be handled as a separate migration after its clients and integrations are updated.
 - M3.3 PR #41: merged with CI passing; development Worker health and unauthenticated API authorization were verified on 2026-11-22
-- The empty production D1 database is created and its Wrangler environment is staged in PR #44. No production migrations or deployment have run. The production Pages project and API route still need configuration; the branded domain remains on development.
+- The `vansvriksh-production` D1 database was created and all ten migrations, including the shared sample-family seed, were applied on 2026-11-22. Production Worker deployment is pending because the current token cannot create the new `family-tree-api-production` script. The production Pages project is not configured; the branded domain remains on the development project.
 
 ## Repository layout
 
