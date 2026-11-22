@@ -5,13 +5,14 @@ A collaborative family heritage platform. Product branding is intentionally unde
 ## Project status
 
 - Product specification: baseline v0.1
-- Current milestone: M1 — application foundation
+- Current milestone: production-readiness hardening (M3.3 complete; live development D1 verification remains pending)
 - Market: India initially; architecture intended to support international use
 - Hosting target: Cloudflare Pages + Workers
 - Working product name: Vansvriksh (provisional)
-- Development frontend: `https://vansvriksh-web-dev.pages.dev` (after first deployment)
-- Development API: `https://family-tree-api-dev.<your-subdomain>.workers.dev` (after first deployment)
-- Custom domain: intentionally deferred until production readiness
+- Development frontend: `https://vansvriksh-web-dev.pages.dev`
+- Development API: `https://api-dev.vtrrk.in`
+- M3.2 development deployment: reported deployed with CI passing; latest baseline CI was verified green on `9766744`
+- Production environment, database, secrets and deployment are not configured or approved
 
 ## Repository layout
 
@@ -59,6 +60,8 @@ pnpm build
 7. All authorization is enforced server-side.
 
 See [Product Specification](docs/PRODUCT_SPEC.md) and [Architecture](docs/ARCHITECTURE.md).
+
+Track launch blockers and evidence in [Production Readiness](docs/PRODUCTION_READINESS.md) and the [Roadmap](docs/ROADMAP.md).
 
 
 ## Cloudflare development deployment

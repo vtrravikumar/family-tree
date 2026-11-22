@@ -13,6 +13,9 @@
 - Use opaque, high-entropy invitation and share tokens; store hashes where practical.
 - Rate-limit authentication, invitation and public-link endpoints.
 - Record security-relevant events in audit logs.
+- Require Owner/Admin authorization for invitation listing and revocation; acceptance must consume each invitation at most once under concurrent requests.
+- Apply fixed-window limits to Google sign-in and invitation create/accept operations. Key counters by a scoped hash of the Cloudflare client IP and, for invitation operations, the authenticated user; do not store raw IP addresses in rate-limit records.
+- Current limits: Google sign-in 20 attempts per IP per 15 minutes; invitation creation 20 per IP and 10 per account per hour; invitation acceptance 30 per IP and 20 per account per hour. Tune these against real development traffic before production.
 - Apply least privilege to deployment credentials.
 - Keep development and production environments, databases and secrets separate.
 - Back up and validate existing family data before production migration.
@@ -29,6 +32,8 @@ Only the following may import or export family data:
 - Platform Super Admin, using an explicitly authorized platform-level capability.
 
 Editors and Viewers must be denied. Authorization must be checked server-side on every relevant operation, including import/export preview, validation, commit, download and alternate endpoints. A user must not bypass family scoping by changing a family ID or calling an endpoint directly. Platform Super Admin actions should be audited.
+
+Browser-side workbook export controls are supplementary only. The Platform Super Admin JSON export API requires a reason, rechecks platform authority, scopes the export to one family and writes a platform audit event before returning the data. Family members can read family records through the API, so the UI restriction cannot prevent an authorized Editor or Viewer from manually copying data; stricter export prevention requires changing the product's read-access model.
 
 ### Identity claims
 

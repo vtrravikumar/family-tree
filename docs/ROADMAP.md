@@ -58,11 +58,26 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 - [ ] Workspace access and isolation tests
 
 ## M3.2 — Import/export authorization and data portability
-- [ ] Restrict family data import/export to Family Owner, family Admin and Platform Super Admin
-- [ ] Deny Editor and Viewer at every import/export API route
+- [x] Restrict family data import to Family Owner, family Admin and reason-gated Platform Super Admin
+- [x] Deny Editor and Viewer at the import endpoint
+- [x] Add a family-scoped, reason-gated, audited Platform Super Admin export endpoint
 - [ ] Enforce authorization on preview, validation, commit and download paths
 - [ ] Add negative tests for unauthorized roles and cross-family access
 - [ ] Preserve and validate IDs, relationships, memberships, roles and ownership in migration/import workflows
+
+## M3.3 — Security and authorization audit
+- [x] Trace family, identity, invitation and platform-admin API authorization paths
+- [x] Correct development Bearer token parsing
+- [x] Hide import/export controls from Editor and Viewer roles
+- [x] Add pending invitation listing and owner/admin revocation controls
+- [x] Make invitation acceptance a single-use conditional database operation
+- [x] Remove the implicit hard-coded Super Admin identity; require explicit environment configuration
+- [x] Add focused positive and negative tests for sensitive route and role boundaries
+- [x] Verify single-use invitation acceptance and revocation behavior using SQLite transaction semantics compatible with D1 batches
+- [x] Close Super Admin import/export API policy gaps with reason-gated platform authorization and audit events
+- [x] Add fixed-window rate limiting for Google sign-in and invitation create/accept endpoints
+- [x] Review session expiry/revocation, origin checks, security headers and rate-limit data minimization
+- [x] Verify CI on the audited commit via PR #41
 
 ## M4 — Professional UI/UX redesign (mandatory for v1) — COMPLETE
 - [x] Agree and document a cohesive design system: colours, typography, spacing, borders, elevation and iconography
@@ -93,6 +108,8 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 - [ ] Production deployment checklist, rollback plan and release process
 - [ ] Privacy, retention and account lifecycle review
 - [ ] Production launch approval only after all v1 acceptance criteria pass
+
+See [Production Readiness](PRODUCTION_READINESS.md) for current blockers and required evidence.
 
 ## Next major release — Deferred capabilities
 - [ ] High-resolution full-tree PNG export and selected-branch export
