@@ -6,6 +6,7 @@ Vansvriksh is still a development deployment. This checklist separates implement
 
 - Google sign-in, family membership, Owner/Admin/Editor/Viewer roles, identity claims and a platform Super Admin are implemented.
 - The app currently uses Cloudflare Pages and a Worker with a development D1 database. A dedicated production Worker, database, secrets and domain are not configured in this repository.
+- A read-only check on 2026-11-22 found `vansvriksh.vtrrk.in` serves the same JavaScript bundle as `vansvriksh-web-dev.pages.dev`; that bundle calls `api-dev.vtrrk.in`. Treat the branded hostname as development until Cloudflare's project/domain mapping and a separate production frontend/API/database are verified. `api.vtrrk.in` currently returns only a legacy health response and 404s for the current `/v1` routes.
 - M3.3 was merged in PR #41. Its CI passed and the Worker was deployed to development; the development health endpoint returned 200 and unauthenticated family/platform data requests returned 401. Authenticated live D1 authorization and invitation lifecycle tests remain outstanding. No production deployment was performed.
 - PR #43 added the shared fictional sample family. CI run #280 passed; D1 migration `0010_shared_sample_family.sql` and the Worker deployment both completed successfully. The development health endpoint reports `environment: development` and `database: connected`. The sample appears for existing users; this was confirmed by the owner on 2026-11-22.
 - Migrations `0008_invitation_actor_audit.sql`, `0009_api_rate_limits.sql`, and `0010_shared_sample_family.sql` are applied to the development D1 database. Authenticated live authorization and invitation lifecycle tests against D1 remain outstanding.
@@ -32,6 +33,7 @@ Vansvriksh is still a development deployment. This checklist separates implement
 
 - [ ] Add an explicit production Wrangler environment with its own D1 database, domain, Google configuration and least-privilege secrets.
 - [ ] Remove development-only configuration and credentials from every production deployment path; verify the deployed `APP_ENV` is production.
+- [ ] Set and verify `VITE_API_URL` separately for each Pages environment. The current frontend falls back to `https://api-dev.vtrrk.in` when the variable is absent; never let a production build inherit that default.
 - [ ] Verify the production origin allowlist, cookie behavior, TLS, security headers, CORS preflight and health monitoring.
 - [ ] Establish backup frequency, retention, access controls and a tested restore procedure for D1.
 - [ ] Add actionable error reporting and operational alerts without logging personal data or credentials.

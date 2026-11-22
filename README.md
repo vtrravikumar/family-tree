@@ -11,6 +11,7 @@ A collaborative family heritage platform. Product branding is intentionally unde
 - Working product name: Vansvriksh (provisional)
 - Development frontend: `https://vansvriksh-web-dev.pages.dev`
 - Development API: `https://api-dev.vtrrk.in`
+- As of 2026-11-22, `https://vansvriksh.vtrrk.in` serves the same frontend bundle and development API. Treat it as development, not production. The `https://api.vtrrk.in` host does not serve the current `/v1` API routes.
 - M3.3 PR #41: merged with CI passing; development Worker health and unauthenticated API authorization were verified on 2026-11-22
 - Production environment, database, secrets and deployment are not configured or approved
 
