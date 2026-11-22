@@ -9,10 +9,10 @@ A collaborative family heritage platform. Product branding is intentionally unde
 - Market: India initially; architecture intended to support international use
 - Hosting target: Cloudflare Pages + Workers
 - Working product name: Vansvriksh (provisional)
-- Development Pages project: `vansvriksh-web-dev.pages.dev`; proposed signed-in development frontend: `https://dev.vansvriksh.vtrrk.in`.
-- Current development API: `https://api-dev.vtrrk.in`; proposed development API: `https://api-dev.vansvriksh.vtrrk.in`.
-- Temporary current routing (checked 2026-11-22): `https://vansvriksh.vtrrk.in` serves the development frontend bundle and calls the development API. This is not production today.
-- Intended routing: keep `https://vansvriksh-web-dev.pages.dev` as the Pages project preview and attach `https://dev.vansvriksh.vtrrk.in` as its signed-in development frontend. Pair it with `https://api-dev.vansvriksh.vtrrk.in` after the Worker Custom Domain is verified. Move `https://vansvriksh.vtrrk.in` to production only after the isolated production frontend, Worker, database, and API are ready. The branded address is the production web address until a dedicated product domain is chosen.
+- Development Pages project: `vansvriksh-web-dev.pages.dev`. As of 2026-11-22, both `https://dev.vansvriksh.vtrrk.in` and `https://vansvriksh.vtrrk.in` are active custom domains on this same development project.
+- Development API: `https://api-dev.vansvriksh.vtrrk.in`; its Worker Custom Domain is deployed. The owner confirmed Google sign-in and family loading from the development D1 database at the dev frontend on 2026-11-22.
+- Important current boundary: the branded `https://vansvriksh.vtrrk.in` hostname still serves the development build and development API because it is attached to `vansvriksh-web-dev`. It is not production and must be moved to a separate production Pages project before inviting users to the production service.
+- Intended routing: keep `https://vansvriksh-web-dev.pages.dev` and `https://dev.vansvriksh.vtrrk.in` for development, paired with `https://api-dev.vansvriksh.vtrrk.in`. Move `https://vansvriksh.vtrrk.in` to an isolated production Pages project only after the production Worker, database, API, and frontend are configured and verified. The branded address is the production web address until a dedicated product domain is chosen.
 - `https://api.vtrrk.in` is currently used by TweetPilot and must remain untouched during Vansvriksh setup. Proposed production API hostname: `https://api.vansvriksh.vtrrk.in`. A future TweetPilot move to `https://api.tweetpilot.vtrrk.in` should be handled as a separate migration after its clients and integrations are updated.
 - M3.3 PR #41: merged with CI passing; development Worker health and unauthenticated API authorization were verified on 2026-11-22
 - The empty production D1 database is created and its Wrangler environment is staged in PR #44. No production migrations or deployment have run. The production Pages project and API route still need configuration; the branded domain remains on development.
@@ -79,4 +79,4 @@ One-time setup:
    - `CLOUDFLARE_ACCOUNT_ID`
 4. Push to `main`. GitHub Actions will validate, build, and deploy the frontend and API.
 
-The API uses the Wrangler `dev` environment (`family-tree-api-dev`). Its planned dev-only custom domains are `api-dev.vansvriksh.vtrrk.in` and `dev.vansvriksh.vtrrk.in`; do not attach production data stores or production domains to this deployment.
+The API uses the Wrangler `dev` environment (`family-tree-api-dev`). Its active development custom domain is `api-dev.vansvriksh.vtrrk.in`; the Pages project has active custom domains `dev.vansvriksh.vtrrk.in` and `vansvriksh.vtrrk.in`, and both currently serve the development build. Do not connect production data stores or treat the branded hostname as production until it is moved to a separate production Pages project.
