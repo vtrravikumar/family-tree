@@ -73,6 +73,50 @@ describe("server-side authorization", () => {
     expect(response.status).toBe(403);
   });
 
+  it("restricts production browser origins to the configured production frontend", async () => {
+    const env=makeEnv();
+    env.APP_ENV="production";
+    env.ALLOWED_ORIGINS="https://vansvriksh.vtrrk.in";
+    const production=await worker.fetch(new Request("https://api.example.test/health",{
+      headers:{Origin:"https://vansvriksh.vtrrk.in"},
+    }),env);
+    expect(production.headers.get("access-control-allow-origin")).toBe("https://vansvriksh.vtrrk.in");
+
+    const development=await worker.fetch(new Request("https://api.example.test/v1/families",{
+      method:"POST",headers:{Origin:"https://vansvriksh-web-dev.pages.dev","Content-Type":"application/json"},
+      body:JSON.stringify({name:"Not allowed"}),
+    }),env);
+    expect(development.status).toBe(403);
+    expect(development.headers.get("access-control-allow-origin")).toBeNull();
+
+    const local=await worker.fetch(new Request("https://api.example.test/v1/families",{
+      method:"OPTIONS",headers:{Origin:"http://localhost:5173"},
+    }),env);
+    expect(local.status).toBe(204);
+    expect(local.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it("does not seed or fall back to a development identity in production", async () => {
+    const env=makeEnv("owner",true);
+    env.APP_ENV="production";
+    const originalPrepare=env.DB.prepare.bind(env.DB);
+    let seededDevelopmentIdentity=false;
+    env.DB.prepare=(sql:string)=>{
+      if(sql.includes("INSERT OR IGNORE INTO users")&&sql.includes("dev-owner"))seededDevelopmentIdentity=true;
+      return originalPrepare(sql);
+    };
+    const withSession=await worker.fetch(new Request("https://api.example.test/v1/families",{
+      headers:{Cookie:"vansvriksh_session=test-session"},
+    }),env);
+    expect(withSession.status).toBe(200);
+    expect(seededDevelopmentIdentity).toBe(false);
+
+    const bearerOnly=await worker.fetch(new Request("https://api.example.test/v1/families",{
+      headers:{Authorization:"Bearer test-token"},
+    }),env);
+    expect(bearerOnly.status).toBe(401);
+  });
+
   it("keeps session responses private and clears cookies on logout", async () => {
     const me=await request("/v1/auth/me",null,"GET",undefined,true);
     expect(me.status).toBe(200);
