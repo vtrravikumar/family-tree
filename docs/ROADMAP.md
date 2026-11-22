@@ -19,7 +19,7 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 - [x] D1 database and migrations
 - [x] Family workspace creation and selection
 - [x] Development frontend and API deployment
-- [ ] Canonical fictional sample family: compact eight-person fixture covering all relationship types across four generations; shared read-only Viewer access, personal hide/remove, and export/import into a user's private family
+- [x] Canonical fictional sample family: compact eight-person fixture covering all relationship types across four generations; shared read-only Viewer access, personal hide/remove, and export/import into a user's private family
 
 ## M2 — Family tree engine
 - [x] Person creation and profile editing
@@ -94,7 +94,7 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 - [x] Final cross-browser and device QA (user-confirmed)
 
 ## M5 — Security, production migration and launch readiness
-- [ ] Build and test canonical sample-family access, read-only enforcement, personal hide/remove, and export/import into private family workspaces
+- [x] Build and test canonical sample-family access, read-only enforcement, personal hide/remove, and export/import into private family workspaces; deployed to development in PR #43
 - [ ] Comprehensive authorization and API security review
 - [ ] Strict cross-family data isolation and role-boundary tests
 - [ ] Identity-claim uniqueness, approval and reassignment security tests

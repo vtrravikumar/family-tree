@@ -175,6 +175,16 @@ describe("server-side authorization", () => {
     expect((await request(path,"viewer","POST",payload)).status).toBe(403);
   });
 
+  it("allows Owner/Admin/Editor relationship changes and denies Viewer changes", async () => {
+    const item="/v1/families/family-1/relationships/relationship-1";
+    for(const role of ["owner","admin","editor"]){
+      expect((await request(item,role,"DELETE")).status).toBe(200);
+      expect((await request(item,role,"PUT",{})).status).toBe(400);
+    }
+    expect((await request(item,"viewer","DELETE")).status).toBe(403);
+    expect((await request(item,"viewer","PUT",{})).status).toBe(403);
+  });
+
   it("denies cross-family ID substitution even when the caller belongs to another family", async () => {
     expect((await request("/v1/families/other-family/people", "owner")).status).toBe(404);
     expect((await request("/v1/families/family-1/identity-claims", "editor", "POST", { personId: "person-from-another-family" })).status).toBe(404);
@@ -235,6 +245,20 @@ describe("server-side authorization", () => {
     expect((await request("/v1/families/family-1/members/target-1", "admin", "PUT", { role: "admin" }, false, 1, false, 0, "editor")).status).toBe(403);
   });
 
+  it("limits member-role changes and removals to Owner/Admin without allowing owner or peer-admin changes", async () => {
+    const target="/v1/families/family-1/members/target-1";
+    for(const role of ["editor","viewer"]){
+      expect((await request(target,role,"PUT",{role:"viewer"})).status).toBe(403);
+      expect((await request(target,role,"DELETE")).status).toBe(403);
+    }
+    expect((await request(target,"owner","PUT",{role:"viewer"},false,1,false,0,"editor")).status).toBe(200);
+    expect((await request(target,"owner","PUT",{role:"viewer"},false,1,false,0,"owner")).status).toBe(409);
+    expect((await request(target,"admin","PUT",{role:"viewer"},false,1,false,0,"admin")).status).toBe(403);
+    expect((await request(target,"owner","DELETE",undefined,false,1,false,0,"editor")).status).toBe(200);
+    expect((await request(target,"owner","DELETE",undefined,false,1,false,0,"owner")).status).toBe(409);
+    expect((await request(target,"admin","DELETE",undefined,false,1,false,0,"admin")).status).toBe(403);
+  });
+
   it.each(["editor", "viewer"])("denies %s identity-claim review and unlink", async (role) => {
     expect((await request("/v1/families/family-1/identity-claims/claim-1/review", role, "POST", { decision: "reject" })).status).toBe(403);
     expect((await request("/v1/families/family-1/identity", role, "DELETE", { personId: "person-1" })).status).toBe(403);
@@ -246,10 +270,11 @@ describe("server-side authorization", () => {
   });
 
   it("keeps platform administration separate from family membership", async () => {
-    expect((await request("/v1/platform/overview", "owner")).status).toBe(403);
-    expect((await request("/v1/platform/families/family-1/support-access", "owner", "POST", {
-      reason: "Approved support investigation",
-    })).status).toBe(403);
+    for(const path of ["/v1/platform/overview","/v1/platform/users","/v1/platform/families","/v1/platform/audit-logs"]){
+      expect((await request(path,"owner")).status).toBe(403);
+    }
+    expect((await request("/v1/platform/families/family-1/support-access","owner","POST",{reason:"Approved support investigation"})).status).toBe(403);
+    expect((await request("/v1/platform/families/family-1/export","owner","POST",{reason:"Family data recovery request"})).status).toBe(403);
   });
 
   it("allows reason-gated Super Admin support access and platform overview", async () => {
