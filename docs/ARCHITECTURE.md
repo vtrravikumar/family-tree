@@ -37,7 +37,7 @@ Maintain separate development, staging and production configuration. D1 database
 - Development frontend: `https://vansvriksh-web-dev.pages.dev`; development API: `https://api-dev.vtrrk.in`.
 - Temporary current mapping: `https://vansvriksh.vtrrk.in` serves the development frontend and calls the development API.
 - Intended production mapping: keep the Pages development address dedicated to development and route `https://vansvriksh.vtrrk.in` to an isolated production frontend and API once its Worker, D1 database, secrets, allowed origins, and release process are ready and verified. This is the intended production web address until a dedicated product domain is selected.
-- The production API hostname is not yet established: `https://api.vtrrk.in` currently does not serve the application's `/v1` API routes. Confirm or provision its production routing before cutover.
+- Proposed production API hostname: `https://api.vansvriksh.vtrrk.in`. Keep `https://api.vtrrk.in` assigned to TweetPilot during Vansvriksh setup. A future TweetPilot move to `https://api.tweetpilot.vtrrk.in` should be a separate migration; retain the old host until its clients and integrations have moved and been verified.
 - Do not switch the vanity hostname until the production frontend/API and data environment are ready; keep development accessible through its dedicated frontend and API.
 
 ## Tree layout
