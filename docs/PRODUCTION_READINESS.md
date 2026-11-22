@@ -11,6 +11,7 @@ Vansvriksh is still a development deployment. This checklist separates implement
 - Migrations `0008_invitation_actor_audit.sql`, `0009_api_rate_limits.sql`, and `0010_shared_sample_family.sql` are applied to the development D1 database. Authenticated live authorization and invitation lifecycle tests against D1 remain outstanding.
 - Current checklist progress: 5 of 20 items complete (25%). This measures documented readiness tasks; production remains unavailable until its environment, data-migration plan, backup/recovery process and release evidence are in place.
 - The local Worker authorization suite now has 46 tests, including member-role/removal boundaries, family and relationship permissions, invitation lifecycle checks, platform-admin separation and sample-family protections. The remaining role/data-isolation cases still need live development D1 verification.
+- A read-only development D1 inventory on 2026-11-22 found three private family records; two share the same display name. Migration reconciliation must identify families by stable ID and verify owner/membership, not rely on names alone.
 - No production data migration, backup, rollback or launch has been performed or approved.
 
 ## Required before production
@@ -37,7 +38,7 @@ Vansvriksh is still a development deployment. This checklist separates implement
 
 ### Data migration and launch
 
-- [ ] Inventory both existing family workspaces and their users, roles, people, relationships and identity links.
+- [ ] Inventory all current private family workspaces and their users, roles, people, relationships and identity links. The current development D1 has three private family records, including two with the same name; reconcile by stable ID and owner.
 - [ ] Write and rehearse a non-destructive migration plan with verified source backups and a development fallback.
 - [ ] Apply migrations to a production-like empty database first; verify constraints, indexes and rollback/recovery behavior.
 - [ ] Reconcile row counts, foreign keys, ownership, memberships, roles, relationship integrity and representative tree renderings after migration.
