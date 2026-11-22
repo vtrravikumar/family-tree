@@ -10,9 +10,10 @@ Vansvriksh is still a development deployment. This checklist separates implement
 - M3.3 was merged in PR #41. Its CI passed and the Worker was deployed to development; the development health endpoint returned 200 and unauthenticated family/platform data requests returned 401. Authenticated live D1 authorization and invitation lifecycle tests remain outstanding. No production deployment was performed.
 - PR #43 added the shared fictional sample family. CI run #280 passed; D1 migration `0010_shared_sample_family.sql` and the Worker deployment both completed successfully. The development health endpoint reports `environment: development` and `database: connected`. The sample appears for existing users; this was confirmed by the owner on 2026-11-22.
 - Migrations `0008_invitation_actor_audit.sql`, `0009_api_rate_limits.sql`, and `0010_shared_sample_family.sql` are applied to the development D1 database. Authenticated live authorization and invitation lifecycle tests against D1 remain outstanding.
-- Current checklist progress: 5 of 21 items complete (24%). This measures documented readiness tasks; production remains unavailable until its environment, data-migration plan, backup/recovery process and release evidence are in place.
+- Current checklist progress: 5 of 21 items complete (24%). This measures completed readiness work, not a launch estimate. Production remains unavailable until its environment, backup/recovery process, and release evidence are in place.
 - The local Worker authorization suite now has 46 tests, including member-role/removal boundaries, family and relationship permissions, invitation lifecycle checks, platform-admin separation and sample-family protections. The remaining role/data-isolation cases still need live development D1 verification.
 - A read-only development D1 inventory on 2026-11-22 found three private family records; two share the same display name. Migration reconciliation must identify families by stable ID and verify owner/membership, not rely on names alone.
+- Initial friends-and-family beta data plan: start with a clean production D1 database and leave development data in development. Users can export a selected family from development and import it into a private production family when they choose. No bulk development-to-production migration is planned for the initial beta.
 - No production data migration, backup, rollback or launch has been performed or approved.
 
 ## Required before production
@@ -40,10 +41,10 @@ Vansvriksh is still a development deployment. This checklist separates implement
 
 ### Data migration and launch
 
-- [ ] Inventory all current private family workspaces and their users, roles, people, relationships and identity links. The current development D1 has three private family records, including two with the same name; reconcile by stable ID and owner.
-- [ ] Write and rehearse a non-destructive migration plan with verified source backups and a development fallback.
-- [ ] Apply migrations to a production-like empty database first; verify constraints, indexes and rollback/recovery behavior.
-- [ ] Reconcile row counts, foreign keys, ownership, memberships, roles, relationship integrity and representative tree renderings after migration.
+- [x] Choose a clean production database for the initial beta; keep development data in development and support user-selected transfer through family export/import.
+- [ ] Apply migrations to a production-like empty database; verify constraints, indexes and recovery behavior.
+- [ ] Verify that a selected family can be exported from development and imported into a fresh production family without losing people, relationships, ownership or roles.
+- [ ] Reconcile the sample and test import in production for record counts, foreign keys, memberships, roles, relationship integrity and representative tree renderings.
 - [ ] Run end-to-end acceptance with the three intended test users and their assigned roles.
 - [ ] Confirm current CI is green, complete release notes, review the rollback plan and obtain explicit production launch approval.
 
