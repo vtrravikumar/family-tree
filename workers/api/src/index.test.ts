@@ -10,6 +10,9 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
         bind(...values: unknown[]) { bound=values; return statement; },
         async first() {
           if(sql.includes("RETURNING request_count"))return {request_count:++rateCount};
+          if(sql.includes("SELECT id FROM families WHERE is_sample=1"))return {id:"sample-family-v1"};
+          if(sql.includes("is_sample=1"))return bound[0]==="sample-family-v1"?{sample:1}:null;
+          if(sql.includes("sample_family_dismissals"))return null;
           if (sql.includes("FROM auth_sessions")) return session&&!expiredSession
             ? { id: "user-1", email: "member@example.com", display_name: "Member", session_id: "session-1" }
             : null;
@@ -23,6 +26,7 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
           if(sql.includes("SELECT life_status FROM persons"))return {life_status:personStatus};
           if(sql.includes("FROM relationships WHERE id=? AND family_id=?"))return {id:"relationship-1",from_person_id:"person-1",to_person_id:"person-2",relationship_type:"sibling"};
           if (sql.includes("FROM family_members")) {
+            if(bound[0]==="sample-family-v1")return bound[1]===(session?"user-1":"dev-owner")?{role:"viewer"}:null;
             if(bound[0]!=="family-1")return null;
             if(bound[1]===(session?"user-1":"dev-owner"))return session?null:role?{role}:null;
             return bound[1]==="target-1"?{role:targetRole}:null;
@@ -86,6 +90,29 @@ describe("server-side authorization", () => {
     for(const role of ["admin","editor","viewer"]){
       expect((await request("/v1/families/family-1",role,"DELETE",{confirmed:true})).status).toBe(403);
     }
+  });
+
+  it("keeps the shared sample read-only for every family role, including Owners", async () => {
+    for(const role of ["owner","admin","editor","viewer"]){
+      expect((await request("/v1/families/sample-family-v1/people",role,"POST",{givenName:"Not allowed"})).status).toBe(403);
+      expect((await request("/v1/families/sample-family-v1","owner","DELETE",{confirmed:true})).status).toBe(403);
+    }
+  });
+
+  it("grants shared sample access on request and hides the shared Viewer roster", async () => {
+    const attached=await request("/v1/onboarding/sample-access","owner","POST");
+    expect(attached.status).toBe(200);
+    expect((await attached.json() as {data:{attached:boolean;role:string}}).data).toMatchObject({attached:true,role:"viewer"});
+    expect((await request("/v1/families/sample-family-v1/people","viewer")).status).toBe(200);
+    const roster=await request("/v1/families/sample-family-v1/members","viewer");
+    expect(roster.status).toBe(200);
+    expect((await roster.json() as {data:unknown[]}).data).toEqual([]);
+  });
+
+  it("removes only the caller's sample association", async () => {
+    const response=await request("/v1/onboarding/sample-access","viewer","DELETE");
+    expect(response.status).toBe(200);
+    expect((await response.json() as {data:{removed:boolean;familyId:string}}).data).toEqual({removed:true,familyId:"sample-family-v1"});
   });
 
   it("rate limits Google sign-in attempts by client IP", async () => {

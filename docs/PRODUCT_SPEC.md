@@ -30,6 +30,12 @@ A user may create multiple family workspaces and join multiple others. Invitatio
 
 The platform has a Platform Super Admin role, distinct from family-level Owner, Admin, Editor and Viewer roles. Platform Super Admin privileges must be explicitly enforced server-side and audited.
 
+### First-run sample family
+
+Maintain one canonical, clearly labeled sample family made only from fictional data. Keep it compact: about eight people across four connected generations (grandparent, parent, self and child), with enough links to demonstrate biological-parent, adoptive-parent, step-parent, spouse, partner and sibling relationships. Use this same fixture in development and production.
+
+Give every authenticated user Viewer access to the shared sample family; do not create a full duplicate for each user. Protect the canonical sample from ordinary edits, imports, membership changes and deletion, including actions by its designated platform owner. A user may remove or hide their own sample access without affecting anyone else. If they want an editable family, they can export the fictional sample workbook and import it into a family they own; that private copy can be changed or deleted normally. Do not overwrite or add sample records to existing private family workspaces.
+
 ## 4. Person profiles
 
 Profiles may contain full name, alternative names, birth/maiden surname, optional gender, photograph, life status, birth/death date information, places, biography, notes and historical sources.
@@ -125,10 +131,11 @@ Permitted:
 - Family Owner of that family.
 - Family Admin of that family.
 - Platform Super Admin.
+- Any authenticated user may export the canonical fictional sample family; this is the only Viewer export exception.
 
 Not permitted:
-- Editor.
-- Viewer.
+- Editor or Viewer export of private family data.
+- Any import into the shared canonical sample family.
 - A user who is not authorized for the target family, unless acting with an explicitly authorized Platform Super Admin capability.
 
 These restrictions apply to every import/export API endpoint and workflow, including preview, validation, commit, download and any alternate route. Frontend control visibility is supplementary only. Attempts by unauthorized roles must be rejected server-side and covered by negative authorization tests.

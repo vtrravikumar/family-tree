@@ -130,6 +130,7 @@ async function authRoute(request: Request,env: Env,url: URL): Promise<Response|n
     const expiresAt=new Date(Date.now()+SESSION_TTL_SECONDS*1000).toISOString();
     await env.DB.prepare("INSERT INTO auth_sessions(id,user_id,token_hash,expires_at,created_at,last_seen_at) VALUES(?,?,?,?,?,?)")
       .bind(id(),user.id,await sha256(sessionToken),expiresAt,timestamp,timestamp).run();
+    await ensureSampleAccess(env.DB,user.id);
     const response=json({data:{user:{id:user.id,email:user.email,displayName:user.display_name},expiresAt}});
     response.headers.append("Set-Cookie",SESSION_COOKIE+"="+sessionToken+"; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age="+SESSION_TTL_SECONDS);
     return response;
@@ -172,6 +173,22 @@ async function roleFor(db: D1Database, familyId: string, userId: string) {
   const row = await db.prepare("SELECT role FROM family_members WHERE family_id=? AND user_id=?").bind(familyId,userId).first<{role:string}>();
   return row?.role ?? null;
 }
+async function sampleFamilyId(db:D1Database):Promise<string|null>{
+  const row=await db.prepare("SELECT id FROM families WHERE is_sample=1 LIMIT 1").first<{id:string}>();
+  return row?.id??null;
+}
+async function ensureSampleAccess(db:D1Database,userId:string):Promise<boolean>{
+  const familyId=await sampleFamilyId(db);if(!familyId)return false;
+  const dismissal=await db.prepare("SELECT 1 AS dismissed FROM sample_family_dismissals WHERE user_id=?").bind(userId).first();
+  if(dismissal)return false;
+  await db.prepare("INSERT OR IGNORE INTO family_members(family_id,user_id,role,joined_at) VALUES(?,?,'viewer',?)")
+    .bind(familyId,userId,now()).run();
+  return true;
+}
+async function isSampleFamily(db:D1Database,familyId:string):Promise<boolean>{
+  const row=await db.prepare("SELECT 1 AS sample FROM families WHERE id=? AND is_sample=1").bind(familyId).first();
+  return !!row;
+}
 const textOrNull = (v: unknown) => typeof v === "string" && v.trim() ? v.trim() : null;
 const yearOrNull = (v: unknown) => Number.isInteger(v) && Number(v) >= 1 && Number(v) <= 9999 ? Number(v) : null;
 const parentTypes = ["biological_parent", "adoptive_parent", "step_parent"];
@@ -185,6 +202,22 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   const session=await currentSession(request,env.DB);
   const actorUserId=session?.id??"dev-owner";
   const superAdmin=!!session&&await isSuperAdmin(env.DB,session.id);
+
+  if(url.pathname==="/v1/onboarding/sample-access"&&request.method==="POST"){
+    const attached=await ensureSampleAccess(env.DB,actorUserId);
+    const familyId=attached?await sampleFamilyId(env.DB):null;
+    return json({data:{available:!!familyId,attached:!!familyId, familyId, role:familyId?"viewer":null}});
+  }
+  if(url.pathname==="/v1/onboarding/sample-access"&&request.method==="DELETE"){
+    const familyId=await sampleFamilyId(env.DB);
+    if(!familyId)return json({data:{removed:false}});
+    const timestamp=now();
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO sample_family_dismissals(user_id,dismissed_at) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET dismissed_at=excluded.dismissed_at").bind(actorUserId,timestamp),
+      env.DB.prepare("DELETE FROM family_members WHERE family_id=? AND user_id=? AND role='viewer'").bind(familyId,actorUserId),
+    ]);
+    return json({data:{removed:true, familyId}});
+  }
 
   if(url.pathname==="/v1/platform/me"&&request.method==="GET"){
     return json({data:{isSuperAdmin:superAdmin,user:session?{id:session.id,email:session.email,displayName:session.displayName}:null}});
@@ -249,8 +282,13 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     return json({data:result.results});
   }
 
+  const familyPath=url.pathname.match(/^\/v1\/families\/([^/]+)(?:\/|$)/);
+  if(familyPath&&["POST","PUT","PATCH","DELETE"].includes(request.method)&&await isSampleFamily(env.DB,familyPath[1])){
+    return fail(403,"sample_read_only","The shared sample is read-only. Export it and import the workbook into a family you own to make changes.");
+  }
+
   if (url.pathname === "/v1/families" && request.method === "GET") {
-    const result = await env.DB.prepare("SELECT f.id,f.name,f.created_at,f.updated_at,fm.role FROM families f JOIN family_members fm ON fm.family_id=f.id WHERE fm.user_id=? ORDER BY f.created_at DESC").bind(actorUserId).all();
+    const result = await env.DB.prepare("SELECT f.id,f.name,f.created_at,f.updated_at,fm.role,f.is_sample FROM families f JOIN family_members fm ON fm.family_id=f.id WHERE fm.user_id=? ORDER BY f.created_at DESC").bind(actorUserId).all();
     return json({data:result.results});
   }
   if (url.pathname === "/v1/families" && request.method === "POST") {
@@ -270,6 +308,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   if(familyMembersMatch&&request.method==="GET"){
     const familyId=familyMembersMatch[1],role=await roleFor(env.DB,familyId,actorUserId);
     if(!role)return fail(404,"family_not_found","Family not found.");
+    if(await isSampleFamily(env.DB,familyId))return json({data:[]});
     const members=await env.DB.prepare("SELECT u.id,u.email,u.display_name,u.avatar_url,fm.role,fm.joined_at FROM family_members fm JOIN users u ON u.id=fm.user_id WHERE fm.family_id=? ORDER BY CASE fm.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'editor' THEN 2 ELSE 3 END,fm.joined_at").bind(familyId).all();
     return json({data:members.results});
   }

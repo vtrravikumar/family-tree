@@ -10,6 +10,8 @@ Registered application identities. Store stable provider subject, email, display
 ### families
 Independent family workspaces with name, owner user ID, privacy settings and timestamps.
 
+The canonical fictional onboarding family is platform-managed and marked with `is_sample`; a uniqueness constraint permits only one. It uses a non-login system owner and ordinary Viewer memberships. `sample_family_dismissals` records a user's choice to remove their association, without deleting the shared family or affecting other users.
+
 ### family_members
 Membership linking a user to a family with role: owner, admin, editor or viewer.
 

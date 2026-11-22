@@ -28,7 +28,7 @@ Family-level roles are Owner, Admin, Editor and Viewer. Platform Super Admin is 
 
 | Operation | Platform Super Admin | Owner | Admin | Editor | Viewer |
 | --- | --- | --- | --- | --- | --- |
-| Read family people and relationships | No ordinary family access; platform family export/support paths are separate and audited | Yes | Yes | Yes | Yes |
+| Read family people and relationships | Viewer access to the shared fictional sample only; private-family access requires an audited platform path or ordinary membership | Yes | Yes | Yes | Yes |
 | Create people and edit living profiles | No family-role permission | Yes | Yes | Yes | No |
 | Add or edit relationships | No family-role permission | Yes | Yes | Yes | No |
 | Delete people, mark deceased, or restore profiles | No family-role permission | Yes | Yes | No | No |
@@ -39,12 +39,14 @@ Family-level roles are Owner, Admin, Editor and Viewer. Platform Super Admin is 
 | Request an identity claim | No family-role permission | Yes; may claim directly | Yes; claim requires Owner/Admin review | Yes; claim requires Owner/Admin review | Yes; claim requires Owner/Admin review |
 | Review claims or unlink an identity | No family-role permission | Yes | Yes | No | No |
 | Import family records | Only through the reason-gated, audited platform path | Yes | Yes | No | No |
-| Export family data | Only through the reason-gated, audited platform JSON export | Built-in workbook export is available in the family UI | Built-in workbook export is available in the family UI | No export control; family records remain readable through the API | No export control; family records remain readable through the API |
+| Export family data | Reason-gated, audited platform JSON export | Built-in workbook export is available in the family UI | Built-in workbook export is available in the family UI | No export of private family data; the fictional shared sample may be exported | No export of private family data; the fictional shared sample may be exported |
 | Delete a family | No family-role permission | Yes, with explicit confirmation | No | No | No |
 | Platform overview, user/family summaries, and platform audit logs | Yes | No | No | No | No |
 | Reason-gated support access to one family's data | Yes, with a reason and platform audit event | No | No | No | No |
 
-The matrix describes server-side application permissions. Hiding workbook export controls for Editors and Viewers is a usability boundary, not a way to prevent copying data they can read through family API routes. Super Admin access does not grant ordinary family membership or bypass the reason and audit requirements on support and platform export paths.
+The matrix describes server-side application permissions. Hiding workbook export controls for Editors and Viewers is a usability boundary, not a way to prevent copying data they can read through private-family API routes. The canonical sample contains only fictional data and is the sole export exception for viewers. Super Admin access does not grant ordinary family membership or bypass the reason and audit requirements on support and platform export paths.
+
+The canonical sample is platform-managed with a non-login system owner. Every signed-in user receives an ordinary Viewer membership unless they previously removed it. The API hides the sample's membership roster and rejects family-scoped writes against it regardless of role. Removing the sample records a per-user dismissal and removes only that user's membership; it never deletes the shared fixture.
 
 Invitation acceptance is not granted by an existing family role: any signed-in Google account may accept if it matches the invitee email, the invitation is pending and unexpired, and that account is not already a family member.
 
