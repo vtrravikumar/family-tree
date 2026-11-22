@@ -5,13 +5,13 @@ A collaborative family heritage platform. Product branding is intentionally unde
 ## Project status
 
 - Product specification: baseline v0.1
-- Current milestone: production-readiness hardening (M3.3 complete; development D1 migrations are applied; live authorization endpoint tests remain pending)
+- Current milestone: production-readiness hardening (M3.3 merged and deployed to development; authenticated live authorization tests remain pending; shared sample family is in progress)
 - Market: India initially; architecture intended to support international use
 - Hosting target: Cloudflare Pages + Workers
 - Working product name: Vansvriksh (provisional)
 - Development frontend: `https://vansvriksh-web-dev.pages.dev`
 - Development API: `https://api-dev.vtrrk.in`
-- M3.2 development deployment: reported deployed with CI passing; latest baseline CI was verified green on `9766744`
+- M3.3 PR #41: merged with CI passing; development Worker health and unauthenticated API authorization were verified on 2026-11-22
 - Production environment, database, secrets and deployment are not configured or approved
 
 ## Repository layout

@@ -6,15 +6,17 @@ Vansvriksh is still a development deployment. This checklist separates implement
 
 - Google sign-in, family membership, Owner/Admin/Editor/Viewer roles, identity claims and a platform Super Admin are implemented.
 - The app currently uses Cloudflare Pages and a Worker with a development D1 database. A dedicated production Worker, database, secrets and domain are not configured in this repository.
-- M3.2 was deployed with CI passing. The latest baseline CI run on `9766744` was verified green.
-- M3.3 changes include a development Bearer parsing fix, invitation acceptance/revocation handling, reason-gated Super Admin import/export, UI role gating and authorization tests. Local tests, type checks and web build pass; PR #41 validation and its Cloudflare Pages preview are green. The Worker development-deploy job was skipped; no production deployment was performed.
+- M3.2 was deployed with CI passing; its baseline commit was `9766744`. M3.3 has since been merged and deployed to development.
+- M3.3 was merged in PR #41. Its CI passed and the Worker was deployed to development; the development health endpoint returned 200 and unauthenticated family/platform data requests returned 401. Authenticated live D1 authorization and invitation lifecycle tests remain outstanding. No production deployment was performed.
 - The new rate-limit and invitation actor migrations apply cleanly to local SQLite and were applied to the remote development D1 database on 2026-11-22. Wrangler's final migration output showed both `0008_invitation_actor_audit.sql` and `0009_api_rate_limits.sql` completed. Live authorization and invitation lifecycle tests against D1 are still outstanding.
 - No production data migration, backup, rollback or launch has been performed or approved.
+- The shared fictional sample-family feature is being implemented on a separate branch. Its additive migration will seed one eight-person, four-generation family; authenticated users receive Viewer membership, can remove only their own association, and can export/import the workbook into a private family. It has not been merged or deployed.
 
 ## Required before production
 
 ### Product and authorization
 
+- [ ] Complete and deploy the shared fictional sample family with Viewer-only access, server-enforced read-only behavior, personal remove/dismissal, and export/import into a private family. The current unmerged implementation has focused local authorization tests.
 - [ ] Complete exhaustive Owner/Admin/Editor/Viewer tests for every sensitive API route. M3.3 now covers the primary route boundaries; local tests do not exercise a live D1 database.
 - [ ] Test family ID/person ID tampering, pending claims, invitation email mismatch, expiry/revocation and single-use acceptance against the development D1 database.
 - [x] Implement Platform Super Admin import/export APIs that require a reason, target one family, and record a platform audit event. The Super Admin download format is JSON; no import preview or validation stage exists yet.
