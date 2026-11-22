@@ -103,9 +103,10 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 - [ ] Operational monitoring and error reporting
 - [x] Verify development login and D1 access on the active dev hostname; development and branded domains currently share the development Pages project
 - [ ] Move `vansvriksh.vtrrk.in` to a separate production Pages project before launch
-- [ ] Separate production Cloudflare environment, D1 database, secrets and domain
+- [ ] Complete production isolation: the production D1 is migrated, but Worker script creation is pending additional Cloudflare Workers Admin access; a separate production Pages project and API domain are still pending.
 - [x] Choose a clean production database for the initial beta; keep development family data in development and let users transfer selected families through export/import
-- [ ] Apply migrations to an empty production-like database and verify recovery behavior
+- [x] Apply all ten migrations to the empty production D1 database, including the shared sample-family seed
+- [ ] Verify production constraints and indexes; rehearse D1 backup/restore recovery
 - [ ] Verify export/import of a selected family into production, preserving people, relationships, ownership and roles
 - [ ] Reconcile imported family records, memberships and relationship integrity; preserve the development fallback
 - [ ] End-to-end acceptance testing with the three current test users and intended roles
