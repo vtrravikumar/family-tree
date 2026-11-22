@@ -19,7 +19,7 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 - [x] D1 database and migrations
 - [x] Family workspace creation and selection
 - [x] Development frontend and API deployment
-- [ ] Canonical fictional sample family: compact eight-person fixture covering all relationship types across four generations; shared read-only Viewer access, personal hide/remove, and export/import into a user's private family
+- [x] Canonical fictional sample family: compact eight-person fixture covering all relationship types across four generations; shared read-only Viewer access, personal hide/remove, and export/import into a user's private family
 
 ## M2 — Family tree engine
 - [x] Person creation and profile editing
@@ -94,7 +94,7 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 - [x] Final cross-browser and device QA (user-confirmed)
 
 ## M5 — Security, production migration and launch readiness
-- [ ] Build and test canonical sample-family access, read-only enforcement, personal hide/remove, and export/import into private family workspaces
+- [x] Build and test canonical sample-family access, read-only enforcement, personal hide/remove, and export/import into private family workspaces; deployed to development in PR #43
 - [ ] Comprehensive authorization and API security review
 - [ ] Strict cross-family data isolation and role-boundary tests
 - [ ] Identity-claim uniqueness, approval and reassignment security tests
@@ -102,10 +102,10 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 - [ ] Backup and tested recovery procedures
 - [ ] Operational monitoring and error reporting
 - [ ] Separate production Cloudflare environment, D1 database, secrets and domain
-- [ ] Create and validate a non-destructive migration plan for both existing family workspaces
-- [ ] Take verified pre-migration backups and preserve a development fallback
-- [ ] Migrate existing families, users, memberships, roles, people and relationships without loss
-- [ ] Reconcile source and destination counts and relationship integrity
+- [x] Choose a clean production database for the initial beta; keep development family data in development and let users transfer selected families through export/import
+- [ ] Apply migrations to an empty production-like database and verify recovery behavior
+- [ ] Verify export/import of a selected family into production, preserving people, relationships, ownership and roles
+- [ ] Reconcile imported family records, memberships and relationship integrity; preserve the development fallback
 - [ ] End-to-end acceptance testing with the three current test users and intended roles
 - [ ] Production deployment checklist, rollback plan and release process
 - [ ] Privacy, retention and account lifecycle review
