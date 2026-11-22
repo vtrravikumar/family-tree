@@ -1,5 +1,6 @@
 export interface Env {
   APP_ENV: string;
+  ALLOWED_ORIGINS?: string;
   DB: D1Database;
   DEV_API_TOKEN?: string;
   GOOGLE_CLIENT_ID?: string;
@@ -198,8 +199,9 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   const authResponse=await authRoute(request,env,url);if(authResponse)return authResponse;
   const denied = await authorize(request, env);
   if (denied) return denied;
-  await ensureDevUser(env.DB);
+  if(env.APP_ENV==="development")await ensureDevUser(env.DB);
   const session=await currentSession(request,env.DB);
+  if(env.APP_ENV!=="development"&&!session)return fail(401,"unauthorized","Please sign in with Google.");
   const actorUserId=session?.id??"dev-owner";
   const superAdmin=!!session&&await isSuperAdmin(env.DB,session.id);
 
@@ -843,12 +845,13 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin") ?? "";
-    const allowedOrigins = new Set([
+    const defaultOrigins=env.APP_ENV==="development"?[
       "https://vansvriksh-web-dev.pages.dev",
       "https://vansvriksh.vtrrk.in",
       "http://localhost:5173",
       "http://127.0.0.1:5173",
-    ]);
+    ]:[];
+    const allowedOrigins=new Set((env.ALLOWED_ORIGINS??defaultOrigins.join(",")).split(",").map(value=>value.trim()).filter(Boolean));
     const corsHeaders: Record<string, string> = {
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Authorization, Content-Type",
