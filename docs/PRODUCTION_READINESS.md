@@ -32,7 +32,7 @@ Vansvriksh is still a development deployment. This checklist separates implement
 
 ### Operations and environments
 
-- [ ] Add an explicit production Wrangler environment with its own D1 database, domain, Google configuration and least-privilege secrets.
+- [ ] Complete and verify the production Wrangler environment. PR #44 defines the production Worker, empty D1 binding, `APP_ENV=production`, Google client ID, Super Admin email and production-only origin. The API hostname/route and runtime deployment settings are still pending.
 - [ ] Remove development-only configuration and credentials from every production deployment path; verify the deployed `APP_ENV` is production.
 - [ ] Set and verify `VITE_API_URL` separately for each Pages environment. The current frontend falls back to `https://api-dev.vtrrk.in` when the variable is absent; never let a production build inherit that default.
 - [ ] Verify the production origin allowlist, cookie behavior, TLS, security headers, CORS preflight and health monitoring.
