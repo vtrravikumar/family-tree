@@ -102,10 +102,10 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 - [ ] Backup and tested recovery procedures
 - [ ] Operational monitoring and error reporting
 - [ ] Separate production Cloudflare environment, D1 database, secrets and domain
-- [ ] Create and validate a non-destructive migration plan for both existing family workspaces
-- [ ] Take verified pre-migration backups and preserve a development fallback
-- [ ] Migrate existing families, users, memberships, roles, people and relationships without loss
-- [ ] Reconcile source and destination counts and relationship integrity
+- [x] Choose a clean production database for the initial beta; keep development family data in development and let users transfer selected families through export/import
+- [ ] Apply migrations to an empty production-like database and verify recovery behavior
+- [ ] Verify export/import of a selected family into production, preserving people, relationships, ownership and roles
+- [ ] Reconcile imported family records, memberships and relationship integrity; preserve the development fallback
 - [ ] End-to-end acceptance testing with the three current test users and intended roles
 - [ ] Production deployment checklist, rollback plan and release process
 - [ ] Privacy, retention and account lifecycle review
