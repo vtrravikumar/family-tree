@@ -15,7 +15,7 @@ A collaborative family heritage platform. Product branding is intentionally unde
 - Intended routing: retain `https://vansvriksh-web-dev.pages.dev` as the dedicated development frontend; move `https://vansvriksh.vtrrk.in` to the production frontend only after an isolated production frontend, Worker, database, secrets and API origin are configured and verified. This is the production web address until a dedicated product domain is chosen.
 - `https://api.vtrrk.in` is not currently serving the application's `/v1` API routes; confirm or provision the production API hostname during the environment setup.
 - M3.3 PR #41: merged with CI passing; development Worker health and unauthenticated API authorization were verified on 2026-11-22
-- Production environment, database, secrets and deployment are not configured or approved
+- The empty production D1 database is created and its Wrangler environment is staged in PR #44. No production migrations or deployment have run. The production Pages project and API route still need configuration; the branded domain remains on development.
 
 ## Repository layout
 
