@@ -24,6 +24,30 @@
 
 Family-level roles are Owner, Admin, Editor and Viewer. Platform Super Admin is a separate platform-level authority and must not be confused with a family role.
 
+### Permission matrix
+
+| Operation | Platform Super Admin | Owner | Admin | Editor | Viewer |
+| --- | --- | --- | --- | --- | --- |
+| Read family people and relationships | No ordinary family access; platform family export/support paths are separate and audited | Yes | Yes | Yes | Yes |
+| Create people and edit living profiles | No family-role permission | Yes | Yes | Yes | No |
+| Add or edit relationships | No family-role permission | Yes | Yes | Yes | No |
+| Delete people, mark deceased, or restore profiles | No family-role permission | Yes | Yes | No | No |
+| View family member roster and identity claims | No family-role permission | Yes | Yes | Yes (own claims only) | Yes (own claims only) |
+| Create, list, revoke invitations | No family-role permission | Yes | Yes, but cannot invite another Admin | No | No |
+| Accept an invitation | Role-independent | Role-independent | Role-independent | Role-independent | Role-independent |
+| Change or remove family members | No family-role permission | Yes; cannot assign Owner through this route | Yes, except cannot grant, change, or remove another Admin | No | No |
+| Request an identity claim | No family-role permission | Yes; may claim directly | Yes; claim requires Owner/Admin review | Yes; claim requires Owner/Admin review | Yes; claim requires Owner/Admin review |
+| Review claims or unlink an identity | No family-role permission | Yes | Yes | No | No |
+| Import family records | Only through the reason-gated, audited platform path | Yes | Yes | No | No |
+| Export family data | Only through the reason-gated, audited platform JSON export | Built-in workbook export is available in the family UI | Built-in workbook export is available in the family UI | No export control; family records remain readable through the API | No export control; family records remain readable through the API |
+| Delete a family | No family-role permission | Yes, with explicit confirmation | No | No | No |
+| Platform overview, user/family summaries, and platform audit logs | Yes | No | No | No | No |
+| Reason-gated support access to one family's data | Yes, with a reason and platform audit event | No | No | No | No |
+
+The matrix describes server-side application permissions. Hiding workbook export controls for Editors and Viewers is a usability boundary, not a way to prevent copying data they can read through family API routes. Super Admin access does not grant ordinary family membership or bypass the reason and audit requirements on support and platform export paths.
+
+Invitation acceptance is not granted by an existing family role: any signed-in Google account may accept if it matches the invitee email, the invitation is pending and unexpired, and that account is not already a family member.
+
 ### Import/export
 
 Only the following may import or export family data:
