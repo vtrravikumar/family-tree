@@ -11,7 +11,9 @@ A collaborative family heritage platform. Product branding is intentionally unde
 - Working product name: Vansvriksh (provisional)
 - Development frontend: `https://vansvriksh-web-dev.pages.dev`
 - Development API: `https://api-dev.vtrrk.in`
-- As of 2026-11-22, `https://vansvriksh.vtrrk.in` serves the same frontend bundle and development API. Treat it as development, not production. The `https://api.vtrrk.in` host does not serve the current `/v1` API routes.
+- Temporary current routing (checked 2026-11-22): `https://vansvriksh.vtrrk.in` serves the development frontend bundle and calls the development API. This is not production today.
+- Intended routing: retain `https://vansvriksh-web-dev.pages.dev` as the dedicated development frontend; move `https://vansvriksh.vtrrk.in` to the production frontend only after an isolated production frontend, Worker, database, secrets and API origin are configured and verified. This is the production web address until a dedicated product domain is chosen.
+- `https://api.vtrrk.in` is not currently serving the application's `/v1` API routes; confirm or provision the production API hostname during the environment setup.
 - M3.3 PR #41: merged with CI passing; development Worker health and unauthenticated API authorization were verified on 2026-11-22
 - Production environment, database, secrets and deployment are not configured or approved
 
