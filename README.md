@@ -5,7 +5,7 @@ A collaborative family heritage platform. Product branding is intentionally unde
 ## Project status
 
 - Product specification: baseline v0.1
-- Current milestone: production-readiness hardening (M3.3 merged and deployed to development; authenticated live authorization tests remain pending; shared sample family is in progress)
+- Current milestone: production-readiness hardening (M3.3 and shared sample family deployed to development; authenticated live authorization tests remain pending)
 - Market: India initially; architecture intended to support international use
 - Hosting target: Cloudflare Pages + Workers
 - Working product name: Vansvriksh (provisional)
