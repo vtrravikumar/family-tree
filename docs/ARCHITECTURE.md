@@ -34,11 +34,21 @@ Maintain separate development, staging and production configuration. D1 database
 
 ### Current and intended web routing
 
-- Development frontend: `https://vansvriksh-web-dev.pages.dev`; development API: `https://api-dev.vtrrk.in`.
+- The development Pages project is `vansvriksh-web-dev.pages.dev`; proposed signed-in development frontend: `https://dev.vansvriksh.vtrrk.in`.
+- Current development API: `https://api-dev.vtrrk.in`; proposed development API: `https://api-dev.vansvriksh.vtrrk.in`. Add the new API Custom Domain and keep the current host until sign-in, CORS and session cookies work through the new frontend/API pair.
 - Temporary current mapping: `https://vansvriksh.vtrrk.in` serves the development frontend and calls the development API.
 - Intended production mapping: keep the Pages development address dedicated to development and route `https://vansvriksh.vtrrk.in` to an isolated production frontend and API once its Worker, D1 database, secrets, allowed origins, and release process are ready and verified. This is the intended production web address until a dedicated product domain is selected.
 - Proposed production API hostname: `https://api.vansvriksh.vtrrk.in`. Keep `https://api.vtrrk.in` assigned to TweetPilot during Vansvriksh setup. A future TweetPilot move to `https://api.tweetpilot.vtrrk.in` should be a separate migration; retain the old host until its clients and integrations have moved and been verified.
+- Use `dev.vansvriksh.vtrrk.in` as the signed-in dev frontend so it is same-site with the proposed `api-dev.vansvriksh.vtrrk.in`. The app's session cookie is `SameSite=Lax`; the Pages `pages.dev` preview is a different site, so keep it as a preview and validate cookie behavior on the custom dev hostname.
 - Do not switch the vanity hostname until the production frontend/API and data environment are ready; keep development accessible through its dedicated frontend and API.
+
+### Hostname transition order
+
+1. Add `dev.vansvriksh.vtrrk.in` as a custom domain on the existing development Pages project and authorize it in Google Identity Services.
+2. Add `api-dev.vansvriksh.vtrrk.in` as a Worker Custom Domain and include the dev frontend origin in the API allowlist.
+3. Set the development Pages `VITE_API_URL` to the new development API, then verify sign-in, session cookies and CORS.
+4. Keep the old dev API alias until verification succeeds. Before the production web hostname moves to production, remove that production origin from the dev API allowlist.
+5. For production, use `vansvriksh.vtrrk.in` with `api.vansvriksh.vtrrk.in`; keep `api.vtrrk.in` with TweetPilot.
 
 ## Tree layout
 
