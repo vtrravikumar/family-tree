@@ -609,8 +609,8 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       const middle=textOrNull(raw.middleName);
       const birthKind=birth?(raw.birthDateKind==="exact"?"exact":"exact"):"unknown";
       const deathKind=hasDeathRecord?(death?"exact":"unknown"):"unknown";
-      await env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,birth_date_kind,birth_exact_date,death_date_kind,death_exact_date,created_by_user_id,created_at,updated_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(personId,familyId,given,middle,family,[given,middle,family].filter(Boolean).join(" "),gender,life,birthKind,birth,deathKind,death,actorUserId,t,t).run();
+      await env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,birth_date_kind,birth_exact_date,death_date_kind,death_exact_date,biography,created_by_user_id,created_at,updated_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(personId,familyId,given,middle,family,[given,middle,family].filter(Boolean).join(" "),gender,life,birthKind,birth,deathKind,death,textOrNull(raw.biography),actorUserId,t,t).run();
       await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,?,?,?)")
         .bind(id(),familyId,actorUserId,personId,"person.imported",JSON.stringify({source:"family-tree.xlsx",lifeStatus:life}),t).run();
       if (death) await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'person.marked_deceased',?,?)")
