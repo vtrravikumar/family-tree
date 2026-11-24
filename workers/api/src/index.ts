@@ -395,10 +395,17 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if(target.role==="owner")return fail(409,"owner_role_protected","Use the ownership transfer workflow to change the family owner.");
     if(actorRole==="admin"&&target.role==="admin")return fail(403,"role_assignment_forbidden","Family admins cannot modify another Admin.");
     const timestamp=now();
-    await env.DB.batch([
-      env.DB.prepare("UPDATE family_members SET role=? WHERE family_id=? AND user_id=?").bind(newRole,familyId,targetUserId),
-      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'family_member',?,'member.role_changed',?,?)").bind(id(),familyId,actorUserId,targetUserId,JSON.stringify({from:target.role,to:newRole}),timestamp)
+    const results=await env.DB.batch([
+      env.DB.prepare(`UPDATE family_members AS target SET role=?
+        WHERE target.family_id=? AND target.user_id=? AND target.role=? AND target.role<>'owner'
+          AND EXISTS (SELECT 1 FROM family_members AS actor WHERE actor.family_id=? AND actor.user_id=?
+            AND actor.role IN ('owner','admin')
+            AND (actor.role='owner' OR (?<>'admin' AND target.role<>'admin')))`).bind(newRole,familyId,targetUserId,target.role,familyId,actorUserId,newRole),
+      env.DB.prepare(`INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at)
+        SELECT ?,?,?, 'family_member',?,'member.role_changed',?,? WHERE changes()=1`).bind(id(),familyId,actorUserId,targetUserId,JSON.stringify({from:target.role,to:newRole}),timestamp)
     ]);
+    const changes=(results[0] as {meta?:{changes?:number}}|undefined)?.meta?.changes??0;
+    if(!changes)return fail(409,"member_change_unavailable","The member or your permissions changed. Refresh and try again.");
     return json({data:{userId:targetUserId,role:newRole}});
   }
   if(familyMemberRoleMatch&&request.method==="DELETE"){
@@ -409,10 +416,17 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if(target.role==="owner")return fail(409,"owner_role_protected","The family owner cannot be removed. Transfer ownership first.");
     if(actorRole==="admin"&&target.role==="admin")return fail(403,"role_assignment_forbidden","Family admins cannot remove another Admin.");
     const timestamp=now();
-    await env.DB.batch([
-      env.DB.prepare("DELETE FROM family_members WHERE family_id=? AND user_id=?").bind(familyId,targetUserId),
-      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'family_member',?,'member.removed',?,?)").bind(id(),familyId,actorUserId,targetUserId,JSON.stringify({role:target.role}),timestamp)
+    const results=await env.DB.batch([
+      env.DB.prepare(`DELETE FROM family_members AS target
+        WHERE target.family_id=? AND target.user_id=? AND target.role=? AND target.role<>'owner'
+          AND EXISTS (SELECT 1 FROM family_members AS actor WHERE actor.family_id=? AND actor.user_id=?
+            AND actor.role IN ('owner','admin')
+            AND (actor.role='owner' OR target.role<>'admin'))`).bind(familyId,targetUserId,target.role,familyId,actorUserId),
+      env.DB.prepare(`INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at)
+        SELECT ?,?,?, 'family_member',?,'member.removed',?,? WHERE changes()=1`).bind(id(),familyId,actorUserId,targetUserId,JSON.stringify({role:target.role}),timestamp)
     ]);
+    const changes=(results[0] as {meta?:{changes?:number}}|undefined)?.meta?.changes??0;
+    if(!changes)return fail(409,"member_change_unavailable","The member or your permissions changed. Refresh and try again.");
     return json({data:{userId:targetUserId,removed:true}});
   }
 
