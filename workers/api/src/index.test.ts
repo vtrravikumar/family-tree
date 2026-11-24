@@ -123,6 +123,18 @@ describe("server-side authorization", () => {
     expect(bearerOnly.status).toBe(401);
   });
 
+  it.each(["owner","admin","editor","viewer"])("enforces %s permissions in production through a Google session", async (role) => {
+    const env=makeEnv(role,true);
+    env.APP_ENV="production";
+    const call=(path:string,method="GET",payload?:unknown)=>worker.fetch(new Request("https://api.example.test"+path,{
+      method,headers:{Cookie:"vansvriksh_session=test-session",...(payload?{"Content-Type":"application/json"}:{})},
+      ...(payload?{body:JSON.stringify(payload)}:{}),
+    }),env);
+    expect((await call("/v1/families/family-1/people")).status).toBe(200);
+    const write=await call("/v1/families/family-1/people","POST",{givenName:"Asha"});
+    expect(write.status).toBe(role==="viewer"?403:201);
+  });
+
   it("keeps session responses private and clears cookies on logout", async () => {
     const me=await request("/v1/auth/me",null,"GET",undefined,true);
     expect(me.status).toBe(200);
