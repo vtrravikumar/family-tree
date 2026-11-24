@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import worker, { type Env } from "./index";
 
-function makeEnv(role: string | null = "owner", session = false, batchChanges = 1, superAdmin = false, initialRateCount = 0, targetRole = "editor", expiredSession = false, personStatus = "alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString(), observedWrites?: Array<{sql:string;bound:unknown[]}>): Env {
+function makeEnv(role: string | null = "owner", session = false, batchChanges = 1, superAdmin = false, initialRateCount = 0, targetRole = "editor", expiredSession = false, personStatus = "alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString(), observedWrites?: Array<{sql:string;bound:unknown[]}>, claimRequesterUserId = "another-user", claimStatus = "pending"): Env {
   let rateCount=initialRateCount;
   const db = {
     prepare(sql: string) {
