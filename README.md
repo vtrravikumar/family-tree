@@ -4,18 +4,15 @@ A collaborative family heritage platform. Product branding is intentionally unde
 
 ## Project status
 
-- Product specification: baseline v0.1
-- Current milestone: production-readiness hardening (M3.3 and shared sample family deployed to development; authenticated live authorization tests remain pending)
-- Market: India initially; architecture intended to support international use
-- Hosting target: Cloudflare Pages + Workers
-- Working product name: Vansvriksh (provisional)
-- Development Pages project: `vansvriksh-web-dev.pages.dev`; proposed signed-in development frontend: `https://dev.vansvriksh.vtrrk.in`.
-- Current development API: `https://api-dev.vtrrk.in`; proposed development API: `https://api-dev.vansvriksh.vtrrk.in`.
-- Temporary current routing (checked 2026-11-22): `https://vansvriksh.vtrrk.in` serves the development frontend bundle and calls the development API. This is not production today.
-- Intended routing: keep `https://vansvriksh-web-dev.pages.dev` as the Pages project preview and attach `https://dev.vansvriksh.vtrrk.in` as its signed-in development frontend. Pair it with `https://api-dev.vansvriksh.vtrrk.in` after the Worker Custom Domain is verified. Move `https://vansvriksh.vtrrk.in` to production only after the isolated production frontend, Worker, database, and API are ready. The branded address is the production web address until a dedicated product domain is chosen.
-- `https://api.vtrrk.in` is currently used by TweetPilot and must remain untouched during Vansvriksh setup. Proposed production API hostname: `https://api.vansvriksh.vtrrk.in`. A future TweetPilot move to `https://api.tweetpilot.vtrrk.in` should be handled as a separate migration after its clients and integrations are updated.
-- M3.3 PR #41: merged with CI passing; development Worker health and unauthenticated API authorization were verified on 2026-11-22
-- The empty production D1 database is created and its Wrangler environment is staged in PR #44. No production migrations or deployment have run. The production Pages project and API route still need configuration; the branded domain remains on development.
+- Current focus: v1.0 friends-and-family release readiness.
+- Production API: `https://api.vansvriksh.vtrrk.in`, Cloudflare Worker `family-tree-api-production`, separate D1 database `vansvriksh-production`. The owner verified production environment and connected database health.
+- Production frontend: Cloudflare Pages project `vansvriksh-web-production`, production branch `production`, public address `https://vansvriksh.vtrrk.in`; Google sign-in and the shared sample family were confirmed.
+- Development frontend/API remain separate at `https://dev.vansvriksh.vtrrk.in` and `https://api-dev.vansvriksh.vtrrk.in`.
+- All ten migrations have been applied to production D1. The owner confirmed production Google sign-in, shared sample-family access, family creation, and workbook export/import. Full record-integrity reconciliation, role/invitation acceptance checks, operational alerts, and documented backup procedures remain outstanding. PRs #51 and #53 added sample-viewer family creation and biography-preserving workbook transfer to `production`; the owner has since confirmed family creation and workbook transfer work in production.
+- PR #46 (dynamic environment banner) is merged to `production`; PR #47 is open to sync the same change to `main`.
+- Production deployment is live for controlled friends-and-family verification. PR #54 is merged to `main`, enabling GitHub validation for `production` pushes and pull requests when that workflow change is present on the target branch. A formal v1.0 release has not yet been tagged or approved; see [Production Readiness](docs/PRODUCTION_READINESS.md) for status and blockers.
+- Staged path: complete the beta safety gate, run a bounded Friends & Family beta, then close remaining v1 readiness work. See [Roadmap](docs/ROADMAP.md).
+- The product name Vansvriksh remains provisional. `api.vtrrk.in` belongs to TweetPilot and must remain untouched.
 
 ## Repository layout
 
