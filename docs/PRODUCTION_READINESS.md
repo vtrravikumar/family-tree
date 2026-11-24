@@ -1,27 +1,58 @@
 # Production Readiness
 
-Vansvriksh is still a development deployment. This checklist separates implemented foundations from evidence still required before a production launch. Do not treat a passing development deployment as production approval.
+Vansvriksh production web and API are deployed for controlled friends-and-family verification. This checklist tracks the remaining evidence required before a formal v1.0 release; deployment alone is not release approval.
 
 ## Current state
 
-- Google sign-in, family membership, Owner/Admin/Editor/Viewer roles, identity claims and a platform Super Admin are implemented.
-- The app currently uses Cloudflare Pages and a Worker with a development D1 database. The empty `vansvriksh-production` D1 database has been created and a production Wrangler environment is staged in PR #44, but the Worker has not been deployed and no migrations have been applied. The production Pages project and API route still need configuration; the branded domain remains on development.
-- A read-only check on 2026-11-22 found `vansvriksh.vtrrk.in` serves the same JavaScript bundle as `vansvriksh-web-dev.pages.dev`; that bundle calls `api-dev.vtrrk.in`. This is a temporary development mapping. The Pages project remains `vansvriksh-web-dev.pages.dev`; the proposed signed-in dev frontend is `dev.vansvriksh.vtrrk.in`, paired with proposed API `api-dev.vansvriksh.vtrrk.in`. The intended target is to keep `vansvriksh-web-dev.pages.dev` as the dedicated development frontend and move `vansvriksh.vtrrk.in` to the production frontend when production is isolated and verified; use this as the production web address until a dedicated product domain is chosen. `api.vtrrk.in` is in use by TweetPilot and must not be repurposed for Vansvriksh. The proposed production API hostname is `api.vansvriksh.vtrrk.in`; configure and verify it as a production Worker Custom Domain. Any later TweetPilot move to `api.tweetpilot.vtrrk.in` is a separate migration.
-- M3.3 was merged in PR #41. Its CI passed and the Worker was deployed to development; the development health endpoint returned 200 and unauthenticated family/platform data requests returned 401. Authenticated live D1 authorization and invitation lifecycle tests remain outstanding. No production deployment was performed.
-- PR #43 added the shared fictional sample family. CI run #280 passed; D1 migration `0010_shared_sample_family.sql` and the Worker deployment both completed successfully. The development health endpoint reports `environment: development` and `database: connected`. The sample appears for existing users; this was confirmed by the owner on 2026-11-22.
-- Migrations `0008_invitation_actor_audit.sql`, `0009_api_rate_limits.sql`, and `0010_shared_sample_family.sql` are applied to the development D1 database. Authenticated live authorization and invitation lifecycle tests against D1 remain outstanding.
-- Current checklist progress: 6 of 21 items complete (29%). This measures completed readiness work, not a launch estimate. Production remains unavailable until its environment, backup/recovery process, and release evidence are in place.
-- The Worker authorization suite has 48 tests, including member-role/removal boundaries, family and relationship permissions, invitation lifecycle checks, platform-admin separation, sample-family protections, and production origin/identity isolation. Authenticated live D1 authorization still needs development verification.
-- A read-only development D1 inventory on 2026-11-22 found three private family records; two share the same display name. Migration reconciliation must identify families by stable ID and verify owner/membership, not rely on names alone.
-- Initial friends-and-family beta data plan: start with a clean production D1 database and leave development data in development. Users can export a selected family from development and import it into a private production family when they choose. No bulk development-to-production migration is planned for the initial beta.
-- No production data migration, backup, rollback or launch has been performed or approved.
+Status checked 2026-11-23.
 
-## Required before production
+- Google sign-in, family membership, Owner/Admin/Editor/Viewer roles, identity claims and platform Super Admin are implemented.
+- Production API is deployed at `https://api.vansvriksh.vtrrk.in`, bound to the separate `vansvriksh-production` D1 database. The owner verified the health response reports `environment: production` and `database: connected`.
+- Production web is deployed as the separate Cloudflare Pages project `vansvriksh-web-production`; `vansvriksh.vtrrk.in` is attached to it. The Pages production branch is `production`, and the build uses the production API URL. Google sign-in and the shared sample family were confirmed by the owner.
+- Development remains separate: `dev.vansvriksh.vtrrk.in` uses the dev Pages project and `api-dev.vansvriksh.vtrrk.in` uses the dev Worker/database.
+- All ten D1 migrations, `0001`–`0010`, have been applied to the new production database. The shared fictional sample is available there. On 2026-11-23, Wrangler returned a current Time Travel bookmark for production D1. The owner confirmed the account is on Workers Free, which provides 7-day D1 Time Travel retention. A separate APAC scratch D1 restore drill successfully restored a test row from `after-restore` to `before-restore`; production data was untouched, and the temporary database was deleted after verification. The owner has confirmed family creation and workbook export/import work in production. Detailed reconciliation of people, biographies, relationships, memberships/roles and rendered tree integrity remains unverified.
+- PR #46 made the preview banner follow the configured API host and deployed successfully to production. PR #47 is open to sync the change from `production` to `main`.
+- M3.3 was merged in PR #41. The Worker suite has 54 tests covering primary role and route boundaries. PR #50 adds mocked cross-family relationship and member-ID regressions; authenticated live D1 authorization and invitation lifecycle tests remain outstanding. PR #54 is merged to `main` and adds GitHub validation for production-branch changes; the workflow must also be present on `production` for PRs targeting that branch to receive those checks.
+- A read-only development D1 inventory on 2026-11-22 found three private family records; two share the same display name. Any future migration must identify families by stable ID and verify owner/membership, not rely on names alone.
+- Initial friends-and-family beta data plan: start with a clean production D1 database and leave development data in development. Users can export a selected family from development and import it into a private production family. No bulk development-to-production migration is planned.
+- Current checklist progress: 13 of 27 items complete (48%). This is the completion of tracked readiness actions, not a claim that every production risk is closed. The owner has since confirmed family creation and workbook export/import in production; the deeper selected-family data-integrity reconciliation remains open.
+- Production web and API are live for controlled verification. A formal `v1.0` release is not yet approved or tagged. Backup access controls and operating procedure, end-to-end role and invitation checks, import/export verification, operational alerts, privacy/session/audit retention decisions and rollback documentation remain open.
+- PR #49 was merged to `production` as commit `61fcb1b`. It adds a branch-specific build guard requiring an HTTPS `VITE_API_URL` and rejecting the development API host. GitHub typecheck, tests and build passed, and the owner confirmed the Cloudflare Pages production deployment is green.
+- PR #51 makes family creation available to accounts viewing only the shared sample while preserving the sample's read-only role. PR #53 preserves biographies through workbook export/import and adds API regression coverage. Both merged to `production`; the owner has confirmed family creation and workbook export/import work in production. Full record reconciliation remains pending. The earlier PR #52 was closed as superseded.
+
+## Release stages
+
+The production URL and API are live, but Friends & Family invitations should wait until the safety gate below is complete. The detailed checkboxes remain the source of truth and the 13/27 completion count.
+
+### Before Friends & Family beta
+
+- Remove the production build's development API fallback and make missing production configuration fail closed. The branch-specific guard is merged in PR #49, and the owner confirmed the Cloudflare Pages production deployment is green. The source fallback remains for development and preview builds.
+- [x] Protect data: Workers Free D1 Time Travel retention is 7 days; a disposable APAC D1 restore rehearsal passed, and the scratch database was deleted.
+- Run production-like positive and negative authorization checks for all four family roles, invitations, identity claims and cross-family data isolation.
+- [x] Confirm family creation and workbook export/import are usable in production.
+- [ ] Reconcile a selected-family transfer across people, biographies, relationships, ownership, roles and tree rendering.
+- Verify CORS, cookies, TLS, security headers and safe logging; enable basic actionable alerts.
+- Decide and document beta privacy/session/invitation/audit retention, support contact and rollback steps.
+
+### During Friends & Family beta
+
+- Invite a small, known group; keep production and development data separate.
+- Ask users to exercise the sample and selected-family import/export flows; do not bulk-copy development data.
+- Monitor failures and feedback, prioritize data-loss, privacy and access-control issues, and tune rate limits from observed traffic.
+
+### Before full v1.0 production readiness
+
+- Finish extended authorization, identity-claim race/uniqueness, audit coverage and role-matrix testing.
+- Complete account/session lifecycle and retention cleanup decisions and implementation.
+- Finish import preview, validation, duplicate handling and historical date edge-case work.
+- Close monitoring, backup/restore, release notes, rollback and formal approval gates.
+
+## Remaining beta and v1.0 readiness
 
 ### Product and authorization
 
-- [x] Implement and deploy the shared fictional sample family to development with Viewer-only access, server-enforced read-only behavior, personal remove/dismissal, and export/import into a private family. Production availability will follow when a production environment is configured.
-- [ ] Complete exhaustive Owner/Admin/Editor/Viewer tests for every sensitive API route. The 46 local Worker tests cover primary route boundaries; local mocks do not exercise the live development D1 database.
+- [x] Implement and deploy the shared fictional sample family to development with Viewer-only access, server-enforced read-only behavior, personal remove/dismissal, and export/import into a private family. The same fictional sample is now available in the clean production database through migration 0010.
+- [ ] Complete exhaustive Owner/Admin/Editor/Viewer tests for every sensitive API route. The 54 Worker tests cover primary route boundaries, including cross-family relationship and member-ID tampering regressions added in PR #50. Local mocks do not exercise the live development D1 database.
 - [ ] Test family ID/person ID tampering, pending claims, invitation email mismatch, expiry/revocation and single-use acceptance against the development D1 database.
 - [x] Implement Platform Super Admin import/export APIs that require a reason, target one family, and record a platform audit event. The Super Admin download format is JSON; no import preview or validation stage exists yet.
 - [x] Require explicit `SUPER_ADMIN_EMAIL` configuration before bootstrapping the platform role; configure it separately in each intended environment.
@@ -32,22 +63,28 @@ Vansvriksh is still a development deployment. This checklist separates implement
 
 ### Operations and environments
 
-- [ ] Complete and verify the production Wrangler environment. PR #44 defines the production Worker, empty D1 binding, `APP_ENV=production`, Google client ID, Super Admin email and production-only origin. The proposed API hostname `api.vansvriksh.vtrrk.in` still needs its Worker Custom Domain configured and verified; runtime deployment settings are also pending. For development, the proposed `dev.vansvriksh.vtrrk.in` Pages custom domain and `api-dev.vansvriksh.vtrrk.in` Worker Custom Domain also need setup and verification.
-- [ ] Remove development-only configuration and credentials from every production deployment path; verify the deployed `APP_ENV` is production.
-- [ ] Set and verify `VITE_API_URL` separately for each Pages environment: `https://api-dev.vansvriksh.vtrrk.in` for development after its Custom Domain works, and `https://api.vansvriksh.vtrrk.in` for production. The source currently falls back to `https://api-dev.vtrrk.in`; update the dev Pages variable before retiring that alias, and never let a production build use a dev API.
-- [ ] Verify the production origin allowlist, cookie behavior, TLS, security headers, CORS preflight and health monitoring.
+- [x] Complete and verify the production Wrangler environment.
+- [x] Deploy and verify the separate production Pages project `vansvriksh-web-production`; attach `vansvriksh.vtrrk.in` to it while keeping the dev hostname on the dev project. Production Worker `family-tree-api-production` uses the separate production D1, `APP_ENV=production`, configured Super Admin identity and production origin; `api.vansvriksh.vtrrk.in` is active and its health response reports the production environment and connected database.
+- [x] Remove development-only configuration and credentials from every production deployment path; verify that missing production configuration fails closed. PR #49 adds the production build guard, and the owner confirmed the production Pages deployment is green. The development fallback remains available for development and preview builds.
+- [x] Set and verify `VITE_API_URL` separately for development and production Pages deployments: development uses `https://api-dev.vansvriksh.vtrrk.in`; production uses `https://api.vansvriksh.vtrrk.in`. The owner confirmed successful production Google sign-in.
+- [ ] Finish verifying production origin allowlist, cookie behavior, TLS, security headers, CORS preflight and health monitoring. The production health endpoint, domain/SSL, database connection and Google sign-in have been confirmed; preflight, headers and ongoing monitoring still need evidence.
 - [ ] Establish backup frequency, retention, access controls and a tested restore procedure for D1.
 - [ ] Add actionable error reporting and operational alerts without logging personal data or credentials.
 
 ### Data migration and launch
 
 - [x] Choose a clean production database for the initial beta; keep development data in development and support user-selected transfer through family export/import.
-- [ ] Apply migrations to a production-like empty database; verify constraints, indexes and recovery behavior.
-- [ ] Verify that a selected family can be exported from development and imported into a fresh production family without losing people, relationships, ownership or roles.
+- [x] Apply all ten migrations (`0001`–`0010`) to the clean production D1 database; the owner confirmed each migration completed.
+- [ ] Verify production schema constraints and indexes against the expected schema.
+- [x] Verify production D1 recovery readiness: a current production Time Travel bookmark was returned, and a disposable APAC D1 restore rehearsal recovered the probe row from `after-restore` to `before-restore`. No live production restore was run.
+- [ ] Verify a development family can be exported and imported into a fresh production family with all people, biographies, relationships, ownership and roles intact. Basic family creation and workbook export/import in production are owner-confirmed; end-to-end transfer integrity still needs evidence.
 - [ ] Reconcile the sample and test import in production for record counts, foreign keys, memberships, roles, relationship integrity and representative tree renderings.
 - [ ] Run end-to-end acceptance with the three intended test users and their assigned roles.
-- [ ] Confirm current CI is green, complete release notes, review the rollback plan and obtain explicit production launch approval.
+- [x] Confirm GitHub validation and Cloudflare Pages checks are green for PR #54; PR #54 was merged to `main` on 2026-11-23. The owner confirms Cloudflare is green. A separate Worker build failure was still present in the PR-associated status snapshot and should be reconciled before claiming every Worker build check is green.
+- [ ] Complete and publish the v1.0 release notes.
+- [ ] Review and document a production rollback plan.
+- [ ] Obtain explicit approval for a formal v1.0 release.
 
 ## Release gate
 
-Production launch remains blocked until every required item above has evidence recorded, CI passes on the exact release candidate, the migration and restore rehearsal succeed, and the owner explicitly approves deployment. No production deployment is authorized by this checklist.
+The production service is live for controlled verification. A formal v1.0 release remains blocked until the remaining required items above have evidence, the migration and restore rehearsal succeed, release notes and rollback guidance are complete, and the owner explicitly approves the release.
