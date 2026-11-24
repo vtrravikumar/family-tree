@@ -791,10 +791,11 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if (!current) return fail(404,"relationship_not_found","Relationship not found.");
     const t=now();
     if (request.method === "DELETE") {
-      await env.DB.batch([
-        env.DB.prepare("DELETE FROM relationships WHERE id=? AND family_id=?").bind(relationshipId,familyId),
-        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'relationship',?,'relationship.deleted',?,?)").bind(id(),familyId,actorUserId,relationshipId,JSON.stringify({from:current.from_person_id,to:current.to_person_id,type:current.relationship_type}),t)
+      const results=await env.DB.batch([
+        env.DB.prepare("DELETE FROM relationships WHERE id=? AND family_id=? AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin','editor'))").bind(relationshipId,familyId,familyId,actorUserId),
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'relationship',?,'relationship.deleted',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,relationshipId,JSON.stringify({from:current.from_person_id,to:current.to_person_id,type:current.relationship_type}),t)
       ]);
+      if(!results[0]?.meta.changes)return fail(409,"relationship_change_unavailable","This relationship changed or your editing permission is no longer available.");
       return json({data:{id:relationshipId,deleted:true}});
     }
     const input=await body(request);
@@ -811,10 +812,11 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       const cycle=await env.DB.prepare(`WITH RECURSIVE descendants(person_id) AS (SELECT to_person_id FROM relationships WHERE family_id=? AND from_person_id=? AND relationship_type IN ('biological_parent','adoptive_parent','step_parent') AND id<>? UNION SELECT r.to_person_id FROM relationships r JOIN descendants d ON r.from_person_id=d.person_id WHERE r.family_id=? AND r.relationship_type IN ('biological_parent','adoptive_parent','step_parent') AND r.id<>?) SELECT 1 FROM descendants WHERE person_id=? LIMIT 1`).bind(familyId,toId,relationshipId,familyId,relationshipId,fromId).first();
       if(cycle)return fail(409,"relationship_cycle","This parent-child relationship would create an ancestry cycle.");
     }
-    await env.DB.batch([
-      env.DB.prepare("UPDATE relationships SET from_person_id=?,to_person_id=?,relationship_type=? WHERE id=? AND family_id=?").bind(fromId,toId,type,relationshipId,familyId),
-      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'relationship',?,'relationship.updated',?,?)").bind(id(),familyId,actorUserId,relationshipId,JSON.stringify({from:fromId,to:toId,type}),t)
+    const results=await env.DB.batch([
+      env.DB.prepare("UPDATE relationships SET from_person_id=?,to_person_id=?,relationship_type=? WHERE id=? AND family_id=? AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin','editor')) AND EXISTS (SELECT 1 FROM persons a JOIN persons b ON b.family_id=a.family_id WHERE a.id=? AND b.id=? AND a.family_id=?)").bind(fromId,toId,type,relationshipId,familyId,familyId,actorUserId,fromId,toId,familyId),
+      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'relationship',?,'relationship.updated',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,relationshipId,JSON.stringify({from:fromId,to:toId,type}),t)
     ]);
+    if(!results[0]?.meta.changes)return fail(409,"relationship_change_unavailable","This relationship changed or your editing permission is no longer available.");
     return json({data:{id:relationshipId,fromPersonId:fromId,toPersonId:toId,relationshipType:type,updatedAt:t}});
   }
 
@@ -849,10 +851,11 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       }
       const relationshipId=id(), t=now();
       try {
-        await env.DB.batch([
-          env.DB.prepare("INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) VALUES(?,?,?,?,?,?,?)").bind(relationshipId,familyId,fromId,toId,type,actorUserId,t),
-          env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,?,'relationship',?,'relationship.created',?)") .bind(id(),familyId,actorUserId,relationshipId,t)
+        const results=await env.DB.batch([
+          env.DB.prepare("INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin','editor')) AND EXISTS (SELECT 1 FROM persons a JOIN persons b ON b.family_id=a.family_id WHERE a.id=? AND b.id=? AND a.family_id=?)").bind(relationshipId,familyId,fromId,toId,type,actorUserId,t,familyId,actorUserId,fromId,toId,familyId),
+          env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) SELECT ?,?,?, 'relationship',?,'relationship.created',? WHERE changes()=1").bind(id(),familyId,actorUserId,relationshipId,t)
         ]);
+        if(!results[0]?.meta.changes)return fail(409,"relationship_create_unavailable","Your editing permission or the selected family members changed before this relationship could be saved.");
         return json({data:{id:relationshipId,familyId,fromPersonId:fromId,toPersonId:toId,relationshipType:type,createdAt:t}},{status:201});
       } catch { return fail(409,"duplicate_relationship","This relationship already exists or violates a database constraint."); }
     }
