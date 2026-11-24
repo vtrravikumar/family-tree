@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import worker, { type Env } from "./index";
 
-function makeEnv(role: string | null = "owner", session = false, batchChanges = 1, superAdmin = false, initialRateCount = 0, targetRole = "editor", expiredSession = false, personStatus = "alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString(), observedWrites?: Array<{sql:string;bound:unknown[]}>): Env {
+function makeEnv(role: string | null = "owner", session = false, batchChanges = 1, superAdmin = false, initialRateCount = 0, targetRole = "editor", expiredSession = false, personStatus = "alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString(), observedWrites?: Array<{sql:string;bound:unknown[]}>, claimRequesterUserId = "another-user", claimStatus = "pending"): Env {
   let rateCount=initialRateCount;
   const db = {
     prepare(sql: string) {
       let bound: unknown[]=[];
       const statement = {
+        __sql: sql,
+        __bound: () => [...bound],
         bind(...values: unknown[]) { bound=values; return statement; },
         async first() {
           if(sql.includes("RETURNING request_count"))return {request_count:++rateCount};
@@ -31,7 +33,7 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
             if(bound[1]===(session?"user-1":"dev-owner"))return role?{role}:null;
             return bound[1]==="target-1"?{role:targetRole}:null;
           }
-          if(sql.includes("FROM person_identity_claims"))return {id:"claim-1",person_id:"person-1",requester_user_id:"another-user",status:"pending"};
+          if(sql.includes("FROM person_identity_claims"))return {id:"claim-1",person_id:"person-1",requester_user_id:claimRequesterUserId,status:claimStatus};
           if(sql.includes("FROM person_identity_links"))return sql.includes("OR person_id")?null:{user_id:"linked-user"};
           return null;
         },
@@ -46,17 +48,20 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
       };
       return statement;
     },
-    async batch() { return [{ meta: { changes: batchChanges } }, { meta: { changes: batchChanges } }, { meta: { changes: batchChanges } }]; },
+    async batch(statements: Array<{__sql:string;__bound:()=>unknown[]}>) {
+      observedWrites?.push(...statements.map(statement=>({sql:statement.__sql,bound:statement.__bound()})));
+      return statements.map(()=>({meta:{changes:batchChanges}}));
+    },
   } as unknown as Env["DB"];
   return { APP_ENV: "development", DEV_API_TOKEN: "test-token", GOOGLE_CLIENT_ID:"test-client", DB: db };
 }
 
-async function request(path: string, role: string | null, method = "GET", payload?: unknown, session = false, batchChanges = 1, superAdmin = false, initialRateCount=0, targetRole="editor", expiredSession=false, personStatus="alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString(), observedWrites?: Array<{sql:string;bound:unknown[]}>) {
+async function request(path: string, role: string | null, method = "GET", payload?: unknown, session = false, batchChanges = 1, superAdmin = false, initialRateCount=0, targetRole="editor", expiredSession=false, personStatus="alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString(), observedWrites?: Array<{sql:string;bound:unknown[]}>, claimRequesterUserId = "another-user", claimStatus = "pending") {
   return worker.fetch(new Request("https://api.example.test" + path, {
     method,
     headers: { Authorization: "Bearer test-token", ...(session ? { Cookie: "vansvriksh_session=test-session" } : {}), ...(payload ? { "Content-Type": "application/json" } : {}) },
     ...(payload ? { body: JSON.stringify(payload) } : {}),
-  }), makeEnv(role, session, batchChanges, superAdmin, initialRateCount, targetRole, expiredSession, personStatus, invitationEmail, invitationExpiresAt, observedWrites));
+  }), makeEnv(role, session, batchChanges, superAdmin, initialRateCount, targetRole, expiredSession, personStatus, invitationEmail, invitationExpiresAt, observedWrites, claimRequesterUserId, claimStatus));
 }
 
 describe("server-side authorization", () => {
@@ -344,6 +349,59 @@ describe("server-side authorization", () => {
   it.each(["owner", "admin"])("allows %s to review a claim and unlink an identity", async (role) => {
     expect((await request("/v1/families/family-1/identity-claims/claim-1/review", role, "POST", { decision: "reject" })).status).toBe(200);
     expect((await request("/v1/families/family-1/identity", role, "DELETE", { personId: "person-1" })).status).toBe(200);
+  });
+
+  it("transitions a claim before creating its identity link and audit record", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}>=[];
+    const response=await request("/v1/families/family-1/identity-claims/claim-1/review","owner","POST",{decision:"approve"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(200);
+    const batchWrites=writes.slice(-3);
+    expect(batchWrites).toHaveLength(3);
+    expect(batchWrites[0].sql).toContain("UPDATE person_identity_claims SET status='approved'");
+    expect(batchWrites[0].sql).toContain("WHERE id=? AND status='pending'");
+    expect(batchWrites[1].sql).toContain("INSERT INTO person_identity_links");
+    expect(batchWrites[1].sql).toContain("WHERE changes()=1");
+    expect(batchWrites[2].sql).toContain("identity.claim_approved");
+    expect(batchWrites[2].sql).toContain("status='approved'");
+  });
+
+  it("does not create an identity link or audit entry when approval loses the pending-state transition", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}>=[];
+    const response=await request("/v1/families/family-1/identity-claims/claim-1/review","owner","POST",{decision:"approve"},false,0,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(409);
+    const batchWrites=writes.slice(-3);
+    expect(batchWrites).toHaveLength(3);
+    expect(batchWrites[0].sql).toContain("WHERE id=? AND status='pending'");
+    expect(batchWrites[1].sql).toContain("WHERE changes()=1");
+    expect(batchWrites[2].sql).toContain("status='approved'");
+  });
+
+  it("prevents an owner or admin from reviewing their own identity claim", async () => {
+    for(const role of ["owner","admin"]){
+      const writes:Array<{sql:string;bound:unknown[]}>=[]; 
+      const response=await request("/v1/families/family-1/identity-claims/claim-1/review",role,"POST",{decision:"approve"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes,"dev-owner");
+      expect(response.status).toBe(403);
+      expect((await response.json() as {error:{code:string}}).error.code).toBe("self_review_forbidden");
+      expect(writes.filter(write=>/person_identity_(claims|links)|identity\\.claim_/.test(write.sql))).toHaveLength(0);
+    }
+  });
+
+  it("does not review an identity claim that is no longer pending", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}>=[]; 
+    const response=await request("/v1/families/family-1/identity-claims/claim-1/review","owner","POST",{decision:"reject"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes,"another-user","approved");
+    expect(response.status).toBe(404);
+    expect((await response.json() as {error:{code:string}}).error.code).toBe("claim_unavailable");
+    expect(writes.filter(write=>/person_identity_(claims|links)|identity\\.claim_/.test(write.sql))).toHaveLength(0);
+  });
+
+  it("writes a rejection audit only when the pending-state transition succeeds", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}>=[];
+    const response=await request("/v1/families/family-1/identity-claims/claim-1/review","admin","POST",{decision:"reject"},false,0,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(409);
+    const batchWrites=writes.slice(-2);
+    expect(batchWrites).toHaveLength(2);
+    expect(batchWrites[0].sql).toContain("UPDATE person_identity_claims SET status='rejected'");
+    expect(batchWrites[1].sql).toContain("WHERE changes()=1");
   });
 
   it("keeps platform administration separate from family membership", async () => {
