@@ -197,6 +197,14 @@ describe("server-side authorization", () => {
     expect((await request("/v1/families/family-1/people", null)).status).toBe(404);
   });
 
+  it("limits the family member roster to Owner, Admin and Editor", async () => {
+    for(const role of ["owner","admin","editor"]){
+      expect((await request("/v1/families/family-1/members",role)).status).toBe(200);
+    }
+    expect((await request("/v1/families/family-1/members","viewer")).status).toBe(403);
+    expect((await request("/v1/families/family-1/members",null)).status).toBe(404);
+  });
+
   it.each(["owner", "admin", "editor"])("allows %s to add a person", async (role) => {
     expect((await request("/v1/families/family-1/people", role, "POST", { givenName: "Asha" })).status).toBe(201);
   });
