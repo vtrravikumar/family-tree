@@ -310,8 +310,8 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   if(familyMembersMatch&&request.method==="GET"){
     const familyId=familyMembersMatch[1],role=await roleFor(env.DB,familyId,actorUserId);
     if(!role)return fail(404,"family_not_found","Family not found.");
-    if(role==="viewer")return fail(403,"forbidden","Viewer access cannot view the family member roster.");
     if(await isSampleFamily(env.DB,familyId))return json({data:[]});
+    if(role==="viewer")return fail(403,"forbidden","Viewer access cannot view the family member roster.");
     const members=await env.DB.prepare("SELECT u.id,u.email,u.display_name,u.avatar_url,fm.role,fm.joined_at FROM family_members fm JOIN users u ON u.id=fm.user_id WHERE fm.family_id=? ORDER BY CASE fm.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'editor' THEN 2 ELSE 3 END,fm.joined_at").bind(familyId).all();
     return json({data:members.results});
   }
