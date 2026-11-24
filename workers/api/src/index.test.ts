@@ -7,6 +7,8 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
     prepare(sql: string) {
       let bound: unknown[]=[];
       const statement = {
+        __sql: sql,
+        __bound: () => [...bound],
         bind(...values: unknown[]) { bound=values; return statement; },
         async first() {
           if(sql.includes("RETURNING request_count"))return {request_count:++rateCount};
@@ -46,7 +48,10 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
       };
       return statement;
     },
-    async batch() { return [{ meta: { changes: batchChanges } }, { meta: { changes: batchChanges } }, { meta: { changes: batchChanges } }]; },
+    async batch(statements: Array<{__sql:string;__bound:()=>unknown[]}>) {
+      observedWrites?.push(...statements.map(statement=>({sql:statement.__sql,bound:statement.__bound()})));
+      return statements.map(()=>({meta:{changes:batchChanges}}));
+    },
   } as unknown as Env["DB"];
   return { APP_ENV: "development", DEV_API_TOKEN: "test-token", GOOGLE_CLIENT_ID:"test-client", DB: db };
 }
@@ -344,6 +349,38 @@ describe("server-side authorization", () => {
   it.each(["owner", "admin"])("allows %s to review a claim and unlink an identity", async (role) => {
     expect((await request("/v1/families/family-1/identity-claims/claim-1/review", role, "POST", { decision: "reject" })).status).toBe(200);
     expect((await request("/v1/families/family-1/identity", role, "DELETE", { personId: "person-1" })).status).toBe(200);
+  });
+
+  it("transitions a claim before creating its identity link and audit record", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}>=[];
+    const response=await request("/v1/families/family-1/identity-claims/claim-1/review","owner","POST",{decision:"approve"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(200);
+    expect(writes).toHaveLength(3);
+    expect(writes[0].sql).toContain("UPDATE person_identity_claims SET status='approved'");
+    expect(writes[0].sql).toContain("WHERE id=? AND status='pending'");
+    expect(writes[1].sql).toContain("INSERT INTO person_identity_links");
+    expect(writes[1].sql).toContain("WHERE changes()=1");
+    expect(writes[2].sql).toContain("identity.claim_approved");
+    expect(writes[2].sql).toContain("status='approved'");
+  });
+
+  it("does not create an identity link or audit entry when approval loses the pending-state transition", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}>=[];
+    const response=await request("/v1/families/family-1/identity-claims/claim-1/review","owner","POST",{decision:"approve"},false,0,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(409);
+    expect(writes).toHaveLength(3);
+    expect(writes[0].sql).toContain("WHERE id=? AND status='pending'");
+    expect(writes[1].sql).toContain("WHERE changes()=1");
+    expect(writes[2].sql).toContain("status='approved'");
+  });
+
+  it("writes a rejection audit only when the pending-state transition succeeds", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}>=[];
+    const response=await request("/v1/families/family-1/identity-claims/claim-1/review","admin","POST",{decision:"reject"},false,0,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(409);
+    expect(writes).toHaveLength(2);
+    expect(writes[0].sql).toContain("UPDATE person_identity_claims SET status='rejected'");
+    expect(writes[1].sql).toContain("WHERE changes()=1");
   });
 
   it("keeps platform administration separate from family membership", async () => {
