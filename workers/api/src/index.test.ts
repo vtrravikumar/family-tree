@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import worker, { type Env } from "./index";
 
-function makeEnv(role: string | null = "owner", session = false, batchChanges = 1, superAdmin = false, initialRateCount = 0, targetRole = "editor", expiredSession = false, personStatus = "alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString()): Env {
+function makeEnv(role: string | null = "owner", session = false, batchChanges = 1, superAdmin = false, initialRateCount = 0, targetRole = "editor", expiredSession = false, personStatus = "alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString(), observedWrites?: Array<{sql:string;bound:unknown[]}>): Env {
   let rateCount=initialRateCount;
   const db = {
     prepare(sql: string) {
@@ -36,7 +36,7 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
           return null;
         },
         async all() { return sql.includes("id IN (?,?)")?{results:[{id:"person-1"},{id:"person-2"}]}:{ results: [] }; },
-        async run() { return { success: true, meta: { changes: 1 } }; },
+        async run() { observedWrites?.push({sql,bound:[...bound]}); return { success: true, meta: { changes: 1 } }; },
       };
       return statement;
     },
@@ -45,12 +45,12 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
   return { APP_ENV: "development", DEV_API_TOKEN: "test-token", GOOGLE_CLIENT_ID:"test-client", DB: db };
 }
 
-async function request(path: string, role: string | null, method = "GET", payload?: unknown, session = false, batchChanges = 1, superAdmin = false, initialRateCount=0, targetRole="editor", expiredSession=false, personStatus="alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString()) {
+async function request(path: string, role: string | null, method = "GET", payload?: unknown, session = false, batchChanges = 1, superAdmin = false, initialRateCount=0, targetRole="editor", expiredSession=false, personStatus="alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString(), observedWrites?: Array<{sql:string;bound:unknown[]}>) {
   return worker.fetch(new Request("https://api.example.test" + path, {
     method,
     headers: { Authorization: "Bearer test-token", ...(session ? { Cookie: "vansvriksh_session=test-session" } : {}), ...(payload ? { "Content-Type": "application/json" } : {}) },
     ...(payload ? { body: JSON.stringify(payload) } : {}),
-  }), makeEnv(role, session, batchChanges, superAdmin, initialRateCount, targetRole, expiredSession, personStatus, invitationEmail, invitationExpiresAt));
+  }), makeEnv(role, session, batchChanges, superAdmin, initialRateCount, targetRole, expiredSession, personStatus, invitationEmail, invitationExpiresAt, observedWrites));
 }
 
 describe("server-side authorization", () => {
@@ -331,6 +331,19 @@ describe("server-side authorization", () => {
     expect((await request(path, null, "POST", { reason: "Family data recovery request" }, true, 1, false)).status).toBe(403);
     expect((await request(path, null, "POST", { reason: "short" }, true, 1, true)).status).toBe(400);
     expect((await request(path, null, "POST", { reason: "Family data recovery request" }, true, 1, true)).status).toBe(200);
+  });
+
+  it("preserves biographies when importing a family workbook", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}> = [];
+    const response=await request("/v1/families/family-1/import","owner","POST",{
+      confirmed:true,confirmDeceasedRecords:true,
+      people:[{key:"mira",givenName:"Mira",familyName:"Raman",biography:"Remembered for her generous storytelling."}],
+      relationships:[],
+    },false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(200);
+    const personInsert=writes.find(write=>write.sql.includes("INSERT INTO persons("));
+    expect(personInsert?.sql).toContain("biography");
+    expect(personInsert?.bound).toContain("Remembered for her generous storytelling.");
   });
 
   it("allows Super Admin imports only with a reason and a platform audit path", async () => {
