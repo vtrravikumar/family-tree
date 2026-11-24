@@ -4,7 +4,7 @@ Vansvriksh production web and API are deployed for controlled friends-and-family
 
 ## Current state
 
-Status checked 2026-11-23.
+Status checked 2026-11-24.
 
 - Google sign-in, family membership, Owner/Admin/Editor/Viewer roles, identity claims and platform Super Admin are implemented.
 - Production API is deployed at `https://api.vansvriksh.vtrrk.in`, bound to the separate `vansvriksh-production` D1 database. The owner verified the health response reports `environment: production` and `database: connected`.
@@ -12,11 +12,11 @@ Status checked 2026-11-23.
 - Development remains separate: `dev.vansvriksh.vtrrk.in` uses the dev Pages project and `api-dev.vansvriksh.vtrrk.in` uses the dev Worker/database.
 - All ten D1 migrations, `0001`–`0010`, have been applied to the new production database. The shared fictional sample is available there. On 2026-11-23, Wrangler returned a current Time Travel bookmark for production D1. The owner confirmed the account is on Workers Free, which provides 7-day D1 Time Travel retention. A separate APAC scratch D1 restore drill successfully restored a test row from `after-restore` to `before-restore`; production data was untouched, and the temporary database was deleted after verification. The owner has confirmed family creation and workbook export/import work in production. Detailed reconciliation of people, biographies, relationships, memberships/roles and rendered tree integrity remains unverified.
 - PR #46 made the preview banner follow the configured API host and deployed successfully to production. PR #47 is open to sync the change from `production` to `main`.
-- M3.3 was merged in PR #41. The Worker suite has 54 tests covering primary role and route boundaries. PR #50 adds mocked cross-family relationship and member-ID regressions; authenticated live D1 authorization and invitation lifecycle tests remain outstanding. PR #54 is merged to `main` and adds GitHub validation for production-branch changes; the workflow must also be present on `production` for PRs targeting that branch to receive those checks.
+- M3.3 was merged in PR #41. The Worker suite has 54 tests covering primary role and route boundaries. PR #50 adds mocked cross-family relationship and member-ID regressions. The owner has now confirmed that the role and invitation flows have been tested successfully. Exhaustive sensitive-route authorization, cross-family tampering and identity-claim edge-case evidence remain separate readiness items. PR #54 is merged to `main` and adds GitHub validation for production-branch changes; the workflow must also be present on `production` for PRs targeting that branch to receive those checks.
 - A read-only development D1 inventory on 2026-11-22 found three private family records; two share the same display name. Any future migration must identify families by stable ID and verify owner/membership, not rely on names alone.
 - Initial friends-and-family beta data plan: start with a clean production D1 database and leave development data in development. Users can export a selected family from development and import it into a private production family. No bulk development-to-production migration is planned.
 - Current checklist progress: 13 of 27 items complete (48%). This is the completion of tracked readiness actions, not a claim that every production risk is closed. The owner has since confirmed family creation and workbook export/import in production; the deeper selected-family data-integrity reconciliation remains open.
-- Production web and API are live for controlled verification. A formal `v1.0` release is not yet approved or tagged. Backup access controls and operating procedure, end-to-end role and invitation checks, import/export verification, operational alerts, privacy/session/audit retention decisions and rollback documentation remain open.
+- Production web and API are live for controlled verification. A formal `v1.0` release is not yet approved or tagged. Backup access controls and operating procedure, deeper authorization and identity-claim edge-case checks, import/export verification, operational alerts, privacy/session/audit retention decisions and rollback documentation remain open. The owner-confirmed role and invitation flows are recorded as tested.
 - PR #49 was merged to `production` as commit `61fcb1b`. It adds a branch-specific build guard requiring an HTTPS `VITE_API_URL` and rejecting the development API host. GitHub typecheck, tests and build passed, and the owner confirmed the Cloudflare Pages production deployment is green.
 - PR #51 makes family creation available to accounts viewing only the shared sample while preserving the sample's read-only role. PR #53 preserves biographies through workbook export/import and adds API regression coverage. Both merged to `production`; the owner has confirmed family creation and workbook export/import work in production. Full record reconciliation remains pending. The earlier PR #52 was closed as superseded.
 
@@ -28,7 +28,8 @@ The production URL and API are live, but Friends & Family invitations should wai
 
 - Remove the production build's development API fallback and make missing production configuration fail closed. The branch-specific guard is merged in PR #49, and the owner confirmed the Cloudflare Pages production deployment is green. The source fallback remains for development and preview builds.
 - [x] Protect data: Workers Free D1 Time Travel retention is 7 days; a disposable APAC D1 restore rehearsal passed, and the scratch database was deleted.
-- Run production-like positive and negative authorization checks for all four family roles, invitations, identity claims and cross-family data isolation.
+- [x] Owner-confirmed role and invitation flows have been tested successfully.
+- Run deeper positive and negative authorization checks for every sensitive route, identity claims and cross-family data isolation.
 - [x] Confirm family creation and workbook export/import are usable in production.
 - [ ] Reconcile a selected-family transfer across people, biographies, relationships, ownership, roles and tree rendering.
 - Verify CORS, cookies, TLS, security headers and safe logging; enable basic actionable alerts.
@@ -52,8 +53,9 @@ The production URL and API are live, but Friends & Family invitations should wai
 ### Product and authorization
 
 - [x] Implement and deploy the shared fictional sample family to development with Viewer-only access, server-enforced read-only behavior, personal remove/dismissal, and export/import into a private family. The same fictional sample is now available in the clean production database through migration 0010.
-- [ ] Complete exhaustive Owner/Admin/Editor/Viewer tests for every sensitive API route. The 54 Worker tests cover primary route boundaries, including cross-family relationship and member-ID tampering regressions added in PR #50. Local mocks do not exercise the live development D1 database.
-- [ ] Test family ID/person ID tampering, pending claims, invitation email mismatch, expiry/revocation and single-use acceptance against the development D1 database.
+- [x] Owner-confirmed functional role and invitation flows have been tested successfully.
+- [ ] Complete exhaustive Owner/Admin/Editor/Viewer authorization tests for every sensitive API route. The 54 Worker tests cover primary route boundaries, including cross-family relationship and member-ID tampering regressions added in PR #50; these local mocks do not exercise every route against live development D1.
+- [ ] Verify remaining security edge cases against development D1: family ID/person ID tampering, pending identity claims, invitation email mismatch, expiry/revocation and single-use acceptance.
 - [x] Implement Platform Super Admin import/export APIs that require a reason, target one family, and record a platform audit event. The Super Admin download format is JSON; no import preview or validation stage exists yet.
 - [x] Require explicit `SUPER_ADMIN_EMAIL` configuration before bootstrapping the platform role; configure it separately in each intended environment.
 - [x] Provide an audited, server-authorized Platform Super Admin family export. Hiding the browser workbook export button for Editor/Viewer is a usability guard because all family members can read family data through the API.
