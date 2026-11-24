@@ -489,7 +489,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
         env.DB.prepare("UPDATE person_identity_claims SET status='rejected',reviewed_by_user_id=?,reviewed_at=?,review_reason=? WHERE id=? AND status='pending'").bind(actorUserId,t,reason,claimId),
         env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'identity.claim_rejected',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,claim.person_id,JSON.stringify({claimId,requesterUserId:claim.requester_user_id,reason}),t)
       ]);
-      if((results[0] as D1Result<unknown>|undefined)?.meta?.changes!==1)return fail(409,"claim_unavailable","This pending claim has already been reviewed.");
+      if(results[0]?.meta?.changes!==1)return fail(409,"claim_unavailable","This pending claim has already been reviewed.");
       return json({data:{id:claimId,status:"rejected",reviewedAt:t}});
     }
     try{
