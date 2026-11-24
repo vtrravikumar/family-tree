@@ -20,6 +20,7 @@ Backups contain personal family information. Treat SQL exports, restore files an
 - A separate APAC scratch D1 restore rehearsal succeeded. Production data was not restored or modified during that rehearsal.
 - A complete, independently retained production SQL export and its recurring schedule have not yet been established.
 - The previous restore rehearsal validates the basic recovery capability, but it does not prove a complete production backup/restore cycle.
+- The owner's Synology NAS is currently unavailable because one disk is unresponsive. It is excluded from this backup plan until the hardware issue is resolved and storage integrity is verified.
 
 Cloudflare references:
 - [D1 Time Travel and backups](https://developers.cloudflare.com/d1/reference/time-travel/)
@@ -35,35 +36,40 @@ Cloudflare references:
 | Monthly archive | Monthly export | 12 months | Longer-term recovery |
 | Restore rehearsal | Quarterly, using a disposable D1 database | Keep the latest successful evidence | Verify that exports are usable |
 
-The logical SQL export should be stored outside the Git repository in a restricted backup location. A second copy outside the Cloudflare account is recommended. The owner must choose the actual storage locations, retention and encryption controls before this policy is marked approved.
+**Proposed storage approach (not yet configured):**
+- Primary: Cloudflare R2, subject to a cost, access-control and operational review.
+- Independent second copy: another cloud storage provider, not yet selected.
+- Synology NAS: excluded while unavailable; do not treat it as a backup destination until recovered and storage integrity is verified.
 
-The proposed schedule is a starting point, not an assertion that automation or storage already exists.
+The SQL export is first created as a file by Wrangler. A separate, reviewed upload process would then place it in R2 and, if approved, copy it to the independent provider. Wrangler's D1 export command does not itself write directly to R2.
+
+No R2 bucket, credentials, upload workflow, scheduled export or external second copy has been created. The proposed schedule, retention and storage locations are not approved policy and must not be represented as implemented.
 
 ## Manual production SQL export
 
-Run from the repository root after confirming that Wrangler is authenticated to the intended Cloudflare account.
+Run from the repository root only after the owner explicitly approves a production export and after confirming that Wrangler is authenticated to the intended Cloudflare account.
 
 1. Confirm the target configuration is production:
    - Config file: `workers/api/wrangler.toml`
    - Environment: `production`
    - Database name: `vansvriksh-production`
    - Database ID must match the production D1 ID in that file.
-2. Choose a secure destination outside the repository, for example a restricted folder under the operator's home directory or an approved encrypted backup location.
+2. Choose a secure temporary destination outside the repository. Do not use the unavailable Synology NAS. The export must be moved to an approved encrypted backup location through a separately reviewed process.
 3. Export the remote database:
 
 ```sh
-pnpm exec wrangler d1 export vansvriksh-production \
-  --remote \
-  --env production \
-  --config workers/api/wrangler.toml \
-  --output /secure/backup/path/vansvriksh-production-YYYYMMDD-HHmmss.sql
+pnpm exec wrangler d1 export vansvriksh-production \\
+  --remote \\
+  --env production \\
+  --config workers/api/wrangler.toml \\
+  --output /secure/temporary/path/vansvriksh-production-YYYYMMDD-HHmmss.sql
 ```
 
 4. Confirm the command completed successfully and the file exists and is non-empty.
-5. Record the UTC timestamp, database name, database ID, export result, file size and storage location in the backup log. Do not record credentials or put the SQL dump in Git.
+5. Record the UTC timestamp, database name, database ID, export result, file size and approved storage location in the backup log. Do not record credentials or put the SQL dump in Git.
 6. Protect the export as production personal data. Restrict access, encrypt storage and transfer, and verify that the backup can be read only by authorized operators.
 
-Cloudflare documents that `wrangler d1 export --remote --output` exports the schema and data to SQL. D1 exports can be imported using `wrangler d1 execute --remote --file`. Exports can temporarily affect database availability; schedule manual exports during a quiet period and monitor the application.
+Cloudflare documents that `wrangler d1 export --remote --output` exports the schema and data to SQL. D1 exports can be imported using `wrangler d1 execute --remote --file`. Exports can temporarily affect database availability; schedule approved manual exports during a quiet period and monitor the application.
 
 ## Recovery options
 
@@ -83,9 +89,9 @@ Time Travel restore overwrites the target database in place. It is a production-
 Example command shape only — do not execute without explicit approval:
 
 ```sh
-pnpm exec wrangler d1 time-travel restore vansvriksh-production \
-  --env production \
-  --config workers/api/wrangler.toml \
+pnpm exec wrangler d1 time-travel restore vansvriksh-production \\
+  --env production \\
+  --config workers/api/wrangler.toml \\
   --bookmark <approved-bookmark>
 ```
 
@@ -106,7 +112,7 @@ pnpm exec wrangler d1 time-travel restore vansvriksh-production \
 - Keep production backup access limited to the owner and explicitly authorized operators.
 - Verify the database name and ID before every remote command; do not rely on a similar display name.
 - Record the pre-restore bookmark before a Time Travel restore so the operation can be reversed if necessary.
-- Do not run production restore, migration, cutover or destructive data changes without explicit owner approval.
+- Do not run production export, restore, migration, cutover or destructive data changes without explicit owner approval.
 
 ## Backup log template
 
@@ -125,9 +131,11 @@ pnpm exec wrangler d1 time-travel restore vansvriksh-production \
 ## Decisions required before marking this control complete
 
 - [ ] Approve the proposed weekly export and monthly archive schedule.
-- [ ] Choose the primary restricted backup location and the independent second-copy location.
+- [ ] Review and approve R2 as the primary restricted backup location, including cost and access controls.
+- [ ] Select an independent second cloud provider, or explicitly defer the second copy.
 - [ ] Approve retention periods and secure deletion procedure.
 - [ ] Confirm encryption at rest and in transit for each selected storage location.
-- [ ] Decide whether to implement scheduled D1-to-R2 exports using Cloudflare Workflows, with a separate off-account copy.
+- [ ] Decide whether to implement scheduled D1-to-R2 exports using Cloudflare Workflows, with a separately approved off-account copy.
 - [ ] Complete a SQL export and restore rehearsal against a disposable D1 database.
 - [ ] Document the named operator and incident approval path.
+- [ ] Reassess the NAS only after its hardware issue is resolved and storage integrity is verified.
