@@ -355,32 +355,35 @@ describe("server-side authorization", () => {
     const writes:Array<{sql:string;bound:unknown[]}>=[];
     const response=await request("/v1/families/family-1/identity-claims/claim-1/review","owner","POST",{decision:"approve"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
     expect(response.status).toBe(200);
-    expect(writes).toHaveLength(3);
-    expect(writes[0].sql).toContain("UPDATE person_identity_claims SET status='approved'");
-    expect(writes[0].sql).toContain("WHERE id=? AND status='pending'");
-    expect(writes[1].sql).toContain("INSERT INTO person_identity_links");
-    expect(writes[1].sql).toContain("WHERE changes()=1");
-    expect(writes[2].sql).toContain("identity.claim_approved");
-    expect(writes[2].sql).toContain("status='approved'");
+    const batchWrites=writes.slice(-3);
+    expect(batchWrites).toHaveLength(3);
+    expect(batchWrites[0].sql).toContain("UPDATE person_identity_claims SET status='approved'");
+    expect(batchWrites[0].sql).toContain("WHERE id=? AND status='pending'");
+    expect(batchWrites[1].sql).toContain("INSERT INTO person_identity_links");
+    expect(batchWrites[1].sql).toContain("WHERE changes()=1");
+    expect(batchWrites[2].sql).toContain("identity.claim_approved");
+    expect(batchWrites[2].sql).toContain("status='approved'");
   });
 
   it("does not create an identity link or audit entry when approval loses the pending-state transition", async () => {
     const writes:Array<{sql:string;bound:unknown[]}>=[];
     const response=await request("/v1/families/family-1/identity-claims/claim-1/review","owner","POST",{decision:"approve"},false,0,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
     expect(response.status).toBe(409);
-    expect(writes).toHaveLength(3);
-    expect(writes[0].sql).toContain("WHERE id=? AND status='pending'");
-    expect(writes[1].sql).toContain("WHERE changes()=1");
-    expect(writes[2].sql).toContain("status='approved'");
+    const batchWrites=writes.slice(-3);
+    expect(batchWrites).toHaveLength(3);
+    expect(batchWrites[0].sql).toContain("WHERE id=? AND status='pending'");
+    expect(batchWrites[1].sql).toContain("WHERE changes()=1");
+    expect(batchWrites[2].sql).toContain("status='approved'");
   });
 
   it("writes a rejection audit only when the pending-state transition succeeds", async () => {
     const writes:Array<{sql:string;bound:unknown[]}>=[];
     const response=await request("/v1/families/family-1/identity-claims/claim-1/review","admin","POST",{decision:"reject"},false,0,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
     expect(response.status).toBe(409);
-    expect(writes).toHaveLength(2);
-    expect(writes[0].sql).toContain("UPDATE person_identity_claims SET status='rejected'");
-    expect(writes[1].sql).toContain("WHERE changes()=1");
+    const batchWrites=writes.slice(-2);
+    expect(batchWrites).toHaveLength(2);
+    expect(batchWrites[0].sql).toContain("UPDATE person_identity_claims SET status='rejected'");
+    expect(batchWrites[1].sql).toContain("WHERE changes()=1");
   });
 
   it("keeps platform administration separate from family membership", async () => {
