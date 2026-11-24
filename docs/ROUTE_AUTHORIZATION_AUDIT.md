@@ -34,7 +34,7 @@ A route is not marked passed merely because a role check exists. The database op
 | `/v1/families` | GET | Authenticated; only caller's memberships |
 | `/v1/families` | POST | Authenticated; caller becomes Owner |
 | `/v1/families/:familyId` | DELETE | Family Owner only; explicit confirmation |
-| `/v1/families/:familyId/members` | GET | Current code permits every family member; confirm intended roster visibility against product/privacy policy |
+| `/v1/families/:familyId/members` | GET | Owner/Admin/Editor; Viewer denied (API guard and regression test added on audit branch) |
 | `/v1/families/:familyId/members/:userId` | PUT, DELETE | Owner/Admin; protect Owner; Admin cannot grant or modify/remove another Admin |
 | `/v1/families/:familyId/invitations` | POST | Owner/Admin; Admin cannot invite another Admin; rate limited |
 | `/v1/families/:familyId/invitations` | GET | Owner/Admin |
@@ -72,7 +72,7 @@ The current Worker unit suite already exercises:
 
 ## Initial review notes — not yet final findings
 
-1. **Member roster visibility needs a policy decision.** The API returns the full family member roster (including email and avatar fields) to any family member. The web UI currently hides the Members navigation for Viewers, but server-side access remains available to Viewers and Editors. Confirm whether this is intended; UI hiding is not authorization.
+1. **Member roster visibility — initial gap fixed on audit branch.** The API now denies Viewer access to the member roster while retaining Owner/Admin/Editor access, matching the web UI's hidden Members navigation for Viewers. A regression test covers all four roles. CI verification is pending.
 2. **Role and membership changes need a concurrency review.** Several handlers authorize using a role read and perform a later write. Review whether a concurrent role revocation/demotion can allow a stale authorization decision to complete.
 3. **Authorization tests are broad but not exhaustive.** Add route-specific negative coverage for any gap found in the matrix, especially read endpoints and platform-only paths. Do not infer that an untested role is denied.
 4. **Keep authorization separate from product policy.** Where the product spec or security matrix is ambiguous, record the decision before changing server behavior.
@@ -82,7 +82,7 @@ The current Worker unit suite already exercises:
 - [x] Confirmed baseline commit and created an isolated audit branch.
 - [x] Enumerated current Worker API route families and methods.
 - [x] Read the current Worker unit tests, identity-claim D1 integration tests and security baseline.
-- [ ] Resolve member-roster visibility policy.
+- [x] Resolve member-roster visibility policy and deny Viewer roster access.
 - [ ] Complete route-by-route authorization and resource-scope review.
 - [ ] Add regression tests for confirmed gaps.
 - [ ] Run Worker unit tests, local D1 integration tests, typecheck and build.
