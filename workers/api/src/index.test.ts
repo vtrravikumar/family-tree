@@ -335,6 +335,26 @@ describe("server-side authorization", () => {
     expect((await request("/v1/families/family-1/members/target-1", "admin", "PUT", { role: "admin" }, false, 1, false, 0, "editor")).status).toBe(403);
   });
 
+  it("rechecks actor authority and target role in the member mutation statement", async () => {
+    const target="/v1/families/family-1/members/target-1";
+    const roleWrites:Array<{sql:string;bound:unknown[]}>=[];
+    const roleResponse=await request(target,"owner","PUT",{role:"viewer"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),roleWrites);
+    expect(roleResponse.status).toBe(200);
+    expect(roleWrites[0].sql).toContain("target.role=?");
+    expect(roleWrites[0].sql).toContain("actor.role IN ('owner','admin')");
+    expect(roleWrites[1].sql).toContain("WHERE changes()=1");
+
+    const removeWrites:Array<{sql:string;bound:unknown[]}>=[];
+    const removeResponse=await request(target,"owner","DELETE",undefined,false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),removeWrites);
+    expect(removeResponse.status).toBe(200);
+    expect(removeWrites[0].sql).toContain("target.role=?");
+    expect(removeWrites[0].sql).toContain("actor.role IN ('owner','admin')");
+    expect(removeWrites[1].sql).toContain("WHERE changes()=1");
+
+    expect((await request(target,"owner","PUT",{role:"viewer"},false,0,false,0,"editor")).status).toBe(409);
+    expect((await request(target,"owner","DELETE",undefined,false,0,false,0,"editor")).status).toBe(409);
+  });
+
   it("limits member-role changes and removals to Owner/Admin without allowing owner or peer-admin changes", async () => {
     const target="/v1/families/family-1/members/target-1";
     for(const role of ["editor","viewer"]){
