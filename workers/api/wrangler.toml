@@ -5,6 +5,10 @@ compatibility_date = "2025-01-15"
 # Keep workers.dev disabled; these hosts do not share routes with other products.
 workers_dev = false
 
+# Required by `wrangler preview`. Keep Preview resources unbound until
+# dedicated, isolated Preview resources are configured.
+previews = {}
+
 [vars]
 APP_ENV = "development"
 GOOGLE_CLIENT_ID = "569004813603-bgdrv8dmth1po7hvn84ke5jq9vmkkalt.apps.googleusercontent.com"
