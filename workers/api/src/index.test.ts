@@ -340,16 +340,20 @@ describe("server-side authorization", () => {
     const roleWrites:Array<{sql:string;bound:unknown[]}>=[];
     const roleResponse=await request(target,"owner","PUT",{role:"viewer"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),roleWrites);
     expect(roleResponse.status).toBe(200);
-    expect(roleWrites[0].sql).toContain("target.role=?");
-    expect(roleWrites[0].sql).toContain("actor.role IN ('owner','admin')");
-    expect(roleWrites[1].sql).toContain("WHERE changes()=1");
+    const roleMutation=roleWrites.find(write=>write.sql.includes("UPDATE family_members"));
+    const roleAudit=roleWrites.find(write=>write.sql.includes("member.role_changed"));
+    expect(roleMutation?.sql).toContain("target.role=?");
+    expect(roleMutation?.sql).toContain("actor.role IN ('owner','admin')");
+    expect(roleAudit?.sql).toContain("WHERE changes()=1");
 
     const removeWrites:Array<{sql:string;bound:unknown[]}>=[];
     const removeResponse=await request(target,"owner","DELETE",undefined,false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),removeWrites);
     expect(removeResponse.status).toBe(200);
-    expect(removeWrites[0].sql).toContain("target.role=?");
-    expect(removeWrites[0].sql).toContain("actor.role IN ('owner','admin')");
-    expect(removeWrites[1].sql).toContain("WHERE changes()=1");
+    const removeMutation=removeWrites.find(write=>write.sql.includes("DELETE FROM family_members"));
+    const removeAudit=removeWrites.find(write=>write.sql.includes("member.removed"));
+    expect(removeMutation?.sql).toContain("target.role=?");
+    expect(removeMutation?.sql).toContain("actor.role IN ('owner','admin')");
+    expect(removeAudit?.sql).toContain("WHERE changes()=1");
 
     expect((await request(target,"owner","PUT",{role:"viewer"},false,0,false,0,"editor")).status).toBe(409);
     expect((await request(target,"owner","DELETE",undefined,false,0,false,0,"editor")).status).toBe(409);
