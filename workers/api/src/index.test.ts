@@ -28,14 +28,20 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
           if (sql.includes("FROM family_members")) {
             if(bound[0]==="sample-family-v1")return bound[1]===(session?"user-1":"dev-owner")?{role:"viewer"}:null;
             if(bound[0]!=="family-1")return null;
-            if(bound[1]===(session?"user-1":"dev-owner"))return session?null:role?{role}:null;
+            if(bound[1]===(session?"user-1":"dev-owner"))return role?{role}:null;
             return bound[1]==="target-1"?{role:targetRole}:null;
           }
           if(sql.includes("FROM person_identity_claims"))return {id:"claim-1",person_id:"person-1",requester_user_id:"another-user",status:"pending"};
           if(sql.includes("FROM person_identity_links"))return sql.includes("OR person_id")?null:{user_id:"linked-user"};
           return null;
         },
-        async all() { return sql.includes("id IN (?,?)")?{results:[{id:"person-1"},{id:"person-2"}]}:{ results: [] }; },
+        async all() {
+          if(sql.includes("FROM persons WHERE family_id=? AND id IN (?,?)")){
+            const familyId=bound[0],requested=[bound[1],bound[2]];
+            return {results:familyId==="family-1"?requested.filter(personId=>personId==="person-1"||personId==="person-2").map(id=>({id})):[]};
+          }
+          return sql.includes("id IN (?,?)")?{results:[{id:"person-1"},{id:"person-2"}]}:{ results: [] };
+        },
         async run() { observedWrites?.push({sql,bound:[...bound]}); return { success: true, meta: { changes: 1 } }; },
       };
       return statement;
@@ -232,6 +238,21 @@ describe("server-side authorization", () => {
   it("denies cross-family ID substitution even when the caller belongs to another family", async () => {
     expect((await request("/v1/families/other-family/people", "owner")).status).toBe(404);
     expect((await request("/v1/families/family-1/identity-claims", "editor", "POST", { personId: "person-from-another-family" })).status).toBe(404);
+  });
+
+  it("rejects a relationship that mixes a family person with a person from another family", async () => {
+    const path="/v1/families/family-1/relationships";
+    const localPair=await request(path,"editor","POST",{fromPersonId:"person-1",toPersonId:"person-2",relationshipType:"sibling"});
+    const crossFamilyPair=await request(path,"editor","POST",{fromPersonId:"person-1",toPersonId:"person-from-another-family",relationshipType:"sibling"});
+    expect(localPair.status).toBe(201);
+    expect(crossFamilyPair.status).toBe(400);
+    expect((await crossFamilyPair.json() as {error:{code:string}}).error.code).toBe("person_not_in_family");
+  });
+
+  it("does not let a family owner manage a member ID belonging only to another family", async () => {
+    const member="/v1/families/family-1/members/foreign-member";
+    expect((await request(member,"owner","PUT",{role:"viewer"})).status).toBe(404);
+    expect((await request(member,"owner","DELETE")).status).toBe(404);
   });
 
   it.each(["owner", "admin"])("allows %s to list and revoke pending invitations", async (role) => {
