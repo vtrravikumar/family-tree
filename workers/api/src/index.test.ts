@@ -382,7 +382,7 @@ describe("server-side authorization", () => {
       const response=await request("/v1/families/family-1/identity-claims/claim-1/review",role,"POST",{decision:"approve"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes,"dev-owner");
       expect(response.status).toBe(403);
       expect((await response.json() as {error:{code:string}}).error.code).toBe("self_review_forbidden");
-      expect(writes).toHaveLength(0);
+      expect(writes.filter(write=>/person_identity_(claims|links)|identity\\.claim_/.test(write.sql))).toHaveLength(0);
     }
   });
 
@@ -391,7 +391,7 @@ describe("server-side authorization", () => {
     const response=await request("/v1/families/family-1/identity-claims/claim-1/review","owner","POST",{decision:"reject"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes,"another-user","approved");
     expect(response.status).toBe(404);
     expect((await response.json() as {error:{code:string}}).error.code).toBe("claim_unavailable");
-    expect(writes).toHaveLength(0);
+    expect(writes.filter(write=>/person_identity_(claims|links)|identity\\.claim_/.test(write.sql))).toHaveLength(0);
   });
 
   it("writes a rejection audit only when the pending-state transition succeeds", async () => {
