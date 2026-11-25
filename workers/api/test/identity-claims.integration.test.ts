@@ -44,6 +44,52 @@ async function seedClaim() {
   );
 }
 
+async function createParentRelationship() {
+  const timestamp = "2026-11-24T00:00:00.000Z";
+  await run(
+    "INSERT INTO persons(id,family_id,given_name,created_at,updated_at) VALUES(?,?,?,?,?)",
+    ["parent-child", FAMILY_ID, "Child Person", timestamp, timestamp],
+  );
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/relationships`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fromPersonId: PERSON_ID,
+        toPersonId: "parent-child",
+        relationshipType: "biological_parent",
+      }),
+    },
+  );
+}
+
+async function createRelationship() {
+  const timestamp = "2026-11-24T00:00:00.000Z";
+  await run(
+    "INSERT INTO persons(id,family_id,given_name,created_at,updated_at) VALUES(?,?,?,?,?)",
+    ["person-two", FAMILY_ID, "Second Person", timestamp, timestamp],
+  );
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/relationships`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fromPersonId: PERSON_ID,
+        toPersonId: "person-two",
+        relationshipType: "sibling",
+      }),
+    },
+  );
+}
+
 async function review(decision: "approve" | "reject") {
   return SELF.fetch(
     `https://vansvriksh.test/v1/families/${FAMILY_ID}/identity-claims/${CLAIM_ID}/review`,
@@ -68,6 +114,92 @@ describe("identity claim review against local D1", () => {
     await run("DELETE FROM families");
     await run("DELETE FROM users WHERE id != ?", [OWNER_ID]);
     await seedClaim();
+  });
+
+  it("executes write-time ancestry-cycle and duplicate guards against local D1", async () => {
+    const response = await createParentRelationship();
+    expect(response.status).toBe(201);
+    const created = await response.json() as { data: { id: string } };
+    const update = await SELF.fetch(
+      `https://vansvriksh.test/v1/families/${FAMILY_ID}/relationships/${created.data.id}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fromPersonId: PERSON_ID,
+          toPersonId: "parent-child",
+          relationshipType: "biological_parent",
+        }),
+      },
+    );
+    expect(update.status).toBe(200);
+
+    const duplicate = await SELF.fetch(
+      `https://vansvriksh.test/v1/families/${FAMILY_ID}/relationships`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fromPersonId: PERSON_ID,
+          toPersonId: "parent-child",
+          relationshipType: "biological_parent",
+        }),
+      },
+    );
+    expect(duplicate.status).toBe(409);
+
+    const cycle = await SELF.fetch(
+      `https://vansvriksh.test/v1/families/${FAMILY_ID}/relationships`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fromPersonId: "parent-child",
+          toPersonId: PERSON_ID,
+          relationshipType: "biological_parent",
+        }),
+      },
+    );
+    expect(cycle.status).toBe(409);
+
+    const deleted = await SELF.fetch(
+      `https://vansvriksh.test/v1/families/${FAMILY_ID}/relationships/${created.data.id}`,
+      { method: "DELETE", headers: { Authorization: `Bearer ${API_TOKEN}` } },
+    );
+    expect(deleted.status).toBe(200);
+    const remaining = await env.DB.prepare(
+      "SELECT id FROM relationships WHERE id=? AND family_id=?",
+    ).bind(created.data.id, FAMILY_ID).first<{ id: string }>();
+    const deletionAudit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE action='relationship.deleted' AND entity_id=?",
+    ).bind(created.data.id).first<{ count: number }>();
+    expect(remaining).toBeNull();
+    expect(deletionAudit?.count).toBe(1);
+  });
+
+  it("creates a family-scoped relationship and one audit record in local D1", async () => {
+    const response = await createRelationship();
+
+    expect(response.status).toBe(201);
+    const relationship = await env.DB.prepare(
+      "SELECT id,from_person_id,to_person_id FROM relationships WHERE family_id=? AND from_person_id=? AND to_person_id=?",
+    ).bind(FAMILY_ID, PERSON_ID, "person-two").first<{ id: string; from_person_id: string; to_person_id: string }>();
+    const audit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE action='relationship.created' AND entity_id=?",
+    ).bind(relationship?.id ?? "").first<{ count: number }>();
+
+    expect(relationship?.from_person_id).toBe(PERSON_ID);
+    expect(relationship?.to_person_id).toBe("person-two");
+    expect(audit?.count).toBe(1);
   });
 
   it("approves a pending claim and writes exactly one identity link and audit record", async () => {
