@@ -858,10 +858,11 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if (dependencies && (dependencies.media_count||dependencies.layout_count||dependencies.share_count)) return fail(409,"person_has_dependencies","This person is referenced by a photo, saved layout, or branch share link. Remove or reassign those items before deleting the person.");
     const t=now();
     try {
-      await env.DB.batch([
-        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'person.deleted',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({displayName:current.display_name,relationships:"cascade_deleted"}),t),
-        env.DB.prepare("DELETE FROM persons WHERE id=? AND family_id=? AND life_status='alive'").bind(personId,familyId)
+      const results=await env.DB.batch([
+        env.DB.prepare("DELETE FROM persons WHERE id=? AND family_id=? AND life_status='alive' AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin'))").bind(personId,familyId,familyId,actorUserId),
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.deleted',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,personId,JSON.stringify({displayName:current.display_name,relationships:"cascade_deleted"}),t)
       ]);
+      if(!results[0]?.meta.changes)return fail(409,"person_delete_unavailable","This person changed or your deletion permission is no longer available.");
       return json({data:{id:personId,deleted:true,relationshipsDeleted:"all"}});
     } catch { return fail(409,"person_delete_failed","This person could not be deleted. No records were removed."); }
   }
@@ -875,9 +876,11 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if (input?.confirmed !== true) return fail(400,"confirmation_required","Explicit confirmation is required.");
     const t=now();
     try {
-      const result=await env.DB.prepare("UPDATE persons SET life_status='alive',death_date_kind='unknown',death_exact_date=NULL,death_year=NULL,death_range_start_year=NULL,death_range_end_year=NULL,death_original_text=NULL,updated_at=? WHERE id=? AND family_id=? AND life_status='deceased'").bind(t,personId,familyId).run();
-      if (!result.meta.changes) return fail(409,"person_not_restorable","Person not found or is already living.");
-      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'person.restored_to_alive',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({reason:textOrNull(input.reason)}),t).run();
+      const results=await env.DB.batch([
+        env.DB.prepare("UPDATE persons SET life_status='alive',death_date_kind='unknown',death_exact_date=NULL,death_year=NULL,death_range_start_year=NULL,death_range_end_year=NULL,death_original_text=NULL,updated_at=? WHERE id=? AND family_id=? AND life_status='deceased' AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin'))").bind(t,personId,familyId,familyId,actorUserId),
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.restored_to_alive',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,personId,JSON.stringify({reason:textOrNull(input.reason)}),t)
+      ]);
+      if(!results[0]?.meta.changes)return fail(409,"person_not_restorable","Person not found, already living, or your permission is no longer available.");
       return json({data:{id:personId,lifeStatus:"alive",updatedAt:t}});
     } catch { return fail(409,"person_restore_failed","This profile could not be restored."); }
   }
@@ -898,9 +901,11 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if ((deathKind==="exact" && !exact) || ((deathKind==="year"||deathKind==="approximate_year")&&!year) || (deathKind==="range"&&(!start||!end||start>end)) || (deathKind==="unknown"&&(exact||year||start||end))) return fail(400,"invalid_death_date","Provide a valid date value matching the selected precision.");
     const t=now();
     try {
-      const result=await env.DB.prepare(`UPDATE persons SET life_status='deceased',death_date_kind=?,death_exact_date=?,death_year=?,death_range_start_year=?,death_range_end_year=?,death_original_text=?,updated_at=? WHERE id=? AND family_id=? AND life_status='alive'`).bind(deathKind,deathKind==="exact"?exact:null,(deathKind==="year"||deathKind==="approximate_year")?year:null,deathKind==="range"?start:null,deathKind==="range"?end:null,original,t,personId,familyId).run();
-      if (!result.meta.changes) return fail(409,"person_not_markable","Person not found or is already deceased.");
-      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'person.marked_deceased',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({deathDateKind:deathKind}),t).run();
+      const results=await env.DB.batch([
+        env.DB.prepare(`UPDATE persons SET life_status='deceased',death_date_kind=?,death_exact_date=?,death_year=?,death_range_start_year=?,death_range_end_year=?,death_original_text=?,updated_at=? WHERE id=? AND family_id=? AND life_status='alive' AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin'))`).bind(deathKind,deathKind==="exact"?exact:null,(deathKind==="year"||deathKind==="approximate_year")?year:null,deathKind==="range"?start:null,deathKind==="range"?end:null,original,t,personId,familyId,familyId,actorUserId),
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.marked_deceased',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,personId,JSON.stringify({deathDateKind:deathKind}),t)
+      ]);
+      if(!results[0]?.meta.changes)return fail(409,"person_not_markable","Person not found, already deceased, or your permission is no longer available.");
       return json({data:{id:personId,lifeStatus:"deceased",deathDateKind:deathKind,updatedAt:t}});
     } catch { return fail(409,"person_immutable","This person's profile cannot be changed."); }
   }
