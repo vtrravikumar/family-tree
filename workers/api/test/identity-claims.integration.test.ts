@@ -170,6 +170,20 @@ describe("identity claim review against local D1", () => {
       },
     );
     expect(cycle.status).toBe(409);
+
+    const deleted = await SELF.fetch(
+      `https://vansvriksh.test/v1/families/${FAMILY_ID}/relationships/${created.data.id}`,
+      { method: "DELETE", headers: { Authorization: `Bearer ${API_TOKEN}` } },
+    );
+    expect(deleted.status).toBe(200);
+    const remaining = await env.DB.prepare(
+      "SELECT id FROM relationships WHERE id=? AND family_id=?",
+    ).bind(created.data.id, FAMILY_ID).first<{ id: string }>();
+    const deletionAudit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE action='relationship.deleted' AND entity_id=?",
+    ).bind(created.data.id).first<{ count: number }>();
+    expect(remaining).toBeNull();
+    expect(deletionAudit?.count).toBe(1);
   });
 
   it("creates a family-scoped relationship and one audit record in local D1", async () => {
