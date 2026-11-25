@@ -61,3 +61,23 @@ GOOGLE_CLIENT_ID = "569004813603-bgdrv8dmth1po7hvn84ke5jq9vmkkalt.apps.googleuse
 SUPER_ADMIN_EMAIL = "vtrravikumar@gmail.com"
 INITIAL_OWNER_EMAIL = ""
 ALLOWED_ORIGINS = "https://vansvriksh.vtrrk.in"
+
+# Production invocation logs for the Control 15 security review.
+# Keep observability environment-scoped: dev behaviour is unchanged.
+[env.production.observability]
+enabled = true
+head_sampling_rate = 1
+
+[env.production.observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[env.production.observability.traces]
+enabled = false
+head_sampling_rate = 1
+persist = true
+
+[env.production.observability.issues]
+enabled = false
