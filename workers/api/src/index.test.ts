@@ -290,6 +290,22 @@ describe("server-side authorization", () => {
     expect((await request(item,"editor","DELETE",undefined,false,0)).status).toBe(409);
   });
 
+  it("rechecks duplicate and ancestry-cycle constraints in relationship writes", async () => {
+    const base="/v1/families/family-1/relationships";
+    const payload={fromPersonId:"person-1",toPersonId:"person-2",relationshipType:"biological_parent"};
+    const createWrites:Array<{sql:string;bound:unknown[]}> = [];
+    expect((await request(base,"editor","POST",payload,false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),createWrites)).status).toBe(201);
+    const create=createWrites.find(write=>write.sql.includes("INSERT INTO relationships"));
+    expect(create?.sql).toContain("NOT EXISTS (SELECT 1 FROM relationships");
+    expect(create?.sql).toContain("WITH RECURSIVE descendants");
+
+    const updateWrites:Array<{sql:string;bound:unknown[]}> = [];
+    expect((await request(base+"/relationship-1","editor","PUT",payload,false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),updateWrites)).status).toBe(200);
+    const update=updateWrites.find(write=>write.sql.includes("UPDATE relationships"));
+    expect(update?.sql).toContain("NOT EXISTS (SELECT 1 FROM relationships");
+    expect(update?.sql).toContain("WITH RECURSIVE descendants");
+  });
+
   it("denies cross-family ID substitution even when the caller belongs to another family", async () => {
     expect((await request("/v1/families/other-family/people", "owner")).status).toBe(404);
     expect((await request("/v1/families/family-1/identity-claims", "editor", "POST", { personId: "person-from-another-family" })).status).toBe(404);
