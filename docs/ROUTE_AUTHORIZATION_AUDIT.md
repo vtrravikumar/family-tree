@@ -108,16 +108,16 @@ The following changes are under review after the initial audit. Draft PRs are ev
 | #65 (draft) | Person profile update | Recheck Owner/Admin/Editor membership in UPDATE | Validation and preview checks passed; not merged |
 | #66 (draft) | Person lifecycle actions | Recheck Owner/Admin membership in delete/restore/deceased writes | Validation and preview checks passed; not merged |
 | #67 (draft) | Relationship create/update/delete | Recheck Owner/Admin/Editor membership and family-scoped endpoints in writes | Validation, Pages previews and Workers preview passed; not merged |
-| #68 (draft) | Workbook import pre-validation | Validate all person rows before import-side writes; reject duplicate keys and overlong names | Typecheck/tests/build and Pages previews passed; Workers preview failed and requires investigation. Full transactional rollback is not solved |
-| #69 (draft) | Family deletion | Recheck Owner membership inside family DELETE; conflict on zero-row delete | Validation and Workers preview passed; Production Pages preview was still running at last check |
-| #70 (draft) | Identity claim creation | Recheck membership/person scope during claim INSERT; require Owner for direct link | Validation passed; Pages and Workers previews were still running at last check |
-| #73 (draft) | Person creation | Recheck current Owner/Admin/Editor membership inside person INSERT; gate audit on success | Typecheck, tests and build passed; Cloudflare previews were not yet reported at last check |
+| #68 (draft) | Workbook import integrity | Prevalidate all people; plan people/relationships; apply data and audit writes in one authorized D1 batch; rollback on SQL failure | Local D1 tests cover malformed late rows, forced rollback and Super Admin audit. Typecheck/tests/build passed on an intermediate commit; latest commit and Workers preview are being rechecked after fixes |
+| #69 (draft) | Family deletion | Recheck Owner membership inside family DELETE; conflict on zero-row delete | Validation and Workers preview passed; local D1 integration test confirms family deletion and cascade behavior; Production Pages preview was still running at last check |
+| #70 (draft) | Identity claim creation | Recheck membership/person scope during claim INSERT; require Owner for direct link | Validation, both Pages previews and Workers preview passed; local D1 integration test confirms direct Owner link and audit |
+| #73 (draft) | Person creation | Recheck current Owner/Admin/Editor membership inside person INSERT; gate audit on success | Typecheck, tests, build, both Pages previews and Workers preview passed; local D1 integration test confirms person/audit consistency |
 
 ### Additional confirmed findings
 
 1. **Family deletion had a stale-authorization window.** The original handler checked Owner role, then deleted the family by ID only. PR #69 adds a conditional Owner predicate in the DELETE statement and a zero-row conflict response.
 2. **Identity claim creation had a stale-membership window.** The original handler checked membership and person scope before a later INSERT. PR #70 moves membership/person scope into the INSERT and gates audit rows.
-3. **Workbook import remains a high-priority integrity gap.** PR #68 moves person-row validation before writes, preventing malformed late rows from leaving earlier people imported. It does not yet provide one all-or-nothing transaction across people, relationships and audit records, nor write-time role authorization. This must remain open until implemented and tested against local D1.
+3. **Workbook import integrity is implemented in draft PR #68 but not yet accepted.** The latest code plans all records first and executes person, relationship and audit writes in one authorized D1 batch. Local D1 tests cover malformed late rows, forced database-failure rollback and the reason-gated Super Admin audit path. Keep the finding open until the latest commit's CI and Workers preview are green and the PR is reviewed/merged.
 
 ### Current audit disposition
 
