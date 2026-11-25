@@ -615,7 +615,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     // Validate the entire people collection before preparing any writes.
     const importKeys=new Set<string>();
     for (const raw of input.people) {
-      if (!isObject(raw) || typeof raw.key!=="string" || !raw.key.trim() ||
+      if (!isObject(raw) || typeof raw.key!=="string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw.key) ||
           typeof raw.givenName!=="string" || !raw.givenName.trim()) {
         return fail(400,"invalid_import_person","Every imported person needs a key and given name.");
       }
@@ -680,7 +680,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       if(existingFamily===familyId){keyToId.set(key,key);matched.push(key);continue;}
 
       const given=(raw.givenName as string).trim(), middle=textOrNull(raw.middleName), familyName=textOrNull(raw.familyName);
-      const birth=dateFields("birth",raw), death=dateFields("death",raw);
+      let birth,death;\n      try{birth=dateFields("birth",raw);death=dateFields("death",raw);}catch{return fail(400,"invalid_import_date","Imported date precision and values must be consistent. No records were imported.");}
       const hasDeathRecord=raw.lifeStatus==="deceased"||death.kind!=="unknown";
       const life=hasDeathRecord?"deceased":"alive";
       const gender=["female","male","non_binary","unspecified"].includes(String(raw.gender))?String(raw.gender):"unspecified";
