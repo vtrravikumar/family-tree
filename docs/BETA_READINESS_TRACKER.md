@@ -27,9 +27,9 @@ The following feature-branch PRs have additional CI evidence, but remain unmerge
 - PR #67 relationship mutation atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
 - PR #68 import integrity: latest validation (typecheck/tests/build, including D1 rollback, relationship and Super Admin audit tests) passed; Production Pages preview is still running. An earlier Workers preview failed; no fresh Workers preview check has appeared for the latest commit, so this remains a blocker.
 - PR #69 family deletion atomicity: validation, both Pages previews and Workers preview passed; local D1 integration coverage verifies family deletion and cascade behavior.
-- PR #70 identity claim creation atomicity: validation passed; Cloudflare Pages and Workers previews were still running at the last check.
+- PR #70 identity claim creation atomicity: validation, both Pages previews and Workers preview passed; local D1 integration test confirms direct Owner linking and audit.
 
-The import work in PR #68 is an initial guard only. Full transactional import rollback and write-time authorization remain open. No PR in this list has been merged or promoted to production.
+PR #68 now implements one-batch transactional import with write-time family/Super Admin authorization and local D1 rollback tests. Its latest validation passed, but a fresh Workers preview has not yet reported after an earlier Workers preview failure. No PR in this list has been merged or promoted to production.
 
 ## Scored evidence checklist
 
@@ -44,8 +44,8 @@ The import work in PR #68 is an initial guard only. Full transactional import ro
 | 7 | Selected-family development-to-production transfer | Complete | 5 | Owner confirmed people, biographies, relationships, memberships/roles and rendered tree after transfer. |
 | 8 | Production family creation and workbook export/import usable | Complete | 5 | Owner-confirmed production family creation and workbook export/import. |
 | 9 | Functional Owner/Admin/Editor/Viewer and invitation flows | Complete | 5 | Owner explicitly confirmed role and invitation flows tested successfully. This is functional confirmation, not exhaustive route proof. |
-| 10 | Route-level authorization and role-boundary audit | Partial | 2.5 | PR #60 merged and tightened roster/member mutation authorization. Route-by-route audit remains incomplete; people, relationship, import and platform paths still need final evidence. |
-| 11 | Identity-claim security: pending state, self-review, uniqueness and race handling | Partial | 2.5 | PR #59 merged with local-D1 race/uniqueness tests. PR #61 adds atomic unlink but remains draft; complete end-to-end edge-case review remains open. |
+| 10 | Route-level authorization and role-boundary audit | Partial | 2.5 | PR #60 merged and tightened roster/member mutation authorization. Route-by-route audit remains incomplete. Draft PRs #61–#70 and #73 cover unlink, invitations, person creation/update/lifecycle, relationships, import, family deletion and identity-claim creation; they require final preview evidence, review and merge before counting as complete. |
+| 11 | Identity-claim security: pending state, self-review, uniqueness and race handling | Partial | 2.5 | PR #59 merged with local-D1 race/uniqueness tests. PR #61 adds atomic unlink and PR #70 adds write-time checks for claim creation, both still draft; complete end-to-end edge-case review remains open. |
 | 12 | Cross-family/resource-ID tampering negative tests | Partial | 2.5 | Mock regressions exist for relationship/member-ID substitution. Need broader route coverage and production-like D1 verification. |
 | 13 | Local D1 integration test capability and CI execution | Complete | 5 | PR #59 added real local D1/SQLite integration tests; PR #62's latest CI run is green. Green CI is not equivalent to merged code or production deployment. |
 | 14 | Backup/recovery operating procedure, access and retention | Partial | 2.5 | Disposable D1 restore rehearsal passed and production Time Travel bookmark was observed. Runbook is in an unmerged PR; backup destination, schedule, access controls and retention still need decisions. |
