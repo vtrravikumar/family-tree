@@ -44,6 +44,29 @@ async function seedClaim() {
   );
 }
 
+async function createRelationship() {
+  const timestamp = "2026-11-24T00:00:00.000Z";
+  await run(
+    "INSERT INTO persons(id,family_id,given_name,created_at,updated_at) VALUES(?,?,?,?,?)",
+    ["person-two", FAMILY_ID, "Second Person", timestamp, timestamp],
+  );
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/relationships`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fromPersonId: PERSON_ID,
+        toPersonId: "person-two",
+        relationshipType: "sibling",
+      }),
+    },
+  );
+}
+
 async function review(decision: "approve" | "reject") {
   return SELF.fetch(
     `https://vansvriksh.test/v1/families/${FAMILY_ID}/identity-claims/${CLAIM_ID}/review`,
@@ -68,6 +91,22 @@ describe("identity claim review against local D1", () => {
     await run("DELETE FROM families");
     await run("DELETE FROM users WHERE id != ?", [OWNER_ID]);
     await seedClaim();
+  });
+
+  it("creates a family-scoped relationship and one audit record in local D1", async () => {
+    const response = await createRelationship();
+
+    expect(response.status).toBe(201);
+    const relationship = await env.DB.prepare(
+      "SELECT id,from_person_id,to_person_id FROM relationships WHERE family_id=? AND from_person_id=? AND to_person_id=?",
+    ).bind(FAMILY_ID, PERSON_ID, "person-two").first<{ id: string; from_person_id: string; to_person_id: string }>();
+    const audit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE action='relationship.created' AND entity_id=?",
+    ).bind(relationship?.id ?? "").first<{ count: number }>();
+
+    expect(relationship?.from_person_id).toBe(PERSON_ID);
+    expect(relationship?.to_person_id).toBe("person-two");
+    expect(audit?.count).toBe(1);
   });
 
   it("approves a pending claim and writes exactly one identity link and audit record", async () => {
