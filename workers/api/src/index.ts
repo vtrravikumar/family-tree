@@ -1,9 +1,11 @@
 import { sendInvitationEmail } from "./invitation-email";
+import { handlePersonPhoto } from "./person-photos";
 
 export interface Env {
   APP_ENV: string;
   ALLOWED_ORIGINS?: string;
   DB: D1Database;
+  PERSON_PHOTOS?: R2Bucket;
   DEV_API_TOKEN?: string;
   GOOGLE_CLIENT_ID?: string;
   BETA_ALLOWED_EMAILS?: string;
@@ -577,6 +579,11 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     ]);
     if(!results[0]?.meta.changes)return fail(409,"identity_link_unavailable","The identity link or your permissions changed. Refresh and try again.");
     return json({data:{personId,unlinked:true}});
+  }
+
+  const photoMatch=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/people\\/([^/]+)\\/photo(\\/content)?$/);
+  if(photoMatch){
+    return handlePersonPhoto(request,env,photoMatch[1],photoMatch[2],actorUserId,await roleFor(env.DB,photoMatch[1],actorUserId));
   }
 
   const peopleMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people$/);
