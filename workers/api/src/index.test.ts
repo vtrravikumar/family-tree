@@ -361,6 +361,17 @@ describe("server-side authorization", () => {
     expect(writes.some(write=>write.sql.includes("invitation.created")&&write.sql.includes("WHERE changes()=1"))).toBe(true);
   });
 
+  it("rechecks current owner/admin membership in the invitation revocation write", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}>= [];
+    const response=await request("/v1/families/family-1/invitations/invite-1","owner","DELETE",undefined,false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(200);
+    const revokeWrite=writes.find(write=>write.sql.includes("UPDATE invitations SET status='revoked'"));
+    const auditWrite=writes.find(write=>write.sql.includes("invitation.revoked"));
+    expect(revokeWrite?.sql).toContain("EXISTS (SELECT 1 FROM family_members actor");
+    expect(revokeWrite?.sql).toContain("actor.role IN ('owner','admin')");
+    expect(auditWrite?.sql).toContain("WHERE changes()=1");
+  });
+
   it("rate limits invitation creation by caller IP and owner account", async () => {
     const path="/v1/families/family-1/invitations",payload={email:"relative@example.com",role:"viewer"};
     expect((await request(path,"owner","POST",payload,false,1,false,20)).status).toBe(429);
