@@ -119,6 +119,23 @@ describe("identity claim review against local D1", () => {
   it("executes write-time ancestry-cycle and duplicate guards against local D1", async () => {
     const response = await createParentRelationship();
     expect(response.status).toBe(201);
+    const created = await response.json() as { data: { id: string } };
+    const update = await SELF.fetch(
+      `https://vansvriksh.test/v1/families/${FAMILY_ID}/relationships/${created.data.id}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fromPersonId: PERSON_ID,
+          toPersonId: "parent-child",
+          relationshipType: "biological_parent",
+        }),
+      },
+    );
+    expect(update.status).toBe(200);
 
     const duplicate = await SELF.fetch(
       `https://vansvriksh.test/v1/families/${FAMILY_ID}/relationships`,
