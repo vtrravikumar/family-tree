@@ -221,6 +221,20 @@ async function unlinkIdentity() {
   );
 }
 
+async function createInvitation() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/invitations`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email: "new-member@example.test", role: "viewer" }),
+    },
+  );
+}
+
 async function review(decision: "approve" | "reject") {
   return SELF.fetch(
     `https://vansvriksh.test/v1/families/${FAMILY_ID}/identity-claims/${CLAIM_ID}/review`,
@@ -249,6 +263,24 @@ describe("identity claim review against local D1", () => {
     await run("DELETE FROM users WHERE id != ?", [OWNER_ID]);
     await seedClaim();
   });
+  it("creates an invitation and one audit record in local D1", async () => {
+    const response = await createInvitation();
+
+    expect(response.status).toBe(201);
+    const body = await response.json() as { data: { email: string; role: string } };
+    const invitation = await env.DB.prepare(
+      "SELECT invitee_email, offered_role, status FROM invitations WHERE family_id=? AND invitee_email=?",
+    ).bind(FAMILY_ID, "new-member@example.test").first<{ invitee_email: string; offered_role: string; status: string }>();
+    const audit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE action='invitation.created' AND entity_id=?",
+    ).bind("new-member@example.test").first<{ count: number }>();
+
+    expect(body.data.role).toBe("viewer");
+    expect(invitation?.offered_role).toBe("viewer");
+    expect(invitation?.status).toBe("pending");
+    expect(audit?.count).toBe(1);
+  });
+
   it("unlinks an identity, withdraws its approved claim and writes one audit in local D1", async () => {
     const timestamp = "2026-11-24T00:00:00.000Z";
     await run("UPDATE person_identity_claims SET status='approved',reviewed_by_user_id=?,reviewed_at=? WHERE id=?", [OWNER_ID, timestamp, CLAIM_ID]);
