@@ -9,8 +9,8 @@
 
 | Measure | Result |
 |---|---:|
-| Beta readiness | **72.5 / 100 (72.5%)** |
-| Remaining | **27.5 points** |
+| Beta readiness | **77.5 / 100 (77.5%)** |
+| Remaining | **22.5 points** |
 | Confidence of reaching 100% | **75% within 1–2 focused weeks** |
 | Confidence basis | Remaining work is finite and mostly operational setup, beta guidance and owner decisions; confidence is conditional on no new security/data-integrity issue and timely owner-side checks. |
 
@@ -38,7 +38,7 @@ The authorization and data-integrity hardening series is now merged to `main`:
 - PR #83: corrected Admin role display in the member roster; development deployment was owner-verified.
 - 2026-11-25 development UI acceptance: Owner, Admin, Editor and Viewer role display/transition checks were owner-confirmed. Admin protected controls and Viewer read-only behavior were observed. This is UI smoke-test evidence only; the full action/API matrix and production acceptance remain open.
 
-The merged changes have passing validation and applicable Workers/Pages checks. They are merged to `main`; this does not by itself prove production promotion. The beta score is 72.5/100: controls 10–12 are now complete based on source review and automated unit/local-D1 evidence. Live production-like role replay is intentionally deferred to Friends & Family UAT and is not treated as a pre-UAT gate.
+The merged changes have passing validation and applicable Workers/Pages checks. They are merged to `main`; this does not by itself prove production promotion. The beta score is 77.5/100: controls 10–12 and 16 are now complete based on source review, automated unit/local-D1 evidence and a verified monitoring alert path. Live production-like role replay is intentionally deferred to Friends & Family UAT and is not treated as a pre-UAT gate.
 
 ## Scored evidence checklist
 
