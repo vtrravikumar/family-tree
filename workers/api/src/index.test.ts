@@ -2,14 +2,13 @@ import { describe, expect, it } from "vitest";
 import worker, { isGoogleRegistrationAllowed, type Env } from "./index";
 
 describe("open Google registration policy", () => {
-  it("allows any non-empty email after Google verifies the identity", () => {
-    expect(isGoogleRegistrationAllowed("new.person@gmail.com", true)).toBe(true);
-    expect(isGoogleRegistrationAllowed("relative@outlook.com", true)).toBe(true);
+  it("allows any non-empty email after Google credential verification", () => {
+    expect(isGoogleRegistrationAllowed("new.person@gmail.com")).toBe(true);
+    expect(isGoogleRegistrationAllowed("relative@outlook.com")).toBe(true);
   });
 
-  it("rejects unverified or empty email identities", () => {
-    expect(isGoogleRegistrationAllowed("person@gmail.com", false)).toBe(false);
-    expect(isGoogleRegistrationAllowed("   ", true)).toBe(false);
+  it("rejects an empty email identity", () => {
+    expect(isGoogleRegistrationAllowed("   ")).toBe(false);
   });
 });
 
