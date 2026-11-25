@@ -439,6 +439,19 @@ describe("server-side authorization", () => {
     expect((await request("/v1/families/family-1/identity", role, "DELETE", { personId: "person-1" })).status).toBe(200);
   });
 
+  it("rechecks Owner/Admin authority when unlinking an identity and gates follow-up writes", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}>= [];
+    const response=await request("/v1/families/family-1/identity","owner","DELETE",{personId:"person-1"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(200);
+    const deletion=writes.find(write=>write.sql.includes("DELETE FROM person_identity_links"));
+    const audit=writes.find(write=>write.sql.includes("identity.unlinked"));
+    const claim=writes.find(write=>write.sql.includes("UPDATE person_identity_claims SET status='withdrawn'"));
+    expect(deletion?.sql).toContain("actor.role IN ('owner','admin')");
+    expect(audit?.sql).toContain("WHERE changes()=1");
+    expect(claim?.sql).toContain("EXISTS (SELECT 1 FROM audit_logs");
+    expect((await request("/v1/families/family-1/identity","owner","DELETE",{personId:"person-1"},false,0)).status).toBe(409);
+  });
+
   it("transitions a claim before creating its identity link and audit record", async () => {
     const writes:Array<{sql:string;bound:unknown[]}>=[];
     const response=await request("/v1/families/family-1/identity-claims/claim-1/review","owner","POST",{decision:"approve"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);

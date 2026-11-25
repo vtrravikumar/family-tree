@@ -207,6 +207,20 @@ async function createPerson() {
   );
 }
 
+async function unlinkIdentity() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/identity`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ personId: PERSON_ID }),
+    },
+  );
+}
+
 async function review(decision: "approve" | "reject") {
   return SELF.fetch(
     `https://vansvriksh.test/v1/families/${FAMILY_ID}/identity-claims/${CLAIM_ID}/review`,
@@ -235,6 +249,29 @@ describe("identity claim review against local D1", () => {
     await run("DELETE FROM users WHERE id != ?", [OWNER_ID]);
     await seedClaim();
   });
+  it("unlinks an identity, withdraws its approved claim and writes one audit in local D1", async () => {
+    const timestamp = "2026-11-24T00:00:00.000Z";
+    await run("UPDATE person_identity_claims SET status='approved',reviewed_by_user_id=?,reviewed_at=? WHERE id=?", [OWNER_ID, timestamp, CLAIM_ID]);
+    await run(
+      "INSERT INTO person_identity_links(family_id,person_id,user_id,linked_by_user_id,linked_at) VALUES(?,?,?,?,?)",
+      [FAMILY_ID, PERSON_ID, REQUESTER_ID, OWNER_ID, timestamp],
+    );
+    const response = await unlinkIdentity();
+    expect(response.status).toBe(200);
+    const link = await env.DB.prepare(
+      "SELECT user_id FROM person_identity_links WHERE family_id=? AND person_id=?",
+    ).bind(FAMILY_ID, PERSON_ID).first<{ user_id: string }>();
+    const claim = await env.DB.prepare(
+      "SELECT status FROM person_identity_claims WHERE id=?",
+    ).bind(CLAIM_ID).first<{ status: string }>();
+    const audit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE action='identity.unlinked' AND entity_id=?",
+    ).bind(PERSON_ID).first<{ count: number }>();
+    expect(link).toBeNull();
+    expect(claim?.status).toBe("withdrawn");
+    expect(audit?.count).toBe(1);
+  });
+
   it("creates a person and exactly one audit record in local D1", async () => {
     const response = await createPerson();
     expect(response.status).toBe(201);

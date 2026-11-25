@@ -530,12 +530,19 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if(!personId)return fail(400,"person_required","Specify the person to unlink.");
     const link=await env.DB.prepare("SELECT user_id FROM person_identity_links WHERE family_id=? AND person_id=?").bind(familyId,personId).first<{user_id:string}>();
     if(!link)return fail(404,"identity_link_not_found","No linked account exists for this person.");
-    const t=now();
-    await env.DB.batch([
-      env.DB.prepare("DELETE FROM person_identity_links WHERE family_id=? AND person_id=?").bind(familyId,personId),
-      env.DB.prepare("UPDATE person_identity_claims SET status='withdrawn',reviewed_by_user_id=?,reviewed_at=?,review_reason='Identity association removed' WHERE family_id=? AND person_id=? AND status='approved'").bind(actorUserId,t,familyId,personId),
-      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'identity.unlinked',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({userId:link.user_id}),t)
+    const t=now(),auditId=id();
+    const results=await env.DB.batch([
+      env.DB.prepare(`DELETE FROM person_identity_links WHERE family_id=? AND person_id=?
+        AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin'))`)
+        .bind(familyId,personId,familyId,actorUserId),
+      env.DB.prepare(`INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at)
+        SELECT ?,?,?, 'person',?,'identity.unlinked',?,? WHERE changes()=1`)
+        .bind(auditId,familyId,actorUserId,personId,JSON.stringify({userId:link.user_id}),t),
+      env.DB.prepare(`UPDATE person_identity_claims SET status='withdrawn',reviewed_by_user_id=?,reviewed_at=?,review_reason='Identity association removed'
+        WHERE family_id=? AND person_id=? AND status='approved' AND EXISTS (SELECT 1 FROM audit_logs WHERE id=?)`)
+        .bind(actorUserId,t,familyId,personId,auditId)
     ]);
+    if(!results[0]?.meta.changes)return fail(409,"identity_link_unavailable","The identity link or your permissions changed. Refresh and try again.");
     return json({data:{personId,unlinked:true}});
   }
 
