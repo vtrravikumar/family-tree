@@ -4,6 +4,7 @@ export interface Env {
   DB: D1Database;
   DEV_API_TOKEN?: string;
   GOOGLE_CLIENT_ID?: string;
+  BETA_ALLOWED_EMAILS?: string;
   INITIAL_OWNER_EMAIL?: string;
   SUPER_ADMIN_EMAIL?: string;
 }
@@ -93,6 +94,17 @@ async function currentSession(request: Request,db: D1Database): Promise<{id:stri
   await db.prepare("UPDATE auth_sessions SET last_seen_at=? WHERE id=?").bind(t,row.session_id).run();
   return {id:row.id,email:row.email,displayName:row.display_name};
 }
+export async function isBetaRegistrationAllowed(db: D1Database, email: string, timestamp: string, allowedEmails = ""): Promise<boolean> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) return false;
+  const allowlist = new Set(allowedEmails.split(",").map(value => value.trim().toLowerCase()).filter(Boolean));
+  if (allowlist.has(normalizedEmail)) return true;
+  const invitation = await db.prepare(`SELECT 1 AS allowed FROM invitations
+    WHERE lower(invitee_email)=? AND status='pending' AND expires_at>? LIMIT 1`)
+    .bind(normalizedEmail, timestamp).first<{ allowed: number }>();
+  return !!invitation;
+}
+
 async function authRoute(request: Request,env: Env,url: URL): Promise<Response|null> {
   if(url.pathname==="/v1/auth/google"&&request.method==="POST"){
     if(!env.GOOGLE_CLIENT_ID)return fail(503,"google_auth_not_configured","Google sign-in is not configured on the API.");
@@ -115,6 +127,11 @@ async function authRoute(request: Request,env: Env,url: URL): Promise<Response|n
           .bind(identity.sub,identity.email,identity.name,identity.picture,timestamp).run();
         user={id:"dev-owner",email:identity.email,display_name:identity.name};
       }else{
+        const bootstrapEmails = [env.INITIAL_OWNER_EMAIL, env.SUPER_ADMIN_EMAIL].filter((value): value is string => !!value?.trim()).join(",");
+        const allowedEmails = [env.BETA_ALLOWED_EMAILS, bootstrapEmails].filter(Boolean).join(",");
+        if (!await isBetaRegistrationAllowed(env.DB, identity.email, timestamp, allowedEmails)) {
+          return fail(403, "registration_not_invited", "This Vansvriksh beta is invitation-only. Ask a family Owner or the platform administrator for an invitation.");
+        }
         const newUserId=id();
         await env.DB.prepare("INSERT INTO users(id,identity_provider,provider_subject,email,display_name,avatar_url,created_at,updated_at) VALUES(?,'google',?,?,?,?,?,?)")
           .bind(newUserId,identity.sub,identity.email,identity.name,identity.picture,timestamp,timestamp).run();

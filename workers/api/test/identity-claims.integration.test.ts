@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { env, SELF } from "cloudflare:test";
+import { isBetaRegistrationAllowed } from "../src/index";
 
 const FAMILY_ID = "family-test";
 const OWNER_ID = "dev-owner";
@@ -326,6 +327,32 @@ describe("identity claim review against local D1", () => {
     await run("DELETE FROM users WHERE id != ?", [OWNER_ID]);
     await seedClaim();
   });
+  it("blocks a new Google identity unless its email is allowlisted or has a pending invitation", async () => {
+    expect(await isBetaRegistrationAllowed(env.DB, "outsider@example.test", "2026-11-25T00:00:00.000Z")).toBe(false);
+    expect(await isBetaRegistrationAllowed(env.DB, "ALLOWLISTED@example.test", "2026-11-25T00:00:00.000Z", "allowlisted@example.test")).toBe(true);
+  });
+
+  it("allows a case-insensitive email match for a pending, unexpired family invitation", async () => {
+    await run(
+      "INSERT INTO invitations(id,family_id,inviter_user_id,invitee_email,invite_code_hash,offered_role,status,expires_at,created_at) VALUES(?,?,?,?,?,?, 'pending',?,?)",
+      ["registration-invite", FAMILY_ID, OWNER_ID, "Invitee@Example.Test", "registration-invite-hash", "viewer", "2026-12-02T00:00:00.000Z", "2026-11-25T00:00:00.000Z"],
+    );
+    expect(await isBetaRegistrationAllowed(env.DB, "invitee@example.test", "2026-11-25T12:00:00.000Z")).toBe(true);
+  });
+
+  it("does not allow expired or revoked invitations to create a new account", async () => {
+    await run(
+      "INSERT INTO invitations(id,family_id,inviter_user_id,invitee_email,invite_code_hash,offered_role,status,expires_at,created_at) VALUES(?,?,?,?,?,?,?, ?,?)",
+      ["expired-registration-invite", FAMILY_ID, OWNER_ID, "expired@example.test", "expired-registration-hash", "viewer", "pending", "2026-11-24T00:00:00.000Z", "2026-11-20T00:00:00.000Z"],
+    );
+    await run(
+      "INSERT INTO invitations(id,family_id,inviter_user_id,invitee_email,invite_code_hash,offered_role,status,expires_at,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+      ["revoked-registration-invite", FAMILY_ID, OWNER_ID, "revoked@example.test", "revoked-registration-hash", "viewer", "revoked", "2026-12-02T00:00:00.000Z", "2026-11-20T00:00:00.000Z"],
+    );
+    expect(await isBetaRegistrationAllowed(env.DB, "expired@example.test", "2026-11-25T12:00:00.000Z")).toBe(false);
+    expect(await isBetaRegistrationAllowed(env.DB, "revoked@example.test", "2026-11-25T12:00:00.000Z")).toBe(false);
+  });
+
   it("updates a family-scoped person profile and audits the change in local D1", async () => {
     const response = await updatePersonProfile();
 

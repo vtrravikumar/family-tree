@@ -20,6 +20,16 @@
 - Keep development and production environments, databases and secrets separate.
 - Back up and validate existing family data before production migration.
 
+## Beta registration gate
+
+- Existing Google identities may continue to sign in.
+- A new Google identity may register only when its normalized email matches a configured `BETA_ALLOWED_EMAILS` entry, the configured initial-owner or Super Admin email, or an unexpired pending family invitation.
+- Invitation matching is case-insensitive and checks both `status='pending'` and `expires_at` against the current server time. Expired, revoked and accepted invitations do not authorize registration.
+- A pending invitation is the self-service onboarding path: the invitee signs in with the invited Google email, then accepts the invitation through the normal invitation flow.
+- Uninvited new identities receive `403 registration_not_invited`; no user, session or sample-family membership is created.
+- Keep the allowlist limited to intended beta participants. Configure it separately per Worker environment; never use a development allowlist as production approval.
+- This gate controls new account creation, not existing account access or family authorization. Family membership and role checks remain mandatory on every family API route.
+
 ## Role and permission boundaries
 
 Family-level roles are Owner, Admin, Editor and Viewer. Platform Super Admin is a separate platform-level authority and must not be confused with a family role.
@@ -46,7 +56,7 @@ Family-level roles are Owner, Admin, Editor and Viewer. Platform Super Admin is 
 
 The matrix describes server-side application permissions. Hiding workbook export controls for Editors and Viewers is a usability boundary, not a way to prevent copying data they can read through private-family API routes. The canonical sample contains only fictional data and is the sole export exception for viewers. Super Admin access does not grant ordinary family membership or bypass the reason and audit requirements on support and platform export paths.
 
-The canonical sample is platform-managed with a non-login system owner. Every signed-in user receives an ordinary Viewer membership unless they previously removed it. The API hides the sample's membership roster and rejects family-scoped writes against it regardless of role. Removing the sample records a per-user dismissal and removes only that user's membership; it never deletes the shared fixture.
+The canonical sample is platform-managed with a non-login system owner. Every beta-authorized signed-in user receives an ordinary Viewer membership unless they previously removed it. The API hides the sample's membership roster and rejects family-scoped writes against it regardless of role. Removing the sample records a per-user dismissal and removes only that user's membership; it never deletes the shared fixture.
 
 Invitation acceptance is not granted by an existing family role: any signed-in Google account may accept if it matches the invitee email, the invitation is pending and unexpired, and that account is not already a family member.
 
