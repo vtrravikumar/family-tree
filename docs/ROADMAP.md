@@ -2,6 +2,38 @@
 
 This roadmap reflects the agreed focused production v1 scope. Professional UI/UX redesign is mandatory for v1. Photo upload, presentation exports and independently managed family branches are deferred.
 
+## Release roadmap: Friends & Family beta to v1.0
+
+Status: 2026-11-25. Production web and API are deployed for controlled verification. The evidence-based Friends & Family beta tracker is 62.5/100; this is a beta-specific score, not v1.0 completion. Gate 1 still requires access-boundary verification, privacy/operations evidence, and bounded-beta support/go-no-go. Treat this as a controlled production environment, not yet an approved Friends & Family beta or formal v1.0 release.
+
+### Gate 1 — before inviting Friends & Family
+
+Complete these safety checks before inviting people to enter important family records:
+
+1. **[Complete] Make production fail safely:** PR #49 adds a production build guard requiring HTTPS `VITE_API_URL` and rejecting the development API host; production Pages deployment is green.
+2. **[Complete] Protect data:** Workers Free provides 7-day D1 Time Travel retention; a disposable APAC D1 restore rehearsal passed and the scratch database was deleted. Production data was not restored.
+3. **Verify access boundaries:** PR #50 adds mocked regressions for cross-family relationship and member-ID tampering. PR #59 and #60 are merged to `main` with identity-claim review and member/roster authorization hardening. PRs #61–#70 contain additional draft authorization fixes; they are not merged or promoted. Complete route-by-route review, local D1 tests for high-risk transitions, and Owner/Admin/Editor/Viewer plus family-isolation acceptance before closing this item.
+4. **Prove data portability:** The owner confirmed production family creation and workbook export/import, and confirmed a selected-family development-to-production transfer across people, biographies, relationships, memberships/roles and rendered tree. Import integrity still needs hardening: PR #68 adds pre-validation but does not yet provide full transactional rollback.
+5. **Verify privacy and operations:** confirm CORS preflight, secure cookies, TLS/security headers, error/log data minimization, and actionable failure alerts; decide beta-appropriate session, invitation and audit retention. These owner/operator checks remain open.
+6. **Prepare a bounded beta:** document support/contact and rollback steps, identify the test accounts/roles, publish short beta notes explaining that this is an early release, and obtain explicit owner go/no-go approval. This item remains open.
+
+### Stage 2 — Friends & Family beta
+
+After Gate 1, invite a small, known group. Keep sign-in restricted to invitations, keep development and production data separate, monitor errors and feedback, and avoid bulk migration. Encourage users to test the sample family first and import only a family they choose. Triage data-loss, access-control and account/invitation issues before visual or convenience requests.
+
+### Gate 3 — from beta to full production readiness
+
+Use beta evidence to close the remaining v1 work:
+
+- Complete route-by-route authorization, identity-claim uniqueness/race/self-review and audit coverage tests; test all roles and cross-family boundaries.
+- Complete data lifecycle and privacy decisions: account deletion, revoke-all-sessions, expiry cleanup, and family/platform audit-log retention.
+- Validate import edge cases and usability: preview/validation, duplicate resolution, and date precision; reconcile imported production records.
+- Review real beta traffic, tune rate limits, and establish actionable monitoring/alerts without exposing personal data.
+- Finish remaining v1 usability tasks in M2.1, formally approve product/architecture/security documentation, complete release notes and rollback review, then obtain explicit v1.0 approval and create the matching release/tag.
+
+The detailed evidence checklist and current completion count are in [Production Readiness](docs/PRODUCTION_READINESS.md). Photo upload and other items in “Next major release” remain deferred.
+
+
 ## M0 — Product and engineering foundation
 - [x] Product specification and architecture baseline
 - [x] Conceptual data model and security baseline
@@ -94,6 +126,8 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 - [x] Final cross-browser and device QA (user-confirmed)
 
 ## M5 — Security, production migration and launch readiness
+
+Production web/API cutover completed 2026-11-23. The owner confirmed production Google sign-in, sample-family access, and API health with production D1 connected. This is a live controlled environment; the remaining release gates are tracked in [Production Readiness](PRODUCTION_READINESS.md). Do not treat deployment alone as formal v1.0 approval.
 - [x] Build and test canonical sample-family access, read-only enforcement, personal hide/remove, and export/import into private family workspaces; deployed to development in PR #43
 - [ ] Comprehensive authorization and API security review
 - [ ] Strict cross-family data isolation and role-boundary tests
@@ -101,13 +135,14 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 - [ ] Audit-log review and coverage
 - [ ] Backup and tested recovery procedures
 - [ ] Operational monitoring and error reporting
-- [ ] Separate production Cloudflare environment, D1 database, secrets and domain
+- [x] Separate production Cloudflare environment, D1 database, secrets and domains: production Worker/API and Pages frontend are deployed on the `production` branch with a separate D1 and custom domains.
 - [x] Choose a clean production database for the initial beta; keep development family data in development and let users transfer selected families through export/import
-- [ ] Apply migrations to an empty production-like database and verify recovery behavior
-- [ ] Verify export/import of a selected family into production, preserving people, relationships, ownership and roles
+- [x] Apply all ten migrations to the clean production database and complete a separate disposable D1 restore rehearsal; production data was untouched.
+- [ ] Reconcile a selected-family export/import into production, preserving people, biographies, relationships, ownership, roles and tree rendering (basic production workbook export/import is owner-confirmed)
 - [ ] Reconcile imported family records, memberships and relationship integrity; preserve the development fallback
 - [ ] End-to-end acceptance testing with the three current test users and intended roles
 - [ ] Production deployment checklist, rollback plan and release process
+- [x] Add GitHub CI triggers for production pushes and pull requests (PR #54 merged to `main`; carry the workflow change to `production` before expecting checks there)
 - [ ] Privacy, retention and account lifecycle review
 - [ ] Production launch approval only after all v1 acceptance criteria pass
 
