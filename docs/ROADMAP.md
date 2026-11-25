@@ -4,7 +4,7 @@ This roadmap reflects the agreed focused production v1 scope. Professional UI/UX
 
 ## Release roadmap: Friends & Family beta to v1.0
 
-Status: 2026-11-23. Production web and API are deployed; tracked readiness is 13/27 (48%). Friends & Family Gate 1 is 2/6 (33%). The owner has confirmed production family creation and workbook export/import. Treat this as a controlled production environment, not yet a formal v1.0 release.
+Status: 2026-11-25. Production web and API are deployed for controlled verification. The evidence-based Friends & Family beta tracker is 62.5/100; this is a beta-specific score, not v1.0 completion. Gate 1 still requires access-boundary verification, privacy/operations evidence, and bounded-beta support/go-no-go. Treat this as a controlled production environment, not yet an approved Friends & Family beta or formal v1.0 release.
 
 ### Gate 1 — before inviting Friends & Family
 
@@ -12,10 +12,10 @@ Complete these safety checks before inviting people to enter important family re
 
 1. **[Complete] Make production fail safely:** PR #49 adds a production build guard requiring HTTPS `VITE_API_URL` and rejecting the development API host; production Pages deployment is green.
 2. **[Complete] Protect data:** Workers Free provides 7-day D1 Time Travel retention; a disposable APAC D1 restore rehearsal passed and the scratch database was deleted. Production data was not restored.
-3. **Verify access boundaries:** PR #50 adds mocked regressions for cross-family relationship and member-ID tampering. PR #51 is merged to `production` so sample-only accounts can create their own family while the shared sample stays read-only; the owner confirmed family creation works in production. Still exercise Owner, Admin, Editor and Viewer permissions, invitation lifecycle, pending identity claims and family isolation against a production-like database.
-4. **Prove data portability:** PR #53 is merged to `production` with biography preservation in workbook export/import and an API regression test. The owner confirmed family creation and workbook export/import work in production. Reconcile a selected-family transfer across people, biographies, relationships, ownership, roles and tree rendering before closing this gate.
-5. **Verify privacy and operations:** confirm CORS preflight, secure cookies, TLS/security headers, error/log data minimization, and basic failure alerts; decide beta-appropriate session, invitation and audit retention.
-6. **Prepare a bounded beta:** document support/contact and rollback steps, identify the test accounts/roles, and publish short beta notes explaining that this is an early release.
+3. **Verify access boundaries:** PR #50 adds mocked regressions for cross-family relationship and member-ID tampering. PR #59 and #60 are merged to `main` with identity-claim review and member/roster authorization hardening. PRs #61–#70 contain additional draft authorization fixes; they are not merged or promoted. Complete route-by-route review, local D1 tests for high-risk transitions, and Owner/Admin/Editor/Viewer plus family-isolation acceptance before closing this item.
+4. **Prove data portability:** The owner confirmed production family creation and workbook export/import, and confirmed a selected-family development-to-production transfer across people, biographies, relationships, memberships/roles and rendered tree. Import integrity still needs hardening: PR #68 adds pre-validation but does not yet provide full transactional rollback.
+5. **Verify privacy and operations:** confirm CORS preflight, secure cookies, TLS/security headers, error/log data minimization, and actionable failure alerts; decide beta-appropriate session, invitation and audit retention. These owner/operator checks remain open.
+6. **Prepare a bounded beta:** document support/contact and rollback steps, identify the test accounts/roles, publish short beta notes explaining that this is an early release, and obtain explicit owner go/no-go approval. This item remains open.
 
 ### Stage 2 — Friends & Family beta
 
