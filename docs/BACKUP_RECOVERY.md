@@ -36,8 +36,10 @@ Cloudflare references:
 | Monthly archive | Monthly export | 12 months | Longer-term recovery |
 | Restore rehearsal | Quarterly, using a disposable D1 database | Keep the latest successful evidence | Verify that exports are usable |
 
-**Proposed storage approach (not yet configured):**
-- Primary: Cloudflare R2, subject to a cost, access-control and operational review.
+**Owner decision (2026-11-25):** Cloudflare R2 is approved as the preferred primary backup destination. This is a destination decision only; no bucket, credentials, upload workflow, schedule or retention policy has been configured.
+
+**Storage implementation (not yet configured):**
+- Primary: Cloudflare R2. Bucket naming, cost, access controls, encryption configuration and upload procedure still require implementation and verification.
 - Independent second copy: another cloud storage provider, not yet selected.
 - Synology NAS: excluded while unavailable; do not treat it as a backup destination until recovered and storage integrity is verified.
 
@@ -131,7 +133,8 @@ pnpm exec wrangler d1 time-travel restore vansvriksh-production \\
 ## Decisions required before marking this control complete
 
 - [ ] Approve the proposed weekly export and monthly archive schedule.
-- [ ] Review and approve R2 as the primary restricted backup location, including cost and access controls.
+- [x] Owner selected Cloudflare R2 as the preferred primary backup destination (2026-11-25).
+- [ ] Create/review the R2 bucket and approve its cost, least-privilege access controls, encryption and upload procedure.
 - [ ] Select an independent second cloud provider, or explicitly defer the second copy.
 - [ ] Approve retention periods and secure deletion procedure.
 - [ ] Confirm encryption at rest and in transit for each selected storage location.

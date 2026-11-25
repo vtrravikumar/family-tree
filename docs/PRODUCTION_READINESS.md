@@ -94,13 +94,17 @@ The production service is live for controlled verification. A formal v1.0 releas
 
 ## Friends & Family beta update — 2026-11-25
 
-The separate evidence-based beta tracker records 62.5/100. This is not the same denominator as the last recorded 15/27 production-readiness action count above; neither score by itself authorizes a release.
+The separate evidence-based beta tracker records 65.0/100 as of 2026-11-25. This is not the same denominator as the last recorded 15/27 production-readiness action count above; neither score by itself authorizes a release.
 
 - PRs #59–#70 and #73 are merged to `main`. They cover identity-claim review/unlink/create, member roster and role authorization, invitation creation/revocation, person profile/lifecycle/create, relationship mutations, family deletion and transactional workbook import.
 - These merged changes include local-D1 integration tests for key write paths, race handling, uniqueness constraints and import rollback. PR #68 applies prevalidated people, relationships and audit records in one authorized D1 batch. Passing CI and local D1 tests establish repository evidence, not production promotion or live role-matrix acceptance.
 - PR #58 is merged and adds `docs/BACKUP_RECOVERY.md`. It is an operating runbook; backup destination, schedule, retention and access controls remain pending owner approval. No production SQL export or restore has been performed.
 - PR #71 (route-authorization findings), #72 (beta acceptance checklist), #75 (beta readiness evidence refresh) and #76 (route authorization audit refresh) are merged to `main`.
 - The refreshed route audit inventories current Worker routes and test evidence. It keeps exhaustive live role/family-isolation tests, deployed import/export reconciliation, edge-security evidence, monitoring/alerts, privacy/retention, support/rollback and explicit go/no-go outstanding.
+
+- PR #86 records live development Viewer API acceptance: identity capability flags, member-roster denial and invitation-list denial. PR #87 records live development Editor API acceptance: member roster access, invitation-list/create denial, people/relationship reads, person create/update and relationship create/delete, followed by cleanup to the original record counts. These are scoped development checks, not production acceptance or a complete role matrix.
+- Additional development cross-family checks returned 404 for a foreign-family person ID and relationship ID when substituted into the other family's mutation routes. Invitation-ID live isolation was explicitly deferred; do not mark it as passed. Automated member-ID substitution coverage and identity-claim self-review tests remain repository evidence, not live acceptance.
+
 - On 2026-11-25, the owner completed development UI smoke checks for Owner, Admin, Editor and Viewer: Owner member/invitation management, Admin roster/invitation access with protected Owner/self controls, Editor role transition/access, and Viewer read-only viewing. This is development-only UI evidence; it does not close the direct API authorization matrix or production acceptance items. The detailed evidence and limitations are recorded in `docs/BETA_ACCEPTANCE_CHECKLIST.md` and `docs/BETA_READINESS_TRACKER.md`.
 
 No production deployment, production D1 export/restore/migration, secrets change or production-branch update was performed as part of these documentation changes. Production promotion and opening the beta require separate explicit owner approval.
