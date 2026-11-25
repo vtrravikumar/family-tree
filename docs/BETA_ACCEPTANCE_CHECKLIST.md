@@ -49,6 +49,19 @@ Use separate accounts for each role. Verify both the UI and direct API behavior.
 
 Expected policy: Owner has full family control; Admin has broad control but cannot grant/change/remove another Admin; Editor can manage people and relationships but not family administration or person lifecycle actions; Viewer is read-only and does not receive the private member roster.
 
+### Development UI smoke-test evidence — 2026-11-25
+
+Environment: `https://dev.vansvriksh.vtrrk.in`  
+Test family: Komal Family (development)  
+Accounts used: Komal Singh (Owner) and Ravi Kumar (role under test). No credentials, cookies or tokens are recorded.
+
+- [x] Owner UI: Owner could access member management and invitation management.
+- [x] Admin UI: Admin could view the member roster and invitation controls; Owner role remained protected, and the Admin account could not demote itself.
+- [x] Editor UI: Owner changed Ravi from Admin to Editor; Ravi signed in and the Editor role was displayed/working.
+- [x] Viewer UI: Ravi was changed to Viewer; after signing in, Viewer access was read-only (could only view).
+
+**Scope limitation:** These are owner-observed development UI/role-transition checks, not a complete permission matrix. The action-by-action table above remains unchecked until each action is tested. Direct API denial tests, route-level authorization, cross-family ID substitution, invitation edge cases and production acceptance remain outstanding. The Editor test did not establish every Editor restriction.
+
 ## 4. Invitations
 
 - [ ] Owner creates an invitation for each supported role.

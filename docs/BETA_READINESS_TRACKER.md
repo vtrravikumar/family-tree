@@ -1,6 +1,7 @@
 # Friends & Family Beta Readiness Tracker
 
 **Baseline date:** 2026-11-24  
+**Latest evidence update:** 2026-11-25  
 **Scope:** The minimum safe, bounded Friends & Family beta — not full v1.0.  
 **Scoring:** 20 evidence-based controls, each worth 5 points. Complete = 5; partial = 2.5; not evidenced = 0. The score is earned points divided by 100. No item is marked complete solely because code exists or CI is green.
 
@@ -8,8 +9,8 @@
 
 | Measure | Result |
 |---|---:|
-| Beta readiness | **62.5 / 100 (62.5%)** |
-| Remaining | **37.5 points** |
+| Beta readiness | **65.0 / 100 (65.0%)** |
+| Remaining | **35.0 points** |
 | Confidence of reaching 100% | **75% within 1–2 focused weeks** |
 | Confidence basis | Remaining work is finite and mostly verification, documentation and operational setup; confidence is conditional on no new security/data-integrity issue and timely owner-side checks. |
 
@@ -32,6 +33,8 @@ The authorization and data-integrity hardening series is now merged to `main`:
 - PR #70: identity-claim creation/direct linking rechecks membership, person scope and Owner authority in the write.
 - PR #73: person creation rechecks role and family/person constraints in the write and gates the audit record on success.
 - PR #58: D1 backup/recovery runbook merged; operational backup schedule, destination, retention and access decisions remain pending owner approval.
+- PR #83: corrected Admin role display in the member roster; development deployment was owner-verified.
+- 2026-11-25 development UI acceptance: Owner, Admin, Editor and Viewer role display/transition checks were owner-confirmed. Admin protected controls and Viewer read-only behavior were observed. This is UI smoke-test evidence only; the full action/API matrix and production acceptance remain open.
 
 The merged changes have passing validation and applicable Workers/Pages checks. They are merged to `main`; this does not by itself prove production promotion or complete live role-matrix acceptance. The beta score remains 62.5/100 because remaining controls require independent environment verification and owner/operator decisions, not merely more merged code.
 
@@ -57,15 +60,15 @@ The merged changes have passing validation and applicable Workers/Pages checks. 
 | 16 | Actionable operational monitoring and failure alerts | Not evidenced | 0 | Choose and verify beta-appropriate error/availability alerts without exposing family data or credentials. |
 | 17 | Beta privacy and lifecycle policy | Not evidenced | 0 | Decide/document session and invitation expiry, logout/revocation, account deletion expectations, and family/platform audit retention. |
 | 18 | Support contact, incident handling and rollback instructions | Not evidenced | 0 | Name the beta support route and document operator steps for a failed release or serious data/access issue. |
-| 19 | End-to-end acceptance using the intended beta accounts and roles | Not evidenced | 0 | Run and record a role-by-role acceptance pass with the intended test users against the beta environment. |
+| 19 | End-to-end acceptance using the intended beta accounts and roles | Partial | 2.5 | Owner-confirmed development UI smoke tests cover Owner, Admin, Editor and Viewer role display/transition, Admin protected controls and Viewer read-only behavior (2026-11-25; PR #83 deployed to development). Remaining: action-by-action permission matrix, direct API denial tests, Editor restriction checks, invitation/identity/family-isolation edge cases and production acceptance. |
 | 20 | Bounded beta notes and explicit invitation go/no-go | Not evidenced | 0 | Publish scope/limitations and data-safety guidance; owner explicitly approves opening the beta after all Gate 1 checks pass. |
-|  | **Total** |  | **62.5 / 100** |  |
+|  | **Total** |  | **65.0 / 100** |  |
 
 ## Immediate work queue
 
 ### Engineering / repository work
 1. Complete the route-by-route authorization matrix, including remaining read and platform-admin routes; add negative tests for confirmed gaps.
-2. Run the live role/family-isolation acceptance matrix against the intended beta environment, including invitation expiry/revocation and identity-claim edge cases.
+2. Complete the action-by-action role matrix and direct API negative tests in development first; include Editor/Viewer restrictions, family-ID/person-ID substitution, invitation expiry/revocation and identity-claim edge cases. Then perform the separate production smoke/acceptance pass.
 3. Review the deployed import/export behavior and reconcile record counts, memberships, relationships and audit rows after a representative import.
 4. Keep the beta tracker and route audit synchronized with merged evidence; do not count CI alone as live acceptance.
 
@@ -74,7 +77,7 @@ The merged changes have passing validation and applicable Workers/Pages checks. 
 6. Capture CORS preflight, secure-cookie, TLS/header and safe-logging evidence from the intended beta environment.
 7. Configure actionable monitoring/alerts and verify the notification path.
 8. Record privacy/session/invitation/audit retention decisions and account deletion/revocation expectations.
-9. Run end-to-end acceptance with the intended accounts/roles; prepare support, rollback and beta notes.
+9. Extend the 2026-11-25 development UI smoke test into the full action/API acceptance matrix; separately run production acceptance with the intended accounts/roles. Prepare support, rollback and beta notes.
 
 ## Confidence assessment
 
