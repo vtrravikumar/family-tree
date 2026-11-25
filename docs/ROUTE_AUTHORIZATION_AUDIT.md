@@ -105,8 +105,8 @@ The following changes are under review after the initial audit. Draft PRs are ev
 | #61 (draft) | Identity unlink | Recheck current Owner/Admin membership at unlink; gate audit and claim withdrawal on successful unlink | Validation, Development Pages and Workers preview passed; Production Pages preview still running; not merged |
 | #62 (draft) | Invitation creation | Recheck current Owner/Admin membership and Admin privilege restriction in INSERT | Validation, both Pages previews and Workers preview passed; not merged |
 | #64 (draft) | Invitation revocation | Recheck current Owner/Admin membership in conditional UPDATE | Validation, both Pages previews and Workers preview passed; not merged |
-| #65 (draft) | Person profile update | Recheck Owner/Admin/Editor membership in UPDATE | Validation and preview checks passed; not merged |
-| #66 (draft) | Person lifecycle actions | Recheck Owner/Admin membership in delete/restore/deceased writes | Validation and preview checks passed; not merged |
+| #65 (draft) | Person profile update | Recheck Owner/Admin/Editor membership in UPDATE | Local D1 integration test added; validation, both Pages previews and Workers preview passed; not merged |
+| #66 (draft) | Person lifecycle actions | Recheck Owner/Admin membership in delete/restore/deceased writes | Local D1 integration test added; validation, both Pages previews and Workers preview passed; not merged |
 | #67 (draft) | Relationship create/update/delete | Recheck Owner/Admin/Editor membership and family-scoped endpoints in writes | Validation, Pages previews and Workers preview passed; not merged |
 | #68 (draft) | Workbook import integrity | Prevalidate all people; plan people/relationships; apply data and audit writes in one authorized D1 batch; rollback on SQL failure | Local D1 tests cover malformed late rows, forced rollback, relationship import/cycle handling and Super Admin audit. Latest typecheck/tests/build and Workers preview passed; Production Pages preview is still running |
 | #69 (draft) | Family deletion | Recheck Owner membership inside family DELETE; conflict on zero-row delete | Validation, both Pages previews and Workers preview passed; local D1 integration test confirms family deletion and cascade behavior |
@@ -117,11 +117,11 @@ The following changes are under review after the initial audit. Draft PRs are ev
 
 1. **Family deletion had a stale-authorization window.** The original handler checked Owner role, then deleted the family by ID only. PR #69 adds a conditional Owner predicate in the DELETE statement and a zero-row conflict response.
 2. **Identity claim creation had a stale-membership window.** The original handler checked membership and person scope before a later INSERT. PR #70 moves membership/person scope into the INSERT and gates audit rows.
-3. **Workbook import integrity is implemented in draft PR #68 but not yet accepted.** The latest code plans all records first and executes person, relationship and audit writes in one authorized D1 batch. Local D1 tests cover malformed late rows, forced database-failure rollback and the reason-gated Super Admin audit path. Keep the finding open until the latest commit's CI and Workers preview are green and the PR is reviewed/merged.
+3. **Workbook import integrity is implemented in draft PR #68 but not yet accepted.** The latest code plans all records first and executes person, relationship and audit writes in one authorized D1 batch. Local D1 tests cover malformed late rows, forced database-failure rollback and the reason-gated Super Admin audit path. Keep the finding open until the Production Pages preview completes and the PR is reviewed/merged.
 
 ### Current audit disposition
 
 - Merged protections: PR #59 and PR #60 only.
 - Draft code with green validation is not counted as deployed or merged protection.
-- Route-by-route audit is **not complete**. The import transaction gap, platform route evidence, read-route scope checks, and local D1 coverage for the remaining high-risk mutations still require review.
+- Route-by-route audit is **not complete**. The import transaction implementation is in draft PR #68 awaiting its final Pages preview and review. Platform route evidence, read-route scope checks and final D1 coverage review still require work.
 - No production deployment, production D1 export/restore/migration, production SQL, or production-branch update is authorized by this audit.
