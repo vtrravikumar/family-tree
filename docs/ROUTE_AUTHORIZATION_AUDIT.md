@@ -1,6 +1,6 @@
 # Route-by-Route Authorization Audit
 
-**Baseline:** `main` at `776760f63418b3bdd90fbb72f4eacec5719fe70a` (2026-11-24)  
+**Baseline:** `main` at `cf5f8f1a45056caac932fbe3080ef3cb9da40d8c` (2026-11-24, after PR #60)  
 **Audit branch:** `security/route-authorization-audit`  
 **Scope:** Worker API routes in `workers/api/src/index.ts`. This is an audit record, not a production release or authorization change.
 
