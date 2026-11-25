@@ -70,7 +70,7 @@ These are implementation observations, not a substitute for owner approval of th
 
 ## 7. Support route
 
-During the Friends & Family beta, the support contact is the Vansvriksh beta owner. The owner should share a direct contact route with each participant when issuing the invitation. Do not publish a personal phone number or email address in this repository without an explicit decision.
+During the Friends & Family beta, participants should contact the Vansvriksh beta owner through WhatsApp using the contact details they already have. If WhatsApp is unavailable or a written email route is preferred, participants may email **vtr.ravikumar@gmail.com**. This email address is also the fallback contact for account-deletion requests.
 
 When reporting a problem, include:
 - Approximate time and timezone.
@@ -101,7 +101,7 @@ Before using this document as the beta-facing privacy/support note, the owner mu
 - [x] Verify invitation expiry/revocation and member removal behaviour in source/tests; owner approval of participant-facing wording remains pending.
 - [ ] Choose a manual account-deletion request route and decide family-record ownership implications.
 - [ ] Decide audit/technical log retention and communicate the chosen period.
-- [ ] Share the beta support contact directly with participants.
+- [x] Set the beta support route: WhatsApp with the owner; email fallback and account-deletion requests at vtr.ravikumar@gmail.com.
 - [ ] Review the wording against the deployed service and approve publication.
 
 Until these decisions are complete, keep this file labelled as a draft and do not award beta readiness points for privacy/lifecycle or support/incident controls solely because this document exists.
