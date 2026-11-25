@@ -563,17 +563,22 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       const personId=id(), t=now(), life="alive";
       const displayName=[textOrNull(input.givenName),textOrNull(input.middleName),textOrNull(input.familyName)].filter(Boolean).join(" ");
       try {
-        await env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,
-          birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,birth_place,birth_country,
-          death_date_kind,death_exact_date,death_year,death_range_start_year,death_range_end_year,death_original_text,
-          created_by_user_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
-          personId,familyId,input.givenName.trim(),textOrNull(input.middleName),textOrNull(input.familyName),displayName,
-          textOrNull(input.gender),life,birthKind,textOrNull(input.birthExactDate),yearOrNull(input.birthYear),
-          yearOrNull(input.birthRangeStartYear),yearOrNull(input.birthRangeEndYear),textOrNull(input.birthOriginalText),textOrNull(input.birthPlace),textOrNull(input.birthCountry),
-          deathKind,textOrNull(input.deathExactDate),yearOrNull(input.deathYear),yearOrNull(input.deathRangeStartYear),
-          yearOrNull(input.deathRangeEndYear),textOrNull(input.deathOriginalText),actorUserId,t,t).run();
-        await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,?,'person',?,'person.created',?)")
-          .bind(id(),familyId,actorUserId,personId,t).run();
+        const results=await env.DB.batch([
+          env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,
+            birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,birth_place,birth_country,
+            death_date_kind,death_exact_date,death_year,death_range_start_year,death_range_end_year,death_original_text,
+            created_by_user_id,created_at,updated_at)
+            SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+            WHERE EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin','editor'))`).bind(
+            personId,familyId,input.givenName.trim(),textOrNull(input.middleName),textOrNull(input.familyName),displayName,
+            textOrNull(input.gender),life,birthKind,textOrNull(input.birthExactDate),yearOrNull(input.birthYear),
+            yearOrNull(input.birthRangeStartYear),yearOrNull(input.birthRangeEndYear),textOrNull(input.birthOriginalText),textOrNull(input.birthPlace),textOrNull(input.birthCountry),
+            deathKind,textOrNull(input.deathExactDate),yearOrNull(input.deathYear),yearOrNull(input.deathRangeStartYear),
+            yearOrNull(input.deathRangeEndYear),textOrNull(input.deathOriginalText),actorUserId,t,t,familyId,actorUserId),
+          env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) SELECT ?,?,?, 'person',?,'person.created',? WHERE changes()=1")
+            .bind(id(),familyId,actorUserId,personId,t)
+        ]);
+        if(!results[0]?.meta.changes)return fail(409,"person_create_unavailable","Your editing permission changed before this person could be created.");
         return json({data:{id:personId,familyId,displayName,lifeStatus:life,createdAt:t}},{status:201});
       } catch { return fail(400,"invalid_person","Person data violates the family or historical-date constraints."); }
     }

@@ -193,6 +193,20 @@ async function createDirectClaim() {
   );
 }
 
+async function createPerson() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/people`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ givenName: "New Integration Person", gender: "unspecified" }),
+    },
+  );
+}
+
 async function review(decision: "approve" | "reject") {
   return SELF.fetch(
     `https://vansvriksh.test/v1/families/${FAMILY_ID}/identity-claims/${CLAIM_ID}/review`,
@@ -221,6 +235,20 @@ describe("identity claim review against local D1", () => {
     await run("DELETE FROM users WHERE id != ?", [OWNER_ID]);
     await seedClaim();
   });
+  it("creates a person and exactly one audit record in local D1", async () => {
+    const response = await createPerson();
+    expect(response.status).toBe(201);
+    const body = await response.json() as { data: { id: string; displayName: string } };
+    const person = await env.DB.prepare(
+      "SELECT id, display_name FROM persons WHERE id=? AND family_id=?",
+    ).bind(body.data.id, FAMILY_ID).first<{ id: string; display_name: string }>();
+    const audit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE action='person.created' AND entity_id=?",
+    ).bind(body.data.id).first<{ count: number }>();
+    expect(person?.display_name).toBe("New Integration Person");
+    expect(audit?.count).toBe(1);
+  });
+
   it("creates a direct identity link for the current family owner and audits it", async () => {
     const response = await createDirectClaim();
 
