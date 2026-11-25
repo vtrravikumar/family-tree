@@ -2,12 +2,12 @@
 
 **Prepared:** 2026-11-25  
 **Latest baseline:** 2026-11-25  
-**Purpose:** Close the remaining 15 points in `BETA_READINESS_TRACKER.md` with bounded, risk-proportionate evidence.  
+**Purpose:** Close the remaining 12.5 beta-gate points in `BETA_READINESS_TRACKER.md` with bounded, risk-proportionate evidence. Control 14's remaining 2.5 points are tracked separately in the production backlog.  
 **Scope:** Controlled Friends & Family beta only. This is not a v1.0 production certification.
 
 ## Ground rules
 
-1. Keep the existing 20-control, 100-point beta score unchanged. The current baseline is **85/100**, with **15 points remaining**.
+1. Keep the existing 20-control, 100-point beta score unchanged. The evidence score is **85/100**. Beta-gate readiness is **85/97.5 (87.2%)**, with **12.5 beta-gate points remaining**; Control 14's remaining 2.5 points are excluded and tracked in the production backlog.
 2. Do not add requirements unless a concrete Friends & Family beta safety risk is identified.
 3. Evidence must be the smallest reliable demonstration that the control works. Do not create paperwork for its own sake.
 4. Green CI, source review, documentation and preview deployment are useful evidence, but do not substitute for live behaviour where live behaviour is the thing being verified.
@@ -20,7 +20,7 @@ Controls 10–12 are complete in the source tracker based on route/source review
 
 | Control | Remaining points | Beta treatment | Minimum closure evidence |
 |---|---:|---|---|
-| 14. Backup/recovery | 2.5 | **Mandatory blocker** | Owner-approved production SQL export to the selected private destination (R2 is preferred, not provisioned), followed by restore into disposable D1 and concise integrity reconciliation. No production restore. |
+| 14. Backup/recovery | 2.5 | **Production backlog — not a beta blocker** | Retain `docs/BACKUP_RECOVERY.md`. After beta, obtain separate approvals for storage, access, schedule, retention and export/restore rehearsal. No production operation is authorized by this deferral. Excluded from beta-gate denominator. |
 | 15. Production edge/security | 2.5 | **Mandatory blocker** | Focused production verification: allowed/disallowed CORS preflight, session cookie attributes, TLS/security headers, and confirmation errors/logs expose no credentials or family content. |
 | 16. Monitoring and alerts | 0 | **Complete** | PR #101 merged. Normal monitor run #2 succeeded for dev/prod; controlled failure run #3 failed the health job intentionally and notification job succeeded, creating assigned issue #103. A second controlled run reused the alert (no duplicate); test issue closed after verification. [Run #3](https://github.com/vtrravikumar/family-tree/actions/runs/45599198715), [issue #103](https://github.com/vtrravikumar/family-tree/issues/103). |
 | 17. Privacy and lifecycle | 2.5 | **Partial — lightweight beta requirement** | PRs #109/#110 document verified session/logout, invitation/member-removal behaviour, Owner-only family deletion and the approved account-deletion request email. Close remaining account-deletion procedure/owned-family handling, audit retention and owner approval of participant-facing wording. |
@@ -34,11 +34,9 @@ The target is **7–9 focused hours of hands-on work**, excluding owner response
 
 | Work package | Target effort | Output |
 |---|---:|---|
-| A. Backup/recovery (14) | 2 hours of operator effort | Approved export stored privately; disposable restore and basic reconciliation recorded |
-| B. Production edge checks (15) | 1 hour | Concise verification record |
-| C. Monitoring (16) | 1–2 hours | Repeated health checks and verified notification path |
-| D. Privacy and incident essentials (17–18) | 2 hours | Short beta notice and one-page operator instructions |
-| E. Beta notes and release gate (20) | 1 hour | Beta notes and owner go/no-go |
+| A. Production edge/log review (15) | 1 hour | Concise verification record |
+| B. Privacy and incident essentials (17–18) | 2 hours | Short beta notice and one-page operator instructions |
+| C. Beta notes and release gate (20) | 1 hour | Beta notes and owner go/no-go |
 
 If a critical check fails, stop that work package, fix the underlying issue and rerun the relevant test. Do not lower the evidence standard or mark a control complete to stay within the timebox.
 
@@ -67,9 +65,14 @@ Use development tests and disposable D1 restore rehearsals wherever they can pro
 
 ## Current baseline
 
-The source tracker records **82.5/100**, with **17.5 points remaining**. Controls 10–12 are complete; Work Package A from the previous plan is therefore closed. Control 16 (monitoring/alerts) is complete. The next execution sequence is owner-approved backup/recovery (currently deferred pending explicit operational approval), production edge verification, remaining privacy/account-deletion and support-note approvals, then beta notes and the explicit beta go/no-go.
+The source tracker records an evidence score of **85/100**. Beta-gate readiness is **85/97.5 (87.2%)**, with **12.5 beta-gate points remaining**. Control 14's remaining 2.5 points are explicitly excluded from the beta gate and moved to the production backlog. Control 16 (monitoring/alerts) and control 19 (intended account/role acceptance) are complete. The next sequence is production edge/log review, remaining privacy/account-deletion and support-note approvals, then beta notes and the explicit beta go/no-go.
 
 
 ## Intended-account acceptance closure — 2026-11-25
 
-The owner confirmed control 19 is already checked and complete. No further role acceptance campaign is required; close control 19 at 5/5. The remaining release gate is control 20, alongside operational blockers 14, 15, 17 and 18.
+The owner confirmed control 19 is already checked and complete. No further role acceptance campaign is required; close control 19 at 5/5. The remaining release gate is control 20, alongside beta-gate items 15, 17 and 18. Control 14 is production backlog, not a beta blocker.
+
+
+## Backup/recovery scope decision — 2026-11-25
+
+The owner confirmed backup/recovery is not a blocker for the bounded Friends & Family beta. Control 14 remains partially evidenced at 2.5/5 for transparency, but its remaining 2.5 points are excluded from the beta-gate denominator and moved to the production backlog. The runbook remains available for later production-readiness work. This decision does not mark backup/recovery complete or authorize R2 provisioning, production export/restore, secrets, schedules or retention changes.
