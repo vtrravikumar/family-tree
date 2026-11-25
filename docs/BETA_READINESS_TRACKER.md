@@ -19,13 +19,13 @@ This is a deliberately separate score from v1.0 completion. Deferred features su
 
 The following feature-branch PRs have additional CI evidence, but remain unmerged and therefore do not change the readiness score:
 
-- PR #61 identity unlink atomicity: local D1 integration test added; validation passed; Production Pages preview is still running and a fresh Workers preview has not yet reported.
-- PR #62 invitation creation atomicity: local D1 integration test added; validation and Workers preview passed; no latest Pages preview result was reported.
-- PR #64 invitation revocation atomicity: local D1 integration test added; validation passed; Workers and Production Pages previews are still running.
+- PR #61 identity unlink atomicity: local D1 integration test added; validation, Development Pages and Workers preview passed; Production Pages preview is still running.
+- PR #62 invitation creation atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
+- PR #64 invitation revocation atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
 - PR #65 person profile update atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
-- PR #66 person lifecycle atomicity: local D1 integration test added; validation and Workers preview passed; Production Pages preview is still running.
+- PR #66 person lifecycle atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
 - PR #67 relationship mutation atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
-- PR #68 import integrity: latest validation (typecheck/tests/build, including D1 rollback, relationship and Super Admin audit tests) passed; Production Pages preview is still running. An earlier Workers preview failed; no fresh Workers preview check has appeared for the latest commit, so this remains a blocker.
+- PR #68 import integrity: latest validation (typecheck/tests/build, including D1 rollback, relationship/cycle and Super Admin audit tests) and Workers preview passed; Production Pages preview is still running.
 - PR #69 family deletion atomicity: validation, both Pages previews and Workers preview passed; local D1 integration coverage verifies family deletion and cascade behavior.
 - PR #70 identity claim creation atomicity: validation, both Pages previews and Workers preview passed; local D1 integration test confirms direct Owner linking and audit.
 
