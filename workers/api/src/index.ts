@@ -34,6 +34,13 @@ async function body(request: Request): Promise<JsonObject | null> {
   try { const value: unknown = await request.json(); return isObject(value) ? value : null; }
   catch { return null; }
 }
+
+export const AUDIT_LOG_RETENTION_DAYS = 90;
+export async function pruneExpiredAuditLogs(db: D1Database, at = new Date()): Promise<number> {
+  const cutoff = new Date(at.getTime() - AUDIT_LOG_RETENTION_DAYS * 86400000).toISOString();
+  const result = await db.prepare("DELETE FROM audit_logs WHERE created_at < ?").bind(cutoff).run();
+  return result.meta?.changes ?? 0;
+}
 const SESSION_COOKIE = "vansvriksh_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 let googleJwksCache: {keys: JsonWebKey[]; expiresAt: number} | null = null;
