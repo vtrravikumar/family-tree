@@ -1,0 +1,63 @@
+# Vansvriksh Friends & Family Beta — Participant Notes
+
+**Status: Draft for owner review. Do not distribute as an invitation or treat as launch approval.**  
+**Audience:** A small, invited Friends & Family UAT cohort.
+
+## What this beta is for
+
+Vansvriksh is an early-access family-history application. This bounded beta is intended to validate everyday family workflows with a small group: creating or selecting a family, maintaining people and relationships, viewing family information, and collaborating through assigned family roles.
+
+This is a limited UAT release, not a declaration that the product is complete or formally certified.
+
+## What participants can do
+
+Depending on their family membership and assigned role, participants may be able to:
+- View family information and the family tree.
+- Add or update people and relationships where their role permits.
+- Invite family members and manage membership where their role permits.
+- Export or import supported family workbook data where their role permits.
+
+A Google sign-in alone does not grant access to a family. Access is controlled by membership in that family and the role assigned there.
+
+## Important limitations and data-safety guidance
+
+- Treat this as an early-access service. Features and workflows may change during the beta.
+- Do not use Vansvriksh as the only copy of important family records. Keep your own appropriate copy of information you cannot afford to lose.
+- Do not enter passwords, financial details, government identity numbers, medical records or other highly sensitive information that is not needed for family history.
+- Obtain appropriate consent before adding personal details about living relatives.
+- Family information is shared with members who are authorized for that family. The service is not an end-to-end encrypted private vault.
+- Invitations are intended only for the invited email identity. Do not forward invitation links.
+- Use the least-privileged role that supports the participant's needs.
+- Sessions have a seven-day absolute expiry. Sign out when finished, especially on a shared device.
+- Family Owners/Admins can remove members; removal ends access to that family on subsequent requests.
+- There is no self-service account-deletion flow during this beta. Account-deletion requests are reviewed manually by the owner. Do not assume that deleting a family and deleting a Google account are the same operation.
+- Backup and disaster-recovery arrangements are not represented as a complete production-grade service for this beta.
+
+## Support and reporting problems
+
+Contact the beta owner through WhatsApp using the contact details already shared with you. If WhatsApp is unavailable or you prefer email, write to **vtr.ravikumar@gmail.com**.
+
+Please report suspected unauthorized access, exposed information, unexpected changes or data loss promptly. Include the approximate time and timezone, the affected family/workflow, what you tried and what happened. A screenshot can help, but remove unrelated personal information first.
+
+Never send passwords, Google verification codes, session cookies, invitation links or API credentials in a support report.
+
+For account-deletion requests, or help with family deletion, email **vtr.ravikumar@gmail.com**. The owner will verify the requester and review family ownership and continuity before taking any action. Do not expect immediate deletion or assume shared family data will be deleted by default.
+
+## What we ask from beta participants
+
+- Use the application for normal family-history tasks, within the role assigned to you.
+- Tell us when something is confusing, incorrect, inaccessible or unexpectedly editable.
+- Report suspected cross-family visibility or permission problems immediately and stop using the affected workflow until the owner responds.
+- Do not deliberately test destructive actions or attempt to access another family's information.
+- Share feedback through the support route above. Please avoid sending family records or sensitive personal details unless specifically necessary and agreed.
+
+## Owner release checklist — not participant instructions
+
+Before invitations are sent, the owner must:
+- [ ] Review and approve this participant note and the companion privacy/support/incident note.
+- [ ] Confirm the intended cohort, participant list and assigned roles.
+- [ ] Confirm the support channel is ready and participants have the correct contact details.
+- [ ] Review current beta-gate evidence and any unresolved operational limitations.
+- [ ] Explicitly record a go/no-go decision. A readiness score alone does not authorize invitations.
+
+**Current release state:** Not approved for invitation. This document is a draft and does not itself authorize beta access.
