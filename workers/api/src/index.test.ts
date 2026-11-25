@@ -464,6 +464,24 @@ describe("server-side authorization", () => {
     expect(batchWrites[2].sql).toContain("status='approved'");
   });
 
+  it("rechecks family membership and person scope when creating identity claims", async () => {
+    const ownerWrites:Array<{sql:string;bound:unknown[]}> = [];
+    expect((await request("/v1/families/family-1/identity-claims","owner","POST",{personId:"person-1"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),ownerWrites)).status).toBe(201);
+    const direct=ownerWrites.find(write=>write.sql.includes("INSERT INTO person_identity_links"));
+    expect(direct?.sql).toContain("actor.role='owner'");
+    expect(direct?.sql).toContain("p.family_id=?");
+    expect(ownerWrites.find(write=>write.sql.includes("identity.claimed_directly"))?.sql).toContain("WHERE changes()=1");
+
+    const memberWrites:Array<{sql:string;bound:unknown[]}> = [];
+    expect((await request("/v1/families/family-1/identity-claims","editor","POST",{personId:"person-1"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),memberWrites)).status).toBe(201);
+    const claim=memberWrites.find(write=>write.sql.includes("INSERT INTO person_identity_claims"));
+    expect(claim?.sql).toContain("FROM family_members actor");
+    expect(claim?.sql).toContain("p.family_id=?");
+    expect(memberWrites.find(write=>write.sql.includes("identity.claim_requested"))?.sql).toContain("WHERE changes()=1");
+
+    expect((await request("/v1/families/family-1/identity-claims","editor","POST",{personId:"person-1"},false,0)).status).toBe(409);
+  });
+
   it("prevents an owner or admin from reviewing their own identity claim", async () => {
     for(const role of ["owner","admin"]){
       const writes:Array<{sql:string;bound:unknown[]}>=[]; 
