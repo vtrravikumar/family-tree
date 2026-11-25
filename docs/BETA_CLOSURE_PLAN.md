@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-25  
 **Latest baseline:** 2026-11-25  
-**Purpose:** Close the remaining 27.5 points in `BETA_READINESS_TRACKER.md` with bounded, risk-proportionate evidence.  
+**Purpose:** Close the remaining 22.5 points in `BETA_READINESS_TRACKER.md` with bounded, risk-proportionate evidence.  
 **Scope:** Controlled Friends & Family beta only. This is not a v1.0 production certification.
 
 ## Ground rules
