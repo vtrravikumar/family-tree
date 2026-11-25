@@ -94,13 +94,14 @@ Local-D1 integration tests include:
 - Relationship write-time duplicate/cycle guards.
 - Person lifecycle transitions.
 - Identity claim approval/rejection races and uniqueness-constraint rollback.
+- A dedicated foreign-family resource-ID integration test that seeds a second family and attempts member, invitation, identity-claim, person and relationship mutations using those foreign IDs; it asserts the expected denials and verifies the foreign rows and audit history remain unchanged.
 
 These tests provide meaningful repository evidence. Mock-based unit tests are not equivalent to exhaustive live route testing, and the local-D1 suite does not prove production D1 behavior.
 
 ## Remaining review and acceptance work
 
 1. **Complete a formal role matrix for every route/method.** The route inventory above is a source review. Add or record explicit allow/deny cases for each role, especially read routes and each platform-only endpoint; do not infer a negative case solely from a UI-hidden control.
-2. **Expand cross-family/resource-ID negative coverage.** Existing tests cover important relationship and member-ID substitutions, but the acceptance record should cover family, person, relationship, invitation and claim IDs across all relevant handlers.
+2. **Cross-family/resource-ID regression coverage is present in local D1.** The integration test `rejects foreign-family resource IDs across member, invitation, identity, person and relationship mutations` exercises foreign member, invitation, identity-claim, person and relationship IDs and verifies no foreign-row mutation or audit write. This closes the identified automated-test coverage gap for those mutation handlers. The separate live beta-environment acceptance remains outstanding; automated local D1 evidence is not production/live acceptance.
 3. **Run live beta-environment acceptance.** Verify intended Owner/Admin/Editor/Viewer accounts, family isolation, invitation email mismatch/expiry/revocation/single-use, identity-claim requester visibility/self-review/competing actions, and platform Super Admin boundaries. Use approved test accounts and non-sensitive test families.
 4. **Verify deployed import/export outcomes.** Reconcile representative import counts, memberships, roles, relationships, audit rows and rendered tree behavior. Existing local-D1 transaction tests are not a substitute.
 5. **Capture edge/security evidence.** Record CORS preflight and allowed/disallowed origin behavior, cookie attributes, TLS/security headers, and deployed safe-error/logging review. The Worker currently sets HttpOnly, Secure, SameSite=Lax session cookies and generic internal errors; deployed evidence is still required.
@@ -110,6 +111,6 @@ These tests provide meaningful repository evidence. Mock-based unit tests are no
 
 - **Implementation hardening:** the listed security and transactional-import PRs are merged to `main), with relevant CI and local-D1 evidence.
 - **Source review:** route families and current role/scoping patterns have been inventoried above; this is not a claim that every route has a complete positive/negative test pair.
-- **Live acceptance:** not complete. The intended beta role matrix, broader cross-family tampering checks, deployed import/export reconciliation and deployed edge/security evidence remain outstanding.
+- **Live acceptance:** not complete. The intended beta role matrix, live cross-family tampering confirmation, deployed import/export reconciliation and deployed edge/security evidence remain outstanding. The local D1 foreign-resource-ID regression is automated repository evidence only.
 - **Readiness scoring:** do not increase the beta tracker score on the basis of merged code or green CI alone.
 - **Safety boundary:** this audit performs no production D1 reads/exports/restores/migrations, production SQL, secrets changes, Cloudflare resource changes, production deployment or production-branch promotion. Those remain separate owner-approved actions.
