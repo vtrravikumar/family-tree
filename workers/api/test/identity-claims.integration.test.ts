@@ -758,5 +758,114 @@ describe("identity claim review against local D1", () => {
     expect(audit?.count).toBe(0);
     expect(links?.count).toBe(1);
   });
+
+  it("rejects foreign-family resource IDs across member, invitation, identity, person and relationship mutations", async () => {
+    const timestamp = "2026-11-24T00:00:00.000Z";
+    const foreignFamily = "family-foreign";
+    const foreignOwner = "foreign-owner";
+    const foreignMember = "foreign-member";
+    const foreignPerson = "foreign-person";
+    const foreignDeceasedPerson = "foreign-deceased-person";
+    const foreignRelationship = "foreign-relationship";
+    const foreignInvitation = "foreign-invitation";
+    const foreignClaim = "foreign-claim";
+
+    await run(
+      "INSERT INTO users(id,identity_provider,provider_subject,email,display_name,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+      [foreignOwner, "google", "foreign-owner-subject", "foreign-owner@example.test", "Foreign Owner", timestamp, timestamp],
+    );
+    await run(
+      "INSERT INTO users(id,identity_provider,provider_subject,email,display_name,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+      [foreignMember, "google", "foreign-member-subject", "foreign-member@example.test", "Foreign Member", timestamp, timestamp],
+    );
+    await run(
+      "INSERT INTO families(id,name,owner_user_id,created_at,updated_at) VALUES(?,?,?,?,?)",
+      [foreignFamily, "Foreign Family", foreignOwner, timestamp, timestamp],
+    );
+    await run(
+      "INSERT INTO family_members(family_id,user_id,role,joined_at) VALUES(?,?,?,?)",
+      [foreignFamily, foreignOwner, "owner", timestamp],
+    );
+    await run(
+      "INSERT INTO family_members(family_id,user_id,role,joined_at) VALUES(?,?,?,?)",
+      [foreignFamily, foreignMember, "editor", timestamp],
+    );
+    await run(
+      "INSERT INTO persons(id,family_id,given_name,life_status,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+      [foreignPerson, foreignFamily, "Foreign Person", "alive", timestamp, timestamp],
+    );
+    await run(
+      "INSERT INTO persons(id,family_id,given_name,life_status,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+      [foreignDeceasedPerson, foreignFamily, "Foreign Deceased Person", "deceased", timestamp, timestamp],
+    );
+    await run(
+      "INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) VALUES(?,?,?,?,?,?,?)",
+      [foreignRelationship, foreignFamily, foreignPerson, foreignDeceasedPerson, "sibling", foreignOwner, timestamp],
+    );
+    await run(
+      "INSERT INTO invitations(id,family_id,inviter_user_id,invitee_email,invite_code_hash,offered_role,status,expires_at,created_at) VALUES(?,?,?,?,?,?, 'pending',?,?)",
+      [foreignInvitation, foreignFamily, foreignOwner, "outside-invitee@example.test", "foreign-invite-hash", "viewer", "2026-12-01T00:00:00.000Z", timestamp],
+    );
+    await run(
+      "INSERT INTO person_identity_claims(id,family_id,person_id,requester_user_id,status,requested_at) VALUES(?,?,?,?,?,?)",
+      [foreignClaim, foreignFamily, foreignPerson, foreignMember, "pending", timestamp],
+    );
+
+    const send = (path: string, method: string, payload?: unknown) => SELF.fetch(
+      `https://vansvriksh.test${path}`,
+      {
+        method,
+        headers: {
+          Authorization: `Bearer ${API_TOKEN}`,
+          ...(payload ? { "Content-Type": "application/json" } : {}),
+        },
+        ...(payload ? { body: JSON.stringify(payload) } : {}),
+      },
+    );
+
+    const responses = await Promise.all([
+      send(`/v1/families/${FAMILY_ID}/members/${foreignMember}`, "PUT", { role: "viewer" }),
+      send(`/v1/families/${FAMILY_ID}/members/${foreignMember}`, "DELETE"),
+      send(`/v1/families/${FAMILY_ID}/invitations/${foreignInvitation}`, "DELETE"),
+      send(`/v1/families/${FAMILY_ID}/identity-claims/${foreignClaim}/review`, "POST", { decision: "reject" }),
+      send(`/v1/families/${FAMILY_ID}/identity`, "DELETE", { personId: foreignPerson }),
+      send(`/v1/families/${FAMILY_ID}/people/${foreignPerson}`, "PUT", { givenName: "Tampered", gender: "unspecified" }),
+      send(`/v1/families/${FAMILY_ID}/people/${foreignPerson}`, "DELETE", { confirmed: true }),
+      send(`/v1/families/${FAMILY_ID}/people/${foreignPerson}/deceased`, "POST", { confirmed: true, deathDateKind: "unknown" }),
+      send(`/v1/families/${FAMILY_ID}/people/${foreignDeceasedPerson}/restore`, "POST", { confirmed: true }),
+      send(`/v1/families/${FAMILY_ID}/relationships/${foreignRelationship}`, "PUT", { fromPersonId: PERSON_ID, toPersonId: foreignPerson, relationshipType: "sibling" }),
+      send(`/v1/families/${FAMILY_ID}/relationships/${foreignRelationship}`, "DELETE"),
+    ]);
+
+    expect(responses.map(response => response.status)).toEqual([
+      404, 404, 404, 404, 404, 404, 404, 409, 409, 404, 404,
+    ]);
+
+    const foreignMemberRow = await env.DB.prepare(
+      "SELECT role FROM family_members WHERE family_id=? AND user_id=?",
+    ).bind(foreignFamily, foreignMember).first<{ role: string }>();
+    const foreignInvitationRow = await env.DB.prepare(
+      "SELECT status FROM invitations WHERE id=? AND family_id=?",
+    ).bind(foreignInvitation, foreignFamily).first<{ status: string }>();
+    const foreignClaimRow = await env.DB.prepare(
+      "SELECT status FROM person_identity_claims WHERE id=? AND family_id=?",
+    ).bind(foreignClaim, foreignFamily).first<{ status: string }>();
+    const foreignPersonRow = await env.DB.prepare(
+      "SELECT given_name, life_status FROM persons WHERE id=? AND family_id=?",
+    ).bind(foreignPerson, foreignFamily).first<{ given_name: string; life_status: string }>();
+    const foreignRelationshipRow = await env.DB.prepare(
+      "SELECT id FROM relationships WHERE id=? AND family_id=?",
+    ).bind(foreignRelationship, foreignFamily).first<{ id: string }>();
+    const foreignAudits = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE family_id=? AND entity_id IN (?,?,?,?,?)",
+    ).bind(foreignFamily, foreignMember, foreignInvitation, foreignClaim, foreignPerson, foreignRelationship).first<{ count: number }>();
+
+    expect(foreignMemberRow?.role).toBe("editor");
+    expect(foreignInvitationRow?.status).toBe("pending");
+    expect(foreignClaimRow?.status).toBe("pending");
+    expect(foreignPersonRow).toEqual({ given_name: "Foreign Person", life_status: "alive" });
+    expect(foreignRelationshipRow?.id).toBe(foreignRelationship);
+    expect(foreignAudits?.count).toBe(0);
+  });
 });
 
