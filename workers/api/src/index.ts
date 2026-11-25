@@ -828,14 +828,18 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       return fail(400,"invalid_birth_date","Provide a valid value matching the selected birth-date precision.");
     const t=now(), display=[given,middle,family].filter(Boolean).join(" ");
     try {
-      await env.DB.prepare(`UPDATE persons SET given_name=?,middle_name=?,family_name=?,display_name=?,gender=?,
-        birth_date_kind=?,birth_exact_date=?,birth_year=?,birth_range_start_year=?,birth_range_end_year=?,birth_original_text=?,birth_place=?,birth_country=?,
-        biography=?,updated_at=? WHERE id=? AND family_id=? AND life_status='alive'`).bind(
-        given,middle,family,display,gender,birthKind,birthKind==="exact"?exact:null,
-        (birthKind==="year"||birthKind==="approximate_year")?year:null,birthKind==="range"?start:null,
-        birthKind==="range"?end:null,original,textOrNull(input.birthPlace),textOrNull(input.birthCountry),textOrNull(input.biography),t,personId,familyId).run();
-      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'person.updated',?,?)")
-        .bind(id(),familyId,actorUserId,personId,JSON.stringify({fields:["name","gender","birth_date","birth_place","birth_country","biography"]}),t).run();
+      const results=await env.DB.batch([
+        env.DB.prepare(`UPDATE persons SET given_name=?,middle_name=?,family_name=?,display_name=?,gender=?,
+          birth_date_kind=?,birth_exact_date=?,birth_year=?,birth_range_start_year=?,birth_range_end_year=?,birth_original_text=?,birth_place=?,birth_country=?,
+          biography=?,updated_at=? WHERE id=? AND family_id=? AND life_status='alive'
+          AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin','editor'))`).bind(
+          given,middle,family,display,gender,birthKind,birthKind==="exact"?exact:null,
+          (birthKind==="year"||birthKind==="approximate_year")?year:null,birthKind==="range"?start:null,
+          birthKind==="range"?end:null,original,textOrNull(input.birthPlace),textOrNull(input.birthCountry),textOrNull(input.biography),t,personId,familyId,familyId,actorUserId),
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.updated',?,? WHERE changes()=1")
+          .bind(id(),familyId,actorUserId,personId,JSON.stringify({fields:["name","gender","birth_date","birth_place","birth_country","biography"]}),t),
+      ]);
+      if(!results[0]?.meta.changes)return fail(409,"person_update_unavailable","This profile changed or your editing permission is no longer available.");
       return json({data:{id:personId,displayName:display,updatedAt:t}});
     } catch { return fail(409,"person_immutable","This profile could not be changed. It may have been marked deceased."); }
   }

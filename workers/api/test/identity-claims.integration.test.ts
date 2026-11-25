@@ -251,6 +251,25 @@ async function revokeInvitation() {
   );
 }
 
+async function updatePersonProfile() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/people/${PERSON_ID}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        givenName: "Updated Person",
+        gender: "unspecified",
+        birthDateKind: "unknown",
+        biography: "Updated through the profile endpoint.",
+      }),
+    },
+  );
+}
+
 async function review(decision: "approve" | "reject") {
   return SELF.fetch(
     `https://vansvriksh.test/v1/families/${FAMILY_ID}/identity-claims/${CLAIM_ID}/review`,
@@ -279,6 +298,22 @@ describe("identity claim review against local D1", () => {
     await run("DELETE FROM users WHERE id != ?", [OWNER_ID]);
     await seedClaim();
   });
+  it("updates a family-scoped person profile and audits the change in local D1", async () => {
+    const response = await updatePersonProfile();
+
+    expect(response.status).toBe(200);
+    const person = await env.DB.prepare(
+      "SELECT given_name, biography FROM persons WHERE id=? AND family_id=?",
+    ).bind(PERSON_ID, FAMILY_ID).first<{ given_name: string; biography: string | null }>();
+    const audit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE action='person.updated' AND entity_id=?",
+    ).bind(PERSON_ID).first<{ count: number }>();
+
+    expect(person?.given_name).toBe("Updated Person");
+    expect(person?.biography).toBe("Updated through the profile endpoint.");
+    expect(audit?.count).toBe(1);
+  });
+
   it("creates an invitation and one audit record in local D1", async () => {
     const response = await createInvitation();
 

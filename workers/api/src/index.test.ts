@@ -253,6 +253,18 @@ describe("server-side authorization", () => {
     expect((await owner.json() as {data:{status:string}}).data.status).toBe("approved");
   });
 
+  it("rechecks current family editor membership in person updates and gates the audit", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}>=[],path="/v1/families/family-1/people/person-1";
+    const response=await request(path,"editor","PUT",{givenName:"Asha",familyName:"Raman"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(200);
+    const update=writes.find(write=>write.sql.includes("UPDATE persons SET given_name"));
+    const audit=writes.find(write=>write.sql.includes("person.updated"));
+    expect(update?.sql).toContain("EXISTS (SELECT 1 FROM family_members actor");
+    expect(update?.sql).toContain("actor.role IN ('owner','admin','editor')");
+    expect(audit?.sql).toContain("WHERE changes()=1");
+    expect((await request(path,"editor","PUT",{givenName:"Asha"},false,0)).status).toBe(409);
+  });
+
   it("allows editors to manage relationships but denies Viewer relationship writes", async () => {
     const path="/v1/families/family-1/relationships";
     const payload={fromPersonId:"person-1",toPersonId:"person-2",relationshipType:"sibling"};
