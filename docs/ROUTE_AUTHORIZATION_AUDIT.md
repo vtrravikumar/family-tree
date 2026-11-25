@@ -113,3 +113,12 @@ These tests provide meaningful repository evidence. Mock-based unit tests are no
 - **Live acceptance:** not complete. The intended beta role matrix, broader cross-family tampering checks, deployed import/export reconciliation and deployed edge/security evidence remain outstanding.
 - **Readiness scoring:** do not increase the beta tracker score on the basis of merged code or green CI alone.
 - **Safety boundary:** this audit performs no production D1 reads/exports/restores/migrations, production SQL, secrets changes, Cloudflare resource changes, production deployment or production-branch promotion. Those remain separate owner-approved actions.
+
+
+## Owner decision — automated evidence and UAT boundary (2026-11-25)
+
+For the bounded Friends & Family beta, automated unit tests, local-D1 integration tests, source review and CI are accepted as the pre-UAT evidence for authorization, identity-claim and cross-family resource-ID controls. The foreign-resource-ID integration regression covers member, invitation, identity-claim, person and relationship IDs and verifies no foreign-row mutation or audit write.
+
+Do not require a separate exhaustive live route replay before UAT when the relevant behaviour is already covered by automated tests. Friends & Family UAT is the intended live acceptance phase; real users will exercise workflows and report findings. Any security or data-integrity finding must be triaged promptly, fixed and covered by a regression test before expanding access.
+
+This does not waive basic operational safeguards, the bounded-beta go/no-go, or the deeper production verification required for formal v1.0.
