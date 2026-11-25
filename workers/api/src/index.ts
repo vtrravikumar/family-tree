@@ -331,10 +331,19 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const existing=await env.DB.prepare("SELECT u.id,fm.role FROM users u LEFT JOIN family_members fm ON fm.user_id=u.id AND fm.family_id=? WHERE lower(u.email)=lower(?) LIMIT 1").bind(familyId,email).first<{id:string;role:string|null}>();
     if(existing?.role)return fail(409,"already_a_member","This user is already a member of the family.");
     const codeBytes=new Uint8Array(32);crypto.getRandomValues(codeBytes);const code=base64Url(codeBytes),created=now(),expires=new Date(Date.now()+7*24*60*60*1000).toISOString();
-    await env.DB.prepare("INSERT INTO invitations(id,family_id,inviter_user_id,invitee_email,invite_code_hash,offered_role,status,expires_at,created_at) VALUES(?,?,?,?,?,?,'pending',?,?)")
-      .bind(id(),familyId,actorUserId,email,await sha256(code),offeredRole,expires,created).run();
-    await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'invitation',?,'invitation.created',?,?)")
-      .bind(id(),familyId,actorUserId,email,JSON.stringify({email,role:offeredRole,expiresAt:expires}),created).run();
+    const invitationId=id(),auditId=id();
+    const results=await env.DB.batch([
+      env.DB.prepare(`INSERT INTO invitations(id,family_id,inviter_user_id,invitee_email,invite_code_hash,offered_role,status,expires_at,created_at)
+        SELECT ?,f.id,?,?,?,?,'pending',?,? FROM families f
+        WHERE f.id=? AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=f.id AND actor.user_id=?
+          AND actor.role IN ('owner','admin') AND (actor.role='owner' OR ?<>'admin'))`)
+        .bind(invitationId,actorUserId,email,await sha256(code),offeredRole,expires,created,familyId,actorUserId,offeredRole),
+      env.DB.prepare(`INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at)
+        SELECT ?,?,?, 'invitation',?,'invitation.created',?,? WHERE changes()=1`)
+        .bind(auditId,familyId,actorUserId,email,JSON.stringify({email,role:offeredRole,expiresAt:expires}),created)
+    ]);
+    const changes=(results[0] as {meta?:{changes?:number}}|undefined)?.meta?.changes??0;
+    if(!changes)return fail(409,"invitation_create_unavailable","Your permissions or the family changed. Refresh and try again.");
     return json({data:{inviteCode:code,email,role:offeredRole,expiresAt:expires}},{status:201});
   }
   if(familyInvitationsMatch&&request.method==="GET"){

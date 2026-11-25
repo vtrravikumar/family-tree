@@ -341,6 +341,26 @@ describe("server-side authorization", () => {
     expect((await request("/v1/families/family-1/invitations/invite-1", role, "DELETE")).status).toBe(200);
   });
 
+  it("rechecks inviter permissions in the invitation insert and gates its audit record", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}>= [];
+    const payload={email:"relative@example.com",role:"viewer"};
+    const response=await request("/v1/families/family-1/invitations","owner","POST",payload,false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(201);
+    const insert=writes.find(write=>write.sql.includes("INSERT INTO invitations"));
+    const audit=writes.find(write=>write.sql.includes("invitation.created"));
+    expect(insert?.sql).toContain("EXISTS (SELECT 1 FROM family_members actor");
+    expect(insert?.sql).toContain("actor.role IN ('owner','admin')");
+    expect(insert?.sql).toContain("actor.role='owner' OR ?<>'admin'");
+    expect(audit?.sql).toContain("WHERE changes()=1");
+  });
+
+  it("does not report invitation creation when the conditional insert changes no rows", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}>= [];
+    const response=await request("/v1/families/family-1/invitations","owner","POST",{email:"relative@example.com",role:"viewer"},false,0,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(409);
+    expect(writes.some(write=>write.sql.includes("invitation.created")&&write.sql.includes("WHERE changes()=1"))).toBe(true);
+  });
+
   it("rate limits invitation creation by caller IP and owner account", async () => {
     const path="/v1/families/family-1/invitations",payload={email:"relative@example.com",role:"viewer"};
     expect((await request(path,"owner","POST",payload,false,1,false,20)).status).toBe(429);
