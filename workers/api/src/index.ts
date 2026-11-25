@@ -1,3 +1,5 @@
+import { sendInvitationEmail } from "./invitation-email";
+
 export interface Env {
   APP_ENV: string;
   ALLOWED_ORIGINS?: string;
@@ -7,6 +9,9 @@ export interface Env {
   BETA_ALLOWED_EMAILS?: string;
   INITIAL_OWNER_EMAIL?: string;
   SUPER_ADMIN_EMAIL?: string;
+  RESEND_API_KEY?: string;
+  INVITATION_FROM_EMAIL?: string;
+  PUBLIC_APP_URL?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -361,7 +366,9 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     ]);
     const changes=(results[0] as {meta?:{changes?:number}}|undefined)?.meta?.changes??0;
     if(!changes)return fail(409,"invitation_create_unavailable","Your permissions or the family changed. Refresh and try again.");
-    return json({data:{inviteCode:code,email,role:offeredRole,expiresAt:expires}},{status:201});
+    const family=await env.DB.prepare("SELECT name FROM families WHERE id=?").bind(familyId).first<{name:string}>();
+    const emailResult=await sendInvitationEmail(env,{to:email,inviteCode:code,role:offeredRole,expiresAt:expires,familyName:family?.name??"your family"});
+    return json({data:{inviteCode:code,email,role:offeredRole,expiresAt:expires,emailSent:emailResult.sent}},{status:201});
   }
   if(familyInvitationsMatch&&request.method==="GET"){
     const familyId=familyInvitationsMatch[1],role=await roleFor(env.DB,familyId,actorUserId);
