@@ -96,8 +96,8 @@ async function currentSession(request: Request,db: D1Database): Promise<{id:stri
 }
 // Registration is open to any Google identity whose credential has been verified.
 // Family data remains protected by family membership and route-level authorization.
-export function isGoogleRegistrationAllowed(email: string, emailVerified: boolean): boolean {
-  return emailVerified && !!email.trim();
+export function isGoogleRegistrationAllowed(email: string): boolean {
+  return !!email.trim();
 }
 
 async function authRoute(request: Request,env: Env,url: URL): Promise<Response|null> {
@@ -122,7 +122,7 @@ async function authRoute(request: Request,env: Env,url: URL): Promise<Response|n
           .bind(identity.sub,identity.email,identity.name,identity.picture,timestamp).run();
         user={id:"dev-owner",email:identity.email,display_name:identity.name};
       }else{
-        if (!isGoogleRegistrationAllowed(identity.email, true)) {
+        if (!isGoogleRegistrationAllowed(identity.email)) {
           return fail(401, "invalid_google_identity", "A verified Google email address is required.");
         }
         const newUserId=id();
