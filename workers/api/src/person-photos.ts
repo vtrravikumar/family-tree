@@ -81,23 +81,26 @@ export async function handlePersonPhoto(
     const old=await env.DB.prepare("SELECT id,object_key FROM media WHERE family_id=? AND person_id=? AND media_type='person_portrait' LIMIT 1")
       .bind(familyId,personId).first<{id:string;object_key:string}>();
     const mediaId=uuid(),objectKey=`families/${familyId}/persons/${personId}/portraits/${uuid()}`,createdAt=new Date().toISOString();
+    let dbCommitted=false;
     try{
       await env.PERSON_PHOTOS.put(objectKey,bytes,{httpMetadata:{contentType,cacheControl:"private, no-store"},customMetadata:{mediaId}});
       if(old){
         const updated=await env.DB.prepare("UPDATE media SET object_key=?,content_type=?,byte_size=?,metadata_json=?,uploaded_by_user_id=?,created_at=? WHERE id=? AND family_id=? AND person_id=? AND EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=? AND p.life_status='alive') AND EXISTS (SELECT 1 FROM family_members fm WHERE fm.family_id=? AND fm.user_id=? AND fm.role IN ('owner','admin','editor'))")
           .bind(objectKey,contentType,bytes.byteLength,JSON.stringify({extension:rule.extension}),actorUserId,createdAt,old.id,familyId,personId,personId,familyId,familyId,actorUserId).run();
         if((updated.meta?.changes??0)!==1)throw new Error("photo_update_not_authorized");
-        await env.PERSON_PHOTOS.delete(old.object_key);
+        dbCommitted=true;
+        await env.PERSON_PHOTOS.delete(old.object_key).catch(()=>undefined);
       }else{
         const inserted=await env.DB.prepare("INSERT INTO media(id,family_id,person_id,object_key,media_type,content_type,byte_size,metadata_json,uploaded_by_user_id,created_at) SELECT ?,?,?,?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=? AND p.life_status='alive') AND EXISTS (SELECT 1 FROM family_members fm WHERE fm.family_id=? AND fm.user_id=? AND fm.role IN ('owner','admin','editor'))")
           .bind(mediaId,familyId,personId,objectKey,"person_portrait",contentType,bytes.byteLength,JSON.stringify({extension:rule.extension}),actorUserId,createdAt,personId,familyId,familyId,actorUserId).run();
         if((inserted.meta?.changes??0)!==1)throw new Error("photo_insert_not_authorized");
+        dbCommitted=true;
       }
       await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,?,?,?,?,?)")
-        .bind(uuid(),familyId,actorUserId,"person",personId,old?"person.portrait_replaced":"person.portrait_uploaded",JSON.stringify({contentType,byteSize:bytes.byteLength}),createdAt).run();
+        .bind(uuid(),familyId,actorUserId,"person",personId,old?"person.portrait_replaced":"person.portrait_uploaded",JSON.stringify({contentType,byteSize:bytes.byteLength}),createdAt).run().catch(()=>undefined);
       return response({data:{id:old?.id??mediaId,contentType,byteSize:bytes.byteLength,createdAt}},201);
     }catch{
-      await env.PERSON_PHOTOS.delete(objectKey).catch(()=>undefined);
+      if(!dbCommitted)await env.PERSON_PHOTOS.delete(objectKey).catch(()=>undefined);
       return error(409,"photo_upload_failed","The portrait could not be saved. Please retry.");
     }
   }
