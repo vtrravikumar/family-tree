@@ -11,6 +11,7 @@ previews = {}
 
 [vars]
 APP_ENV = "development"
+PUBLIC_APP_URL = "https://dev.vansvriksh.vtrrk.in"
 GOOGLE_CLIENT_ID = "569004813603-bgdrv8dmth1po7hvn84ke5jq9vmkkalt.apps.googleusercontent.com"
 INITIAL_OWNER_EMAIL = "vtrravikumar@gmail.com"
 SUPER_ADMIN_EMAIL = "vtrravikumar@gmail.com"
@@ -31,6 +32,7 @@ migrations_dir = "migrations"
 
 [env.dev.vars]
 APP_ENV = "development"
+PUBLIC_APP_URL = "https://dev.vansvriksh.vtrrk.in"
 GOOGLE_CLIENT_ID = "569004813603-bgdrv8dmth1po7hvn84ke5jq9vmkkalt.apps.googleusercontent.com"
 INITIAL_OWNER_EMAIL = "vtrravikumar@gmail.com"
 SUPER_ADMIN_EMAIL = "vtrravikumar@gmail.com"
@@ -54,6 +56,7 @@ migrations_dir = "migrations"
 
 [env.production.vars]
 APP_ENV = "production"
+PUBLIC_APP_URL = "https://vansvriksh.vtrrk.in"
 GOOGLE_CLIENT_ID = "569004813603-bgdrv8dmth1po7hvn84ke5jq9vmkkalt.apps.googleusercontent.com"
 SUPER_ADMIN_EMAIL = "vtrravikumar@gmail.com"
 INITIAL_OWNER_EMAIL = ""
