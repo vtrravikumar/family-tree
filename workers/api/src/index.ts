@@ -716,11 +716,11 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     for (const raw of importPeople) {
       const key=raw.key as string;
       if (Array.isArray(raw.parents)) for (const parent of raw.parents) if (typeof parent==="string") {
-        const from=sourceKeys.get(normalize(parent));
+        const from=sourceKeys.get(parent);
         if(from&&from!==key){const k=from+"|"+key+"|biological_parent";if(!edgeSeen.has(k)){edgeSeen.add(k);relationshipInputs.push({from,to:key,type:"biological_parent"});}}
       }
       if (Array.isArray(raw.partners)) for (const partner of raw.partners) if (typeof partner==="string") {
-        const to=sourceKeys.get(normalize(partner));
+        const to=sourceKeys.get(partner);
         if(to&&to!==key){const pair=[key,to].sort(),k=pair[0]+"|"+pair[1]+"|spouse";if(!edgeSeen.has(k)){edgeSeen.add(k);relationshipInputs.push({from:pair[0],to:pair[1],type:"spouse"});}}
       }
     }
