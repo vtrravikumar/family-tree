@@ -94,6 +94,7 @@ Local-D1 integration tests include:
 - Relationship write-time duplicate/cycle guards.
 - Person lifecycle transitions.
 - Identity claim approval/rejection races and uniqueness-constraint rollback.
+- A dedicated foreign-family resource-ID regression that seeds a second family and attempts member, invitation, identity-claim, person and relationship mutations using foreign IDs; it verifies expected denials and confirms foreign rows and audit history remain unchanged.
 
 These tests provide meaningful repository evidence. Mock-based unit tests are not equivalent to exhaustive live route testing, and the local-D1 suite does not prove production D1 behavior.
 
