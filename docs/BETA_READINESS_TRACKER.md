@@ -36,7 +36,7 @@ The authorization and data-integrity hardening series is now merged to `main`:
 - PR #83: corrected Admin role display in the member roster; development deployment was owner-verified.
 - 2026-11-25 development UI acceptance: Owner, Admin, Editor and Viewer role display/transition checks were owner-confirmed. Admin protected controls and Viewer read-only behavior were observed. This is UI smoke-test evidence only; the full action/API matrix and production acceptance remain open.
 
-The merged changes have passing validation and applicable Workers/Pages checks. They are merged to `main`; this does not by itself prove production promotion or complete live role-matrix acceptance. The beta score remains 62.5/100 because remaining controls require independent environment verification and owner/operator decisions, not merely more merged code.
+The merged changes have passing validation and applicable Workers/Pages checks. They are merged to `main`; this does not by itself prove production promotion or complete live role-matrix acceptance. The beta score is now 65.0/100 after the limited development UI acceptance evidence recorded below. Remaining controls still require independent environment verification and owner/operator decisions; the score increase does not represent full authorization or production acceptance.
 
 ## Scored evidence checklist
 
