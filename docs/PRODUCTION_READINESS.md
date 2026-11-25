@@ -100,7 +100,7 @@ The separate evidence-based beta tracker currently records 62.5/100. This is not
 - PRs #61–#70 and #73 are draft feature branches covering identity unlink, invitation creation/revocation, person profile/lifecycle, relationship writes, import integrity, family deletion, identity-claim creation and person creation.
 - The high-risk mutation PRs now include local D1 integration tests for their principal write paths. Their validation and Cloudflare previews are being checked independently; draft code is not counted as merged or production protection.
 - PR #68 now stages workbook imports and applies people, relationships and audit records in one authorized D1 batch. Its local D1 tests exercise malformed late rows, forced database-failure rollback, relationship import and the reason-gated Super Admin audit path. The latest commit still requires final CI and Workers preview confirmation.
-- PR #58 contains the D1 backup/recovery runbook but remains unmerged. No production SQL export, restore or backup destination setup has been performed.
+- PR #58 is merged and adds `docs/BACKUP_RECOVERY.md`, a proposed D1 backup/recovery runbook. Its schedule and storage choices remain pending owner approval; no production SQL export, restore or backup destination setup has been performed.
 - PR #71 and #72 are documentation drafts for audit evidence and beta acceptance. Owner-side production checks, support/rollback decisions, monitoring/alerts, privacy/retention decisions and explicit go/no-go remain outstanding.
 
 No production deployment, production D1 export/restore/migration, secrets change or production-branch update was performed as part of this work. Production promotion and opening the beta require separate explicit owner approval.
