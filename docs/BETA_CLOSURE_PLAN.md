@@ -2,12 +2,12 @@
 
 **Prepared:** 2026-11-25  
 **Latest baseline:** 2026-11-25  
-**Purpose:** Close the remaining 22.5 points in `BETA_READINESS_TRACKER.md` with bounded, risk-proportionate evidence.  
+**Purpose:** Close the remaining 15 points in `BETA_READINESS_TRACKER.md` with bounded, risk-proportionate evidence.  
 **Scope:** Controlled Friends & Family beta only. This is not a v1.0 production certification.
 
 ## Ground rules
 
-1. Keep the existing 20-control, 100-point beta score unchanged. The current baseline is **82.5/100**, with **17.5 points remaining**.
+1. Keep the existing 20-control, 100-point beta score unchanged. The current baseline is **85/100**, with **15 points remaining**.
 2. Do not add requirements unless a concrete Friends & Family beta safety risk is identified.
 3. Evidence must be the smallest reliable demonstration that the control works. Do not create paperwork for its own sake.
 4. Green CI, source review, documentation and preview deployment are useful evidence, but do not substitute for live behaviour where live behaviour is the thing being verified.
@@ -25,7 +25,7 @@ Controls 10–12 are complete in the source tracker based on route/source review
 | 16. Monitoring and alerts | 0 | **Complete** | PR #101 merged. Normal monitor run #2 succeeded for dev/prod; controlled failure run #3 failed the health job intentionally and notification job succeeded, creating assigned issue #103. A second controlled run reused the alert (no duplicate); test issue closed after verification. [Run #3](https://github.com/vtrravikumar/family-tree/actions/runs/45599198715), [issue #103](https://github.com/vtrravikumar/family-tree/issues/103). |
 | 17. Privacy and lifecycle | 2.5 | **Partial — lightweight beta requirement** | PRs #109/#110 document verified session/logout, invitation/member-removal behaviour, Owner-only family deletion and the approved account-deletion request email. Close remaining account-deletion procedure/owned-family handling, audit retention and owner approval of participant-facing wording. |
 | 18. Support, incident and rollback | 2.5 | **Partial — lightweight beta requirement** | Support route and incident/rollback instructions are documented in PRs #102/#109; PR #110 confirms account/family-deletion request email. Remaining: owner review/approval of the participant-facing note. Production data recovery remains separately approved. |
-| 19. Intended beta account/role acceptance | 2.5 | **Mandatory blocker** | Bounded acceptance run using intended beta test accounts: Owner, Admin, Editor, Viewer; key family workflows; invitation lifecycle; direct API denials; family isolation. Production acceptance is a short smoke pass with approved test accounts. |
+| 19. Intended beta account/role acceptance | 0 | **Complete** | Owner confirmed intended account/role acceptance has already been checked and confirmed, including Owner, Admin, Editor and Viewer. Existing automated regressions cover role boundaries, invitations, identity claims and family isolation. Any future UAT defects remain subject to normal triage. |
 | 20. Beta notes and go/no-go | 5 | **Final release gate** | Publish scope/known limitations and support route. Owner reviews evidence and explicitly approves or declines invitations. A 100 score does not itself authorize launch. |
 
 ## Execution order and timebox
@@ -38,7 +38,7 @@ The target is **7–9 focused hours of hands-on work**, excluding owner response
 | B. Production edge checks (15) | 1 hour | Concise verification record |
 | C. Monitoring (16) | 1–2 hours | Repeated health checks and verified notification path |
 | D. Privacy and incident essentials (17–18) | 2 hours | Short beta notice and one-page operator instructions |
-| E. Acceptance and release gate (19–20) | 2 hours | Intended-account acceptance record, beta notes and owner go/no-go |
+| E. Beta notes and release gate (20) | 1 hour | Beta notes and owner go/no-go |
 
 If a critical check fails, stop that work package, fix the underlying issue and rerun the relevant test. Do not lower the evidence standard or mark a control complete to stay within the timebox.
 
@@ -67,4 +67,9 @@ Use development tests and disposable D1 restore rehearsals wherever they can pro
 
 ## Current baseline
 
-The source tracker records **82.5/100**, with **17.5 points remaining**. Controls 10–12 are complete; Work Package A from the previous plan is therefore closed. Control 16 (monitoring/alerts) is complete. The next execution sequence is owner-approved backup/recovery (currently deferred pending explicit operational approval), production edge verification, remaining privacy/account-deletion and support-note approvals, then intended-account acceptance and the explicit beta go/no-go.
+The source tracker records **82.5/100**, with **17.5 points remaining**. Controls 10–12 are complete; Work Package A from the previous plan is therefore closed. Control 16 (monitoring/alerts) is complete. The next execution sequence is owner-approved backup/recovery (currently deferred pending explicit operational approval), production edge verification, remaining privacy/account-deletion and support-note approvals, then beta notes and the explicit beta go/no-go.
+
+
+## Intended-account acceptance closure — 2026-11-25
+
+The owner confirmed control 19 is already checked and complete. No further role acceptance campaign is required; close control 19 at 5/5. The remaining release gate is control 20, alongside operational blockers 14, 15, 17 and 18.
