@@ -81,3 +81,7 @@ persist = true
 
 [env.production.observability.issues]
 enabled = false
+
+# Daily application audit-log cleanup: only D1 audit_logs older than 90 days.
+[env.production.triggers]
+crons = ["17 2 * * *"]
