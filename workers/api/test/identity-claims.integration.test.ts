@@ -110,7 +110,7 @@ async function importMalformedWorkbook() {
         confirmed: true,
         confirmDeceasedRecords: true,
         people: [
-          { key: "valid-first", givenName: "Would Have Been Imported" },
+          { key: "00000000-0000-4000-8000-000000000001", givenName: "Would Have Been Imported" },
           { key: "", givenName: "Invalid Late Row" },
         ],
         relationships: [],
@@ -132,11 +132,11 @@ async function importFamilyWithRelationship() {
         confirmed: true,
         confirmDeceasedRecords: true,
         people: [
-          { key: "import-parent", givenName: "Imported Parent" },
-          { key: "import-child", givenName: "Imported Child" },
+          { key: "00000000-0000-4000-8000-000000000002", givenName: "Imported Parent" },
+          { key: "00000000-0000-4000-8000-000000000003", givenName: "Imported Child" },
         ],
         relationships: [
-          { from: "import-parent", to: "import-child", type: "biological_parent" },
+          { from: "00000000-0000-4000-8000-000000000002", to: "00000000-0000-4000-8000-000000000003", type: "biological_parent" },
         ],
       }),
     },
@@ -156,8 +156,8 @@ async function importWithForcedDatabaseFailure() {
         confirmed: true,
         confirmDeceasedRecords: true,
         people: [
-          { key: "first-row", givenName: "First Import Row" },
-          { key: "failing-row", givenName: "TriggerFailure" },
+          { key: "00000000-0000-4000-8000-000000000006", givenName: "First Import Row" },
+          { key: "00000000-0000-4000-8000-000000000007", givenName: "TriggerFailure" },
         ],
         relationships: [],
       }),
@@ -472,12 +472,12 @@ describe("identity claim review against local D1", () => {
           confirmed: true,
           confirmDeceasedRecords: true,
           people: [
-            { key: "cycle-a", givenName: "Cycle Person A" },
-            { key: "cycle-b", givenName: "Cycle Person B" },
+            { key: "00000000-0000-4000-8000-000000000004", givenName: "Cycle Person A" },
+            { key: "00000000-0000-4000-8000-000000000005", givenName: "Cycle Person B" },
           ],
           relationships: [
-            { from: "cycle-a", to: "cycle-b", type: "biological_parent" },
-            { from: "cycle-b", to: "cycle-a", type: "biological_parent" },
+            { from: "00000000-0000-4000-8000-000000000004", to: "00000000-0000-4000-8000-000000000005", type: "biological_parent" },
+            { from: "00000000-0000-4000-8000-000000000005", to: "00000000-0000-4000-8000-000000000004", type: "biological_parent" },
           ],
         }),
       },
@@ -867,5 +867,143 @@ describe("identity claim review against local D1", () => {
     expect(foreignRelationshipRow?.id).toBe(foreignRelationship);
     expect(foreignAudits?.count).toBe(0);
   });
+
+  it("does not merge a same-name person and preserves Tamil and Devanagari identities", async () => {
+    const ids = [
+      "00000000-0000-4000-8000-000000000011",
+      "00000000-0000-4000-8000-000000000012",
+      "00000000-0000-4000-8000-000000000013",
+    ];
+    const response = await SELF.fetch(`https://vansvriksh.test/v1/families/${FAMILY_ID}/import`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${API_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        confirmed: true,
+        confirmDeceasedRecords: true,
+        people: [
+          { key: ids[0], givenName: "Test Person" },
+          { key: ids[1], givenName: "சீதா" },
+          { key: ids[2], givenName: "सीता" },
+        ],
+        relationships: [],
+      }),
+    });
+    expect(response.status).toBe(200);
+    const rows = await env.DB.prepare(
+      "SELECT id,given_name FROM persons WHERE family_id=? AND id IN (?,?,?) ORDER BY id",
+    ).bind(FAMILY_ID, ...ids).all<{ id: string; given_name: string }>();
+    expect(rows.results).toHaveLength(3);
+    expect(rows.results.map(row => row.given_name).sort()).toEqual(["Test Person", "சீதா", "सीता"].sort());
+    const sameNameCount = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM persons WHERE family_id=? AND given_name='Test Person'",
+    ).bind(FAMILY_ID).first<{ count: number }>();
+    expect(sameNameCount?.count).toBe(2);
+  });
+
+  it("rejects a person ID owned by another family without importing any rows", async () => {
+    const timestamp = "2026-11-24T00:00:00.000Z";
+    const foreignId = "00000000-0000-4000-8000-000000000014";
+    await run(
+      "INSERT INTO families(id,name,owner_user_id,created_at,updated_at) VALUES(?,?,?,?,?)",
+      ["family-import-foreign", "Foreign Import Family", OWNER_ID, timestamp, timestamp],
+    );
+    await run(
+      "INSERT INTO persons(id,family_id,given_name,created_at,updated_at) VALUES(?,?,?,?,?)",
+      [foreignId, "family-import-foreign", "Foreign Person", timestamp, timestamp],
+    );
+    const response = await SELF.fetch(`https://vansvriksh.test/v1/families/${FAMILY_ID}/import`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${API_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        confirmed: true,
+        confirmDeceasedRecords: true,
+        people: [
+          { key: "00000000-0000-4000-8000-000000000015", givenName: "Would Not Be Created" },
+          { key: foreignId, givenName: "Foreign Person" },
+        ],
+        relationships: [],
+      }),
+    });
+    expect(response.status).toBe(409);
+    const partial = await env.DB.prepare(
+      "SELECT id FROM persons WHERE family_id=? AND given_name='Would Not Be Created'",
+    ).bind(FAMILY_ID).first<{ id: string }>();
+    expect(partial).toBeNull();
+  });
+
+  it("preserves date precision, original text, birthplace and biography for imported people", async () => {
+    const personId = "00000000-0000-4000-8000-000000000016";
+    const response = await SELF.fetch(`https://vansvriksh.test/v1/families/${FAMILY_ID}/import`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${API_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        confirmed: true,
+        confirmDeceasedRecords: true,
+        people: [{
+          key: personId,
+          givenName: "Historical Person",
+          gender: "female",
+          lifeStatus: "deceased",
+          birthDateKind: "range",
+          birthRangeStartYear: 1930,
+          birthRangeEndYear: 1935,
+          birthOriginalText: "circa 1932, family recollection",
+          birthPlace: "Madurai",
+          birthCountry: "India",
+          deathDateKind: "approximate_year",
+          deathYear: 2001,
+          deathOriginalText: "around 2001",
+          biography: "A preserved family history note.",
+        }],
+        relationships: [],
+      }),
+    });
+    expect(response.status).toBe(200);
+    const person = await env.DB.prepare(
+      "SELECT life_status,birth_date_kind,birth_range_start_year,birth_range_end_year,birth_original_text,birth_place,birth_country,death_date_kind,death_year,death_original_text,biography FROM persons WHERE id=? AND family_id=?",
+    ).bind(personId, FAMILY_ID).first<Record<string, unknown>>();
+    expect(person).toMatchObject({
+      life_status: "deceased",
+      birth_date_kind: "range",
+      birth_range_start_year: 1930,
+      birth_range_end_year: 1935,
+      birth_original_text: "circa 1932, family recollection",
+      birth_place: "Madurai",
+      birth_country: "India",
+      death_date_kind: "approximate_year",
+      death_year: 2001,
+      death_original_text: "around 2001",
+      biography: "A preserved family history note.",
+    });
+  });
+
+  it("makes repeated imports of the same stable person ID idempotent", async () => {
+    const personId = "00000000-0000-4000-8000-000000000017";
+    const payload = {
+      confirmed: true,
+      confirmDeceasedRecords: true,
+      people: [{ key: personId, givenName: "Repeat Import Person", birthDateKind: "unknown" }],
+      relationships: [],
+    };
+    const send = () => SELF.fetch(`https://vansvriksh.test/v1/families/${FAMILY_ID}/import`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${API_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const first = await send();
+    const second = await send();
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    const firstBody = await first.json() as { data: { peopleCreated: number } };
+    const secondBody = await second.json() as { data: { peopleCreated: number; peopleMatched: number } };
+    expect(firstBody.data.peopleCreated).toBe(1);
+    expect(secondBody.data.peopleCreated).toBe(0);
+    expect(secondBody.data.peopleMatched).toBe(1);
+    const count = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM persons WHERE id=? AND family_id=?",
+    ).bind(personId, FAMILY_ID).first<{ count: number }>();
+    expect(count?.count).toBe(1);
+  });
+
 });
 

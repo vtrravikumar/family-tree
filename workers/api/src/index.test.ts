@@ -654,7 +654,7 @@ describe("server-side authorization", () => {
     const response=await request("/v1/families/family-1/import","owner","POST",{
       confirmed:true,confirmDeceasedRecords:true,
       people:[
-        {key:"valid-person",givenName:"Valid"},
+        {key:"00000000-0000-4000-8000-000000000021",givenName:"Valid"},
         {key:"",givenName:"Invalid late row"},
       ],
       relationships:[],
@@ -678,7 +678,7 @@ describe("server-side authorization", () => {
     const writes:Array<{sql:string;bound:unknown[]}> = [];
     const response=await request("/v1/families/family-1/import","owner","POST",{
       confirmed:true,confirmDeceasedRecords:true,
-      people:[{key:"mira",givenName:"Mira",familyName:"Raman",biography:"Remembered for her generous storytelling."}],
+      people:[{key:"00000000-0000-4000-8000-000000000022",givenName:"Mira",familyName:"Raman",biography:"Remembered for her generous storytelling."}],
       relationships:[],
     },false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
     expect(response.status).toBe(200);
