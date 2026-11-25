@@ -102,7 +102,7 @@ The following changes are under review after the initial audit. Draft PRs are ev
 |---:|---|---|---|
 | #59 (merged) | Identity claim review | Conditional pending-state transition; dependent link/audit writes gated on success | Merged to main; local D1 integration tests cover competing decisions and uniqueness rollback |
 | #60 (merged) | Member roster and member role changes | Viewer roster denial; write-time actor/target role checks; audit gated on successful mutation | Merged to main; validation passed |
-| #61 (draft) | Identity unlink | Recheck current Owner/Admin membership at unlink; gate audit and claim withdrawal on successful unlink | Validation, Development Pages and Workers preview passed; Production Pages preview still running; not merged |
+| #61 (draft) | Identity unlink | Recheck current Owner/Admin membership at unlink; gate audit and claim withdrawal on successful unlink | Validation, both Pages previews and Workers preview passed; not merged |
 | #62 (draft) | Invitation creation | Recheck current Owner/Admin membership and Admin privilege restriction in INSERT | Validation, both Pages previews and Workers preview passed; not merged |
 | #64 (draft) | Invitation revocation | Recheck current Owner/Admin membership in conditional UPDATE | Validation, both Pages previews and Workers preview passed; not merged |
 | #65 (draft) | Person profile update | Recheck Owner/Admin/Editor membership in UPDATE | Local D1 integration test added; validation, both Pages previews and Workers preview passed; not merged |
