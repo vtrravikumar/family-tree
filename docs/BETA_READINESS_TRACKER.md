@@ -94,3 +94,7 @@ What could reduce confidence:
 - Production deployment, production D1 export/restore/migration, secrets changes and production resource changes require separate explicit owner approval.
 - Do not open the Friends & Family beta merely because the score reaches 100%; all Gate 1 evidence must be reviewed and the owner must explicitly approve the go/no-go.
 - Recalculate this score only when evidence changes. Keep v1.0-only and deferred product features out of this beta denominator.
+
+- PR #71 (draft documentation): route-authorization follow-up findings and roadmap status refresh; validation and Workers preview passed, Pages preview still pending at last check.
+- PR #72 (draft documentation): beta acceptance checklist; validation passed, Pages preview still pending at last check.
+- PR #73 (draft): person creation authorization-atomicity; typecheck, tests and build passed, Cloudflare previews not yet reported at last check.
