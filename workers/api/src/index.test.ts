@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import worker, { type Env } from "./index";
+import worker, { isGoogleRegistrationAllowed, type Env } from "./index";
+
+describe("open Google registration policy", () => {
+  it("allows any non-empty email after Google credential verification", () => {
+    expect(isGoogleRegistrationAllowed("new.person@gmail.com")).toBe(true);
+    expect(isGoogleRegistrationAllowed("relative@outlook.com")).toBe(true);
+  });
+
+  it("rejects an empty email identity", () => {
+    expect(isGoogleRegistrationAllowed("   ")).toBe(false);
+  });
+});
 
 function makeEnv(role: string | null = "owner", session = false, batchChanges = 1, superAdmin = false, initialRateCount = 0, targetRole = "editor", expiredSession = false, personStatus = "alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString(), observedWrites?: Array<{sql:string;bound:unknown[]}>, claimRequesterUserId = "another-user", claimStatus = "pending"): Env {
   let rateCount=initialRateCount;
