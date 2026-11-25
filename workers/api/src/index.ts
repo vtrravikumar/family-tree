@@ -476,19 +476,21 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const t=now();
     if(role==="owner"){
       try{
-        await env.DB.batch([
-          env.DB.prepare("INSERT INTO person_identity_links(family_id,person_id,user_id,linked_by_user_id,linked_at) VALUES(?,?,?,?,?)").bind(familyId,personId,actorUserId,actorUserId,t),
-          env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'identity.claimed_directly',?,?)").bind(id(),familyId,actorUserId,personId,JSON.stringify({userId:actorUserId}),t)
+        const results=await env.DB.batch([
+          env.DB.prepare("INSERT INTO person_identity_links(family_id,person_id,user_id,linked_by_user_id,linked_at) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role='owner') AND EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=?)").bind(familyId,personId,actorUserId,actorUserId,t,familyId,actorUserId,personId,familyId),
+          env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'identity.claimed_directly',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,personId,JSON.stringify({userId:actorUserId}),t)
         ]);
+        if(!results[0]?.meta.changes)return fail(409,"claim_unavailable","Your family membership or the selected person changed before the identity could be linked.");
       }catch{return fail(409,"identity_conflict","This person or account has already been linked.");}
       return json({data:{personId,status:"approved",linkedAt:t}},{status:201});
     }
     const claimId=id();
     try{
-      await env.DB.batch([
-        env.DB.prepare("INSERT INTO person_identity_claims(id,family_id,person_id,requester_user_id,status,requested_at) VALUES(?,?,?,?,'pending',?)").bind(claimId,familyId,personId,actorUserId,t),
+      const results=await env.DB.batch([
+        env.DB.prepare("INSERT INTO person_identity_claims(id,family_id,person_id,requester_user_id,status,requested_at) SELECT ?,?,?,?,'pending',? WHERE EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=?) AND EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=?)").bind(claimId,familyId,personId,actorUserId,t,familyId,actorUserId,personId,familyId),
         env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'identity.claim_requested',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,personId,JSON.stringify({claimId}),t)
       ]);
+      if(!results[0]?.meta.changes)return fail(409,"claim_unavailable","Your family membership or the selected person changed before the claim could be created.");
     }catch{return fail(409,"claim_already_pending","A pending claim already exists or an identity association is already in place.");}
     return json({data:{id:claimId,personId,status:"pending",requestedAt:t}},{status:201});
   }
