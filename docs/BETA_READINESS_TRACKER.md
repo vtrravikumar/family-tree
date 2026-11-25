@@ -83,7 +83,7 @@ The merged changes have passing validation and applicable Workers/Pages checks. 
 Why confidence is reasonably high:
 - The product is already deployed in a separated production environment.
 - Core family creation, role/invitation flows, workbook portability and a selected-family transfer have owner-confirmed evidence.
-- Recent security changes have been delivered in PR #59 and #60; PR #61 and #62 have green/ongoing CI evidence, with PR #62 now reported green by the owner and verified through the associated workflow run.
+- Authorization and data-integrity hardening across PRs #59–#70 and #73 is merged, with CI and local-D1 evidence. PR #78 additionally closes the identity-claim review stale-role race by checking current Owner/Admin membership at write time. These changes improve implementation confidence but do not replace live beta role-matrix and environment acceptance.
 - The remaining checklist is bounded and does not require building the deferred v1.0 feature set.
 
 What could reduce confidence:
