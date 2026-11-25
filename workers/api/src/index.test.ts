@@ -692,4 +692,32 @@ describe("server-side authorization", () => {
     expect((await request(path, null, "POST", payload, true, 1, true)).status).toBe(400);
     expect((await request(path, null, "POST", {...payload,reason:"Authorized family restoration"}, true, 1, true)).status).toBe(200);
   });
+
+
+  it.each(["owner","admin","editor","viewer"])("returns only the %s identity capabilities", async (role) => {
+    const response=await request("/v1/families/family-1/identity",role);
+    expect(response.status).toBe(200);
+    const body=await response.json() as {data:{canReview:boolean;canDirectClaim:boolean;claims:unknown[];pendingClaims:unknown[]}};
+    expect(body.data.canReview).toBe(role==="owner"||role==="admin");
+    expect(body.data.canDirectClaim).toBe(role==="owner");
+    expect(body.data.claims).toEqual([]);
+    // The test fixture has no pending claims; the capability flags are the
+    // explicit role boundary exposed by this read endpoint.
+    expect(body.data.pendingClaims).toEqual([]);
+  });
+
+  it("denies invitation creation to Editors and Viewers and limits Admin invitations", async () => {
+    const path="/v1/families/family-1/invitations";
+    const editor=await request(path,"editor","POST",{email:"relative@example.com",role:"viewer"});
+    const viewer=await request(path,"viewer","POST",{email:"relative@example.com",role:"viewer"});
+    expect(editor.status).toBe(403);
+    expect(viewer.status).toBe(403);
+
+    const adminCannotGrantAdmin=await request(path,"admin","POST",{email:"relative@example.com",role:"admin"});
+    expect(adminCannotGrantAdmin.status).toBe(403);
+    const adminCanInviteEditor=await request(path,"admin","POST",{email:"relative@example.com",role:"editor"});
+    expect(adminCanInviteEditor.status).toBe(201);
+    const ownerCanInviteAdmin=await request(path,"owner","POST",{email:"relative@example.com",role:"admin"});
+    expect(ownerCanInviteAdmin.status).toBe(201);
+  });
 });
