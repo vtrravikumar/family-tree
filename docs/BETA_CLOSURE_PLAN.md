@@ -7,7 +7,7 @@
 
 ## Ground rules
 
-1. Keep the existing 20-control, 100-point beta score unchanged. The current baseline is **77.5/100**, with **22.5 points remaining**.
+1. Keep the existing 20-control, 100-point beta score unchanged. The current baseline is **82.5/100**, with **17.5 points remaining**.
 2. Do not add requirements unless a concrete Friends & Family beta safety risk is identified.
 3. Evidence must be the smallest reliable demonstration that the control works. Do not create paperwork for its own sake.
 4. Green CI, source review, documentation and preview deployment are useful evidence, but do not substitute for live behaviour where live behaviour is the thing being verified.
@@ -23,8 +23,8 @@ Controls 10–12 are complete in the source tracker based on route/source review
 | 14. Backup/recovery | 2.5 | **Mandatory blocker** | Owner-approved production SQL export to the selected private destination (R2 is preferred, not provisioned), followed by restore into disposable D1 and concise integrity reconciliation. No production restore. |
 | 15. Production edge/security | 2.5 | **Mandatory blocker** | Focused production verification: allowed/disallowed CORS preflight, session cookie attributes, TLS/security headers, and confirmation errors/logs expose no credentials or family content. |
 | 16. Monitoring and alerts | 0 | **Complete** | PR #101 merged. Normal monitor run #2 succeeded for dev/prod; controlled failure run #3 failed the health job intentionally and notification job succeeded, creating assigned issue #103. A second controlled run reused the alert (no duplicate); test issue closed after verification. [Run #3](https://github.com/vtrravikumar/family-tree/actions/runs/45599198715), [issue #103](https://github.com/vtrravikumar/family-tree/issues/103). |
-| 17. Privacy and lifecycle | 5 | **Lightweight beta requirement** | Short user-readable beta notice plus decisions for session/logout, invitation expiry, account access removal/deletion expectations and audit-data handling. No enterprise privacy programme. |
-| 18. Support, incident and rollback | 5 | **Lightweight beta requirement** | One-page operator note naming the support route and covering suspected unauthorized access, data issue, outage, stopping invitations, preserving evidence and reverting a bad application release. Production data recovery remains separately approved. |
+| 17. Privacy and lifecycle | 2.5 | **Partial — lightweight beta requirement** | PRs #109/#110 document verified session/logout, invitation/member-removal behaviour, Owner-only family deletion and the approved account-deletion request email. Close remaining account-deletion procedure/owned-family handling, audit retention and owner approval of participant-facing wording. |
+| 18. Support, incident and rollback | 2.5 | **Partial — lightweight beta requirement** | Support route and incident/rollback instructions are documented in PRs #102/#109; PR #110 confirms account/family-deletion request email. Remaining: owner review/approval of the participant-facing note. Production data recovery remains separately approved. |
 | 19. Intended beta account/role acceptance | 2.5 | **Mandatory blocker** | Bounded acceptance run using intended beta test accounts: Owner, Admin, Editor, Viewer; key family workflows; invitation lifecycle; direct API denials; family isolation. Production acceptance is a short smoke pass with approved test accounts. |
 | 20. Beta notes and go/no-go | 5 | **Final release gate** | Publish scope/known limitations and support route. Owner reviews evidence and explicitly approves or declines invitations. A 100 score does not itself authorize launch. |
 
@@ -67,4 +67,4 @@ Use development tests and disposable D1 restore rehearsals wherever they can pro
 
 ## Current baseline
 
-The source tracker records **77.5/100**, with **22.5 points remaining**. Controls 10–12 are complete; Work Package A from the previous plan is therefore closed. Control 16 (monitoring/alerts) is complete. The next execution sequence is owner-approved backup/recovery (currently deferred pending explicit operational approval), production edge verification, privacy and support decisions, then intended-account acceptance and the explicit beta go/no-go.
+The source tracker records **82.5/100**, with **17.5 points remaining**. Controls 10–12 are complete; Work Package A from the previous plan is therefore closed. Control 16 (monitoring/alerts) is complete. The next execution sequence is owner-approved backup/recovery (currently deferred pending explicit operational approval), production edge verification, remaining privacy/account-deletion and support-note approvals, then intended-account acceptance and the explicit beta go/no-go.
