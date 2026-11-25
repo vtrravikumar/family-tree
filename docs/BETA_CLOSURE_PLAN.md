@@ -7,7 +7,7 @@
 
 ## Ground rules
 
-1. Keep the existing 20-control, 100-point beta score unchanged. The evidence score is **85/100**. Beta-gate readiness is **85/97.5 (87.2%)**, with **12.5 beta-gate points remaining**; Control 14's remaining 2.5 points are excluded and tracked in the production backlog.
+1. Keep the existing 20-control, 100-point beta score unchanged. The evidence score is **87.5/100**. Beta-gate readiness is **87.5/97.5 (89.7%)**, with **10 beta-gate points remaining**; Control 14's remaining 2.5 points are excluded and tracked in the production backlog.
 2. Do not add requirements unless a concrete Friends & Family beta safety risk is identified.
 3. Evidence must be the smallest reliable demonstration that the control works. Do not create paperwork for its own sake.
 4. Green CI, source review, documentation and preview deployment are useful evidence, but do not substitute for live behaviour where live behaviour is the thing being verified.
@@ -21,7 +21,7 @@ Controls 10–12 are complete in the source tracker based on route/source review
 | Control | Remaining points | Beta treatment | Minimum closure evidence |
 |---|---:|---|---|
 | 14. Backup/recovery | 2.5 | **Production backlog — not a beta blocker** | Retain `docs/BACKUP_RECOVERY.md`. After beta, obtain separate approvals for storage, access, schedule, retention and export/restore rehearsal. No production operation is authorized by this deferral. Excluded from beta-gate denominator. |
-| 15. Production edge/security | 2.5 | **Mandatory blocker** | Focused production verification: allowed/disallowed CORS preflight, session cookie attributes, TLS/security headers, and confirmation errors/logs expose no credentials or family content. |
+| 15. Production edge/security | 0 | **Complete** | Production TLS/CORS/health/header workflow passed. Source review covers secure cookie attributes and generic API errors. On 2026-11-25, a production invocation detail was reviewed: cookie value redacted, no request/response body or credentials/family content present. IP/geolocation metadata is visible; retention/minimization remains under Control 17. |
 | 16. Monitoring and alerts | 0 | **Complete** | PR #101 merged. Normal monitor run #2 succeeded for dev/prod; controlled failure run #3 failed the health job intentionally and notification job succeeded, creating assigned issue #103. A second controlled run reused the alert (no duplicate); test issue closed after verification. [Run #3](https://github.com/vtrravikumar/family-tree/actions/runs/45599198715), [issue #103](https://github.com/vtrravikumar/family-tree/issues/103). |
 | 17. Privacy and lifecycle | 2.5 | **Partial — lightweight beta requirement** | PRs #109/#110 document verified session/logout, invitation/member-removal behaviour, Owner-only family deletion and the approved account-deletion request email. Close remaining account-deletion procedure/owned-family handling, audit retention and owner approval of participant-facing wording. |
 | 18. Support, incident and rollback | 2.5 | **Partial — lightweight beta requirement** | Support route and incident/rollback instructions are documented in PRs #102/#109; PR #110 confirms account/family-deletion request email. Remaining: owner review/approval of the participant-facing note. Production data recovery remains separately approved. |
@@ -65,7 +65,7 @@ Use development tests and disposable D1 restore rehearsals wherever they can pro
 
 ## Current baseline
 
-The source tracker records an evidence score of **85/100**. Beta-gate readiness is **85/97.5 (87.2%)**, with **12.5 beta-gate points remaining**. Control 14's remaining 2.5 points are explicitly excluded from the beta gate and moved to the production backlog. Control 16 (monitoring/alerts) and control 19 (intended account/role acceptance) are complete. The next sequence is production edge/log review, remaining privacy/account-deletion and support-note approvals, then beta notes and the explicit beta go/no-go.
+The source tracker records an evidence score of **85/100**. Beta-gate readiness is **85/97.5 (87.2%)**, with **12.5 beta-gate points remaining**. Control 14's remaining 2.5 points are explicitly excluded from the beta gate and moved to the production backlog. Control 16 (monitoring/alerts) and control 19 (intended account/role acceptance) are complete. Control 15 is now complete. The remaining sequence is privacy/account-deletion and support-note approvals, then beta notes and the explicit beta go/no-go.
 
 
 ## Intended-account acceptance closure — 2026-11-25
@@ -76,3 +76,8 @@ The owner confirmed control 19 is already checked and complete. No further role 
 ## Backup/recovery scope decision — 2026-11-25
 
 The owner confirmed backup/recovery is not a blocker for the bounded Friends & Family beta. Control 14 remains partially evidenced at 2.5/5 for transparency, but its remaining 2.5 points are excluded from the beta-gate denominator and moved to the production backlog. The runbook remains available for later production-readiness work. This decision does not mark backup/recovery complete or authorize R2 provisioning, production export/restore, secrets, schedules or retention changes.
+
+
+## Production invocation-log review — 2026-11-25
+
+Control 15 was closed after the owner reviewed a production Cloudflare invocation detail for `GET /v1/families/sample-family-v1/identity`. The cookie header value was redacted; the displayed event contained no request/response body, session token, invitation code or family-record content. It did expose client IP and approximate geolocation/connection metadata. Log retention and data-minimization decisions remain open under Control 17 and are not treated as a reason to leave Control 15 partial.
