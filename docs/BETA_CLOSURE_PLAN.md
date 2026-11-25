@@ -7,7 +7,7 @@
 
 ## Ground rules
 
-1. Keep the existing 20-control, 100-point beta score unchanged. The evidence score is **90/100**. Beta-gate readiness is **90/97.5 (92.3%)**, with **7.5 beta-gate points remaining**; Control 14's remaining 2.5 points are excluded and tracked in the production backlog.
+1. Keep the existing 20-control, 100-point beta score unchanged. The evidence score is **92.5/100**. Beta-gate readiness is **92.5/97.5 (94.9%)**, with **5 beta-gate points remaining**; Control 14's remaining 2.5 points are excluded and tracked in the production backlog.
 2. Do not add requirements unless a concrete Friends & Family beta safety risk is identified.
 3. Evidence must be the smallest reliable demonstration that the control works. Do not create paperwork for its own sake.
 4. Green CI, source review, documentation and preview deployment are useful evidence, but do not substitute for live behaviour where live behaviour is the thing being verified.
@@ -26,7 +26,7 @@ Controls 10–12 are complete in the source tracker based on route/source review
 | 17. Privacy and lifecycle | 2.5 | **Partial — lightweight beta requirement** | Owner approved manual owner-reviewed account-deletion handling and 90-day D1 audit_logs retention on 2026-11-25. Scheduled cleanup implementation/tests are in PR #118; deployment and first scheduled-run evidence plus final participant-facing wording approval remain. No self-service account-deletion endpoint is claimed. |
 | 18. Support, incident and rollback | 0 | **Complete** | Support route and incident/rollback instructions are documented in PRs #102/#109; PR #110 confirms account/family-deletion request email. Owner explicitly approved the participant-facing support/incident wording on 2026-11-25. Production data recovery remains separately approved. |
 | 19. Intended beta account/role acceptance | 0 | **Complete** | Owner confirmed intended account/role acceptance has already been checked and confirmed, including Owner, Admin, Editor and Viewer. Existing automated regressions cover role boundaries, invitations, identity claims and family isolation. Any future UAT defects remain subject to normal triage. |
-| 20. Beta notes and go/no-go | 5 | **Final release gate** | Publish scope/known limitations and support route. Owner reviews evidence and explicitly approves or declines invitations. A 100 score does not itself authorize launch. |
+| 20. Beta notes and go/no-go | 0 | **Complete — staged, conditional go** | Owner approved a close-family/siblings/selected-relatives cohort, initially Viewer-only, with invitations sent manually and gradually by the owner. No bulk/automated invitations. Control 20 is closed at 5/5 for the approved staged plan. Actual invitations remain on hold until Control 17's first scheduled cleanup execution is verified and participant-facing privacy/lifecycle wording is approved. |
 
 ## Execution order and timebox
 
@@ -65,7 +65,7 @@ Use development tests and disposable D1 restore rehearsals wherever they can pro
 
 ## Current baseline
 
-The source tracker records an evidence score of **87.5/100**. Beta-gate readiness is **87.5/97.5 (89.7%)**, with **10 beta-gate points remaining**. Control 14's remaining 2.5 points are explicitly excluded from the beta gate and moved to the production backlog. Controls 15 (production edge/security), 16 (monitoring/alerts), 18 (support/incident/rollback) and 19 (intended account/role acceptance) are complete. The remaining sequence is Control 17's first scheduled-run evidence and privacy wording approval, then Control 20's beta notes, cohort/role confirmation and explicit beta go/no-go.
+The source tracker records an evidence score of **92.5/100**. Beta-gate readiness is **92.5/97.5 (94.9%)**, with **5 beta-gate points remaining**. Control 14's remaining 2.5 points are explicitly excluded from the beta gate and moved to the production backlog. Controls 15 (production edge/security), 16 (monitoring/alerts), 18 (support/incident/rollback) and 19 (intended account/role acceptance) are complete. Control 20's staged cohort, initial Viewer role and conditional go decision are approved. The only remaining beta-gate control is Control 17: verify the first scheduled-run evidence and approve participant-facing privacy/lifecycle wording before the owner begins invitations.
 
 
 ## Intended-account acceptance closure — 2026-11-25
