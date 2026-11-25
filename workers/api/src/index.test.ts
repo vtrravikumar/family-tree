@@ -544,6 +544,17 @@ describe("server-side authorization", () => {
     expect(writes.some(write=>/INSERT INTO persons|UPDATE persons|INSERT INTO relationships|INSERT INTO audit_logs|INSERT INTO platform_audit_logs/.test(write.sql))).toBe(false);
   });
 
+  it("rechecks current Editor membership when creating a person", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}> = [];
+    const response=await request("/v1/families/family-1/people","editor","POST",{givenName:"New Person"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(201);
+    const insert=writes.find(write=>write.sql.includes("INSERT INTO persons"));
+    expect(insert?.sql).toContain("actor.role IN ('owner','admin','editor')");
+    const audit=writes.find(write=>write.sql.includes("person.created"));
+    expect(audit?.sql).toContain("WHERE changes()=1");
+    expect((await request("/v1/families/family-1/people","editor","POST",{givenName:"New Person"},false,0)).status).toBe(409);
+  });
+
   it("preserves biographies when importing a family workbook", async () => {
     const writes:Array<{sql:string;bound:unknown[]}> = [];
     const response=await request("/v1/families/family-1/import","owner","POST",{
