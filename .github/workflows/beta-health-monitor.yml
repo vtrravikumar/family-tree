@@ -1,0 +1,45 @@
+name: Beta API health monitor
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: beta-api-health-monitor
+  cancel-in-progress: false
+
+jobs:
+  health:
+    name: Verify API health and database connectivity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check development API
+        env:
+          HEALTH_URL: https://api-dev.vansvriksh.vtrrk.in/health
+          EXPECTED_ENVIRONMENT: development
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error --location \
+            --retry 2 --retry-delay 5 --max-time 20 "$HEALTH_URL")"
+          printf '%s\n' "$response" | jq -e \
+            --arg expected "$EXPECTED_ENVIRONMENT" \
+            '.status == "ok" and .database == "connected" and .environment == $expected' \
+            >/dev/null
+
+      - name: Check production API
+        env:
+          HEALTH_URL: https://api.vansvriksh.vtrrk.in/health
+          EXPECTED_ENVIRONMENT: production
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error --location \
+            --retry 2 --retry-delay 5 --max-time 20 "$HEALTH_URL")"
+          printf '%s\n' "$response" | jq -e \
+            --arg expected "$EXPECTED_ENVIRONMENT" \
+            '.status == "ok" and .database == "connected" and .environment == $expected' \
+            >/dev/null
