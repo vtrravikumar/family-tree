@@ -90,6 +90,81 @@ async function createRelationship() {
   );
 }
 
+async function tokenHash(value: string) {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
+  let binary = "";
+  for (const byte of digest) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function importMalformedWorkbook() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/import`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        confirmed: true,
+        confirmDeceasedRecords: true,
+        people: [
+          { key: "valid-first", givenName: "Would Have Been Imported" },
+          { key: "", givenName: "Invalid Late Row" },
+        ],
+        relationships: [],
+      }),
+    },
+  );
+}
+
+async function importFamilyWithRelationship() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/import`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        confirmed: true,
+        confirmDeceasedRecords: true,
+        people: [
+          { key: "import-parent", givenName: "Imported Parent" },
+          { key: "import-child", givenName: "Imported Child" },
+        ],
+        relationships: [
+          { from: "import-parent", to: "import-child", type: "biological_parent" },
+        ],
+      }),
+    },
+  );
+}
+
+async function importWithForcedDatabaseFailure() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/import`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        confirmed: true,
+        confirmDeceasedRecords: true,
+        people: [
+          { key: "first-row", givenName: "First Import Row" },
+          { key: "failing-row", givenName: "TriggerFailure" },
+        ],
+        relationships: [],
+      }),
+    },
+  );
+}
+
 async function review(decision: "approve" | "reject") {
   return SELF.fetch(
     `https://vansvriksh.test/v1/families/${FAMILY_ID}/identity-claims/${CLAIM_ID}/review`,
@@ -106,6 +181,9 @@ async function review(decision: "approve" | "reject") {
 
 describe("identity claim review against local D1", () => {
   beforeEach(async () => {
+    await run("DELETE FROM platform_audit_logs");
+    await run("DELETE FROM auth_sessions");
+    await run("DELETE FROM platform_super_admins");
     await run("DELETE FROM audit_logs");
     await run("DELETE FROM person_identity_links");
     await run("DELETE FROM person_identity_claims");
@@ -114,6 +192,219 @@ describe("identity claim review against local D1", () => {
     await run("DELETE FROM families");
     await run("DELETE FROM users WHERE id != ?", [OWNER_ID]);
     await seedClaim();
+  });
+
+async function tokenHash(value: string) {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
+  let binary = "";
+  for (const byte of digest) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function importMalformedWorkbook() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/import`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        confirmed: true,
+        confirmDeceasedRecords: true,
+        people: [
+          { key: "valid-first", givenName: "Would Have Been Imported" },
+          { key: "", givenName: "Invalid Late Row" },
+        ],
+        relationships: [],
+      }),
+    },
+  );
+}
+
+async function importFamilyWithRelationship() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/import`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        confirmed: true,
+        confirmDeceasedRecords: true,
+        people: [
+          { key: "import-parent", givenName: "Imported Parent" },
+          { key: "import-child", givenName: "Imported Child" },
+        ],
+        relationships: [
+          { from: "import-parent", to: "import-child", type: "biological_parent" },
+        ],
+      }),
+    },
+  );
+}
+
+async function importWithForcedDatabaseFailure() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/import`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        confirmed: true,
+        confirmDeceasedRecords: true,
+        people: [
+          { key: "first-row", givenName: "First Import Row" },
+          { key: "failing-row", givenName: "TriggerFailure" },
+        ],
+        relationships: [],
+      }),
+    },
+  );
+}
+
+    await run("DELETE FROM platform_audit_logs");
+    await run("DELETE FROM auth_sessions");
+    await run("DELETE FROM platform_super_admins");
+  it("rejects a malformed late import row before any person or audit write", async () => {
+    const response = await importMalformedWorkbook();
+
+    expect(response.status).toBe(400);
+    const importedPerson = await env.DB.prepare(
+      "SELECT id FROM persons WHERE family_id=? AND display_name='Would Have Been Imported'",
+    ).bind(FAMILY_ID).first<{ id: string }>();
+    const importAudit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE family_id=? AND action='person.imported'",
+    ).bind(FAMILY_ID).first<{ count: number }>();
+
+    expect(importedPerson).toBeNull();
+    expect(importAudit?.count).toBe(0);
+  });
+
+  it("skips an imported ancestry edge that would create a cycle", async () => {
+    const response = await SELF.fetch(
+      `https://vansvriksh.test/v1/families/${FAMILY_ID}/import`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          confirmed: true,
+          confirmDeceasedRecords: true,
+          people: [
+            { key: "cycle-a", givenName: "Cycle Person A" },
+            { key: "cycle-b", givenName: "Cycle Person B" },
+          ],
+          relationships: [
+            { from: "cycle-a", to: "cycle-b", type: "biological_parent" },
+            { from: "cycle-b", to: "cycle-a", type: "biological_parent" },
+          ],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json() as { data: { relationshipsCreated: number; relationshipsSkipped: number } };
+    const count = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM relationships WHERE family_id=? AND relationship_type='biological_parent'",
+    ).bind(FAMILY_ID).first<{ count: number }>();
+
+    expect(body.data.relationshipsCreated).toBe(1);
+    expect(body.data.relationshipsSkipped).toBe(1);
+    expect(count?.count).toBe(1);
+  });
+
+  it("imports people, relationships and audit records in one local D1 batch", async () => {
+    const response = await importFamilyWithRelationship();
+
+    expect(response.status).toBe(200);
+    const body = await response.json() as { data: { peopleCreated: number; relationshipsCreated: number } };
+    const people = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM persons WHERE family_id=? AND display_name IN ('Imported Parent','Imported Child')",
+    ).bind(FAMILY_ID).first<{ count: number }>();
+    const relationship = await env.DB.prepare(
+      "SELECT id FROM relationships WHERE family_id=? AND relationship_type='biological_parent' AND from_person_id IN (SELECT id FROM persons WHERE display_name='Imported Parent') AND to_person_id IN (SELECT id FROM persons WHERE display_name='Imported Child')",
+    ).bind(FAMILY_ID).first<{ id: string }>();
+    const audit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE family_id=? AND action='relationship.imported' AND entity_id=?",
+    ).bind(FAMILY_ID, relationship?.id ?? "").first<{ count: number }>();
+
+    expect(body.data.peopleCreated).toBe(2);
+    expect(body.data.relationshipsCreated).toBe(1);
+    expect(people?.count).toBe(2);
+    expect(relationship?.id).toBeTruthy();
+    expect(audit?.count).toBe(1);
+  });
+
+  it("rolls back all imported rows and audits when a later D1 insert fails", async () => {
+    await run(`CREATE TRIGGER fail_import_person BEFORE INSERT ON persons
+      WHEN NEW.given_name='TriggerFailure'
+      BEGIN SELECT RAISE(ABORT, 'forced import failure'); END`);
+
+    try {
+      const response = await importWithForcedDatabaseFailure();
+      expect(response.status).toBe(409);
+
+      const firstRow = await env.DB.prepare(
+        "SELECT id FROM persons WHERE family_id=? AND display_name='First Import Row'",
+      ).bind(FAMILY_ID).first<{ id: string }>();
+      const importAudits = await env.DB.prepare(
+        "SELECT COUNT(*) AS count FROM audit_logs WHERE family_id=? AND action='person.imported'",
+      ).bind(FAMILY_ID).first<{ count: number }>();
+
+      expect(firstRow).toBeNull();
+      expect(importAudits?.count).toBe(0);
+    } finally {
+      await run("DROP TRIGGER IF EXISTS fail_import_person");
+    }
+  });
+
+  it("keeps a Super Admin import audit inside the authorized D1 batch", async () => {
+    const timestamp = "2026-11-24T00:00:00.000Z";
+    await run("DELETE FROM family_members WHERE family_id=? AND user_id=?", [FAMILY_ID, OWNER_ID]);
+    await run(
+      "INSERT INTO platform_super_admins(user_id,granted_at,reason) VALUES(?,?,?)",
+      [OWNER_ID, timestamp, "Integration test Super Admin"],
+    );
+    const sessionToken = "platform-import-test-session";
+    await run(
+      "INSERT INTO auth_sessions(id,user_id,token_hash,expires_at,created_at,last_seen_at) VALUES(?,?,?,?,?,?)",
+      ["platform-import-session", OWNER_ID, await tokenHash(sessionToken), "2026-12-01T00:00:00.000Z", timestamp, timestamp],
+    );
+
+    const response = await SELF.fetch(
+      `https://vansvriksh.test/v1/families/${FAMILY_ID}/import`,
+      {
+        method: "POST",
+        headers: {
+          Cookie: `vansvriksh_session=${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          confirmed: true,
+          confirmDeceasedRecords: true,
+          reason: "Authorized integration import",
+          people: [],
+          relationships: [],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const audit = await env.DB.prepare(
+      "SELECT action, target_id, reason FROM platform_audit_logs WHERE actor_user_id=? AND action='family.import'",
+    ).bind(OWNER_ID).first<{ action: string; target_id: string; reason: string }>();
+
+    expect(audit?.target_id).toBe(FAMILY_ID);
+    expect(audit?.reason).toBe("Authorized integration import");
   });
 
   it("executes write-time ancestry-cycle and duplicate guards against local D1", async () => {
