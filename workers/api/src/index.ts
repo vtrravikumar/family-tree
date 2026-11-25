@@ -585,19 +585,50 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const importReason=typeof input.reason==="string"?input.reason.trim():"";
     if(platformImport&&(importReason.length<12||importReason.length>500))return fail(400,"support_reason_required","Provide a clear import reason (12–500 characters).");
     if (input.people.length > 100) return fail(400,"import_too_large","Import exceeds the supported record limit.");
+
+    // Validate the entire people collection before preparing any writes.
+    const importKeys=new Set<string>();
+    for (const raw of input.people) {
+      if (!isObject(raw) || typeof raw.key!=="string" || !raw.key.trim() ||
+          typeof raw.givenName!=="string" || !raw.givenName.trim()) {
+        return fail(400,"invalid_import_person","Every imported person needs a key and given name.");
+      }
+      if (importKeys.has(raw.key)) return fail(400,"duplicate_import_person_key","Each imported person must have a unique key.");
+      importKeys.add(raw.key);
+      const given=raw.givenName.trim(), middle=textOrNull(raw.middleName), familyName=textOrNull(raw.familyName);
+      if (given.length>120 || (middle&&middle.length>120) || (familyName&&familyName.length>120)) {
+        return fail(400,"invalid_import_person","Imported name fields must be 120 characters or fewer.");
+      }
+    }
+
+    let platformFamilyName:string|null=null;
     if(platformImport){
       const family=await env.DB.prepare("SELECT id,name FROM families WHERE id=?").bind(familyId).first<{id:string;name:string}>();
       if(!family)return fail(404,"family_not_found","Family not found.");
-      await writePlatformAudit(env.DB,actorUserId,"family.import","family",familyId,importReason,{familyName:family.name,peopleCount:input.people.length});
+      platformFamilyName=family.name;
     }
+    const importPeople=input.people as JsonObject[];
     const existing=await env.DB.prepare("SELECT id,display_name,given_name,family_name FROM persons WHERE family_id=?").bind(familyId).all<{id:string;display_name:string;given_name:string;family_name:string|null}>();
+    const existingRelationships=await env.DB.prepare("SELECT id,from_person_id,to_person_id,relationship_type FROM relationships WHERE family_id=?").bind(familyId).all<{id:string;from_person_id:string;to_person_id:string;relationship_type:string}>();
     const normalize=(value:string)=>value.toLocaleLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu," ").trim().replace(/\s+/g," ");
     const existingByName=new Map(existing.results.map(p=>[normalize(p.display_name||[p.given_name,p.family_name].filter(Boolean).join(" ")),p.id]));
     const keyToId=new Map<string,string>(), created:string[]=[], matched:string[]=[], updated:string[]=[];
     const t=now();
-    for (const raw of input.people) {
-      if (!isObject(raw) || typeof raw.key!=="string" || typeof raw.givenName!=="string" || !raw.givenName.trim()) return fail(400,"invalid_import_person","Every imported person needs a key and given name.");
-      const key=raw.key, given=raw.givenName.trim(), family=textOrNull(raw.familyName), display=[given,family].filter(Boolean).join(" ");
+    const importAuthSql=platformImport
+      ? "EXISTS (SELECT 1 FROM platform_super_admins actor WHERE actor.user_id=?)"
+      : "EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin'))";
+    const importAuthBindings=platformImport?[actorUserId]:[familyId,actorUserId];
+    const importWrites: D1PreparedStatement[]=[];
+    const guard=env.DB.prepare("UPDATE families SET updated_at=updated_at WHERE id=? AND "+importAuthSql).bind(familyId,...importAuthBindings);
+
+    if(platformImport){
+      importWrites.push(env.DB.prepare("INSERT INTO platform_audit_logs(id,actor_user_id,action,target_type,target_id,reason,metadata,created_at) SELECT ?,?,'family.import','family',?,?,?,? WHERE EXISTS (SELECT 1 FROM platform_super_admins actor WHERE actor.user_id=?)")
+        .bind(id(),actorUserId,familyId,importReason,JSON.stringify({familyName:platformFamilyName,peopleCount:input.people.length}),t,actorUserId));
+    }
+
+    for (const raw of importPeople) {
+      const key=raw.key as string, given=(raw.givenName as string).trim(), familyName=textOrNull(raw.familyName);
+      const display=[given,familyName].filter(Boolean).join(" ");
       const aliases=Array.isArray(raw.aliases)?raw.aliases.filter((v):v is string=>typeof v==="string"):[];
       let match=existingByName.get(normalize(display));
       if (!match) {
@@ -607,7 +638,10 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       if (match) {
         keyToId.set(key,match);matched.push(match);
         if ((raw.sourceName==="Varsha"||raw.sourceName==="Bhoodevi") && raw.gender==="female") {
-          await env.DB.prepare("UPDATE persons SET gender='female',updated_at=? WHERE id=? AND family_id=? AND life_status='alive'").bind(t,match,familyId).run();
+          importWrites.push(env.DB.prepare("UPDATE persons SET gender='female',updated_at=? WHERE id=? AND family_id=? AND life_status='alive' AND "+importAuthSql)
+            .bind(t,match,familyId,...importAuthBindings));
+          importWrites.push(env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.import_match_updated',?,? WHERE changes()=1")
+            .bind(id(),familyId,actorUserId,match,JSON.stringify({source:"family-tree.xlsx",field:"gender"}),t));
           updated.push(match);
         }
         continue;
@@ -628,59 +662,118 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       const middle=textOrNull(raw.middleName);
       const birthKind=birth?(raw.birthDateKind==="exact"?"exact":"exact"):"unknown";
       const deathKind=hasDeathRecord?(death?"exact":"unknown"):"unknown";
-      await env.DB.prepare(`INSERT INTO persons(id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,birth_date_kind,birth_exact_date,death_date_kind,death_exact_date,biography,created_by_user_id,created_at,updated_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(personId,familyId,given,middle,family,[given,middle,family].filter(Boolean).join(" "),gender,life,birthKind,birth,deathKind,death,textOrNull(raw.biography),actorUserId,t,t).run();
-      await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,?,?,?)")
-        .bind(id(),familyId,actorUserId,personId,"person.imported",JSON.stringify({source:"family-tree.xlsx",lifeStatus:life}),t).run();
-      if (death) await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'person',?,'person.marked_deceased',?,?)")
-        .bind(id(),familyId,actorUserId,personId,JSON.stringify({source:"family-tree.xlsx",deathDate:death}),t).run();
+      importWrites.push(env.DB.prepare("INSERT INTO persons(id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,birth_date_kind,birth_exact_date,death_date_kind,death_exact_date,biography,created_by_user_id,created_at,updated_at) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE "+importAuthSql)
+        .bind(personId,familyId,given,middle,familyName,[given,middle,familyName].filter(Boolean).join(" "),gender,life,birthKind,birth,deathKind,death,textOrNull(raw.biography),actorUserId,t,t,...importAuthBindings));
+      importWrites.push(env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,?,?,? WHERE changes()=1")
+        .bind(id(),familyId,actorUserId,personId,"person.imported",JSON.stringify({source:"family-tree.xlsx",lifeStatus:life}),t));
+      if (death) importWrites.push(env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.marked_deceased',?,? WHERE changes()=1")
+        .bind(id(),familyId,actorUserId,personId,JSON.stringify({source:"family-tree.xlsx",deathDate:death}),t));
       keyToId.set(key,personId);created.push(personId);existingByName.set(normalize(display),personId);
     }
+
     const sourceKeys=new Map<string,string>();
-    for (const raw of input.people) if (isObject(raw)&&typeof raw.key==="string"&&typeof raw.sourceName==="string") sourceKeys.set(normalize(raw.sourceName),raw.key);
-    for (const raw of input.people) if (isObject(raw)&&typeof raw.key==="string"&&typeof raw.givenName==="string") {
-      sourceKeys.set(normalize(raw.givenName),raw.key);
-      sourceKeys.set(normalize([raw.givenName,textOrNull(raw.familyName)].filter(Boolean).join(" ")),raw.key);
+    for (const raw of importPeople) if (typeof raw.sourceName==="string") sourceKeys.set(normalize(raw.sourceName),raw.key as string);
+    for (const raw of importPeople) {
+      const key=raw.key as string, given=raw.givenName as string;
+      sourceKeys.set(normalize(given),key);
+      sourceKeys.set(normalize([given,textOrNull(raw.familyName)].filter(Boolean).join(" ")),key);
     }
     const relationshipInputs:JsonObject[]=[];
     const edgeSeen=new Set<string>();
-    for (const raw of (Array.isArray(input.relationships)?input.relationships:[])) if (isObject(raw) && typeof raw.from==="string" && typeof raw.to==="string" && typeof raw.type==="string") { const k=raw.from+"|"+raw.to+"|"+raw.type; if(!edgeSeen.has(k)){edgeSeen.add(k);relationshipInputs.push(raw);} }
-    for (const raw of input.people) if (isObject(raw)&&typeof raw.key==="string") {
-      if (Array.isArray(raw.parents)) for (const parent of raw.parents) if (typeof parent==="string") {
-        const from=sourceKeys.get(normalize(parent)); if(from&&from!==raw.key){const k=from+"|"+raw.key+"|biological_parent";if(!edgeSeen.has(k)){edgeSeen.add(k);relationshipInputs.push({from,to:raw.key,type:"biological_parent"});}}
-      }
-      if (Array.isArray(raw.partners)) for (const partner of raw.partners) if (typeof partner==="string") {
-        const to=sourceKeys.get(normalize(partner)); if(to&&to!==raw.key){const [a,b]=[raw.key,to].sort();const k=a+"|"+b+"|spouse";if(!edgeSeen.has(k)){edgeSeen.add(k);relationshipInputs.push({from:a,to:b,type:"spouse"});}}
+    for (const raw of (Array.isArray(input.relationships)?input.relationships:[])) {
+      if (isObject(raw) && typeof raw.from==="string" && typeof raw.to==="string" && typeof raw.type==="string") {
+        const k=raw.from+"|"+raw.to+"|"+raw.type;
+        if(!edgeSeen.has(k)){edgeSeen.add(k);relationshipInputs.push(raw);}
       }
     }
-    let relationshipsCreated=0, relationshipsSkipped=0;
+    for (const raw of importPeople) {
+      const key=raw.key as string;
+      if (Array.isArray(raw.parents)) for (const parent of raw.parents) if (typeof parent==="string") {
+        const from=sourceKeys.get(normalize(parent));
+        if(from&&from!==key){const k=from+"|"+key+"|biological_parent";if(!edgeSeen.has(k)){edgeSeen.add(k);relationshipInputs.push({from,to:key,type:"biological_parent"});}}
+      }
+      if (Array.isArray(raw.partners)) for (const partner of raw.partners) if (typeof partner==="string") {
+        const to=sourceKeys.get(normalize(partner));
+        if(to&&to!==key){const pair=[key,to].sort(),k=pair[0]+"|"+pair[1]+"|spouse";if(!edgeSeen.has(k)){edgeSeen.add(k);relationshipInputs.push({from:pair[0],to:pair[1],type:"spouse"});}}
+      }
+    }
+    if(relationshipInputs.length>250)return fail(400,"import_too_large","Import exceeds the supported relationship limit of 250.");
+
+    let relationshipsSkipped=0;
     const skippedByReason:Record<string,number>={};
     const skippedRelationshipDetails:Array<{from:string;to:string;type:string;reason:string}>=[];
     const skipRelationship=(raw:JsonObject,reason:string)=>{
       relationshipsSkipped++;skippedByReason[reason]=(skippedByReason[reason]??0)+1;
       skippedRelationshipDetails.push({from:String(raw.from??""),to:String(raw.to??""),type:String(raw.type??""),reason});
     };
+    const relationshipKey=(from:string,to:string,type:string)=>type==="spouse"
+      ? [...[from,to].sort(),type].join("|")
+      : [from,to,type].join("|");
+    const knownRelationshipKeys=new Set<string>();
+    const parentGraph=new Map<string,Set<string>>();
+    const addParentEdge=(from:string,to:string)=>{
+      if(!parentGraph.has(from))parentGraph.set(from,new Set());
+      parentGraph.get(from)!.add(to);
+    };
+    for(const relation of existingRelationships.results){
+      knownRelationshipKeys.add(relationshipKey(relation.from_person_id,relation.to_person_id,relation.relationship_type));
+      if(parentTypes.includes(relation.relationship_type))addParentEdge(relation.from_person_id,relation.to_person_id);
+    }
+    const hasPath=(from:string,to:string):boolean=>{
+      const visited=new Set<string>(),stack=[from];
+      while(stack.length){
+        const current=stack.pop()!;
+        if(current===to)return true;
+        if(visited.has(current))continue;
+        visited.add(current);
+        for(const next of parentGraph.get(current)??[])stack.push(next);
+      }
+      return false;
+    };
+    const relationshipResultIndexes:Array<{index:number;raw:JsonObject}>=[];
     for (const raw of relationshipInputs) {
-      if (!isObject(raw)||typeof raw.from!=="string"||typeof raw.to!=="string"||!relationshipTypes.includes(String(raw.type))) { if(isObject(raw))skipRelationship(raw,"unsupported_or_malformed"); continue; }
+      if (typeof raw.from!=="string"||typeof raw.to!=="string"||!relationshipTypes.includes(String(raw.type))) {
+        skipRelationship(raw,"unsupported_or_malformed");continue;
+      }
       const fromId=keyToId.get(raw.from),toId=keyToId.get(raw.to),type=String(raw.type);
       if (!fromId||!toId) { skipRelationship(raw,"person_key_not_resolved");continue; }
       if (fromId===toId) { skipRelationship(raw,"self_relationship_after_matching");continue; }
-      const duplicate=type==="spouse"
-        ? await env.DB.prepare("SELECT id FROM relationships WHERE family_id=? AND relationship_type='spouse' AND ((from_person_id=? AND to_person_id=?) OR (from_person_id=? AND to_person_id=?)) LIMIT 1").bind(familyId,fromId,toId,toId,fromId).first()
-        : await env.DB.prepare("SELECT id FROM relationships WHERE family_id=? AND from_person_id=? AND to_person_id=? AND relationship_type=? LIMIT 1").bind(familyId,fromId,toId,type).first();
-      if (duplicate) {skipRelationship(raw,"already_exists");continue;}
-      if (type==="biological_parent") {
-        const cycle=await env.DB.prepare(`WITH RECURSIVE descendants(person_id) AS (SELECT to_person_id FROM relationships WHERE family_id=? AND from_person_id=? AND relationship_type IN ('biological_parent','adoptive_parent','step_parent') UNION SELECT r.to_person_id FROM relationships r JOIN descendants d ON r.from_person_id=d.person_id WHERE r.family_id=? AND r.relationship_type IN ('biological_parent','adoptive_parent','step_parent')) SELECT 1 FROM descendants WHERE person_id=? LIMIT 1`).bind(familyId,toId,familyId,fromId).first();
-        if (cycle) {skipRelationship(raw,"would_create_ancestry_cycle");continue;}
-      }
+      const key=relationshipKey(fromId,toId,type);
+      if(knownRelationshipKeys.has(key)){skipRelationship(raw,"already_exists");continue;}
+      if(type==="biological_parent"&&hasPath(toId,fromId)){skipRelationship(raw,"would_create_ancestry_cycle");continue;}
+      knownRelationshipKeys.add(key);
+      if(parentTypes.includes(type))addParentEdge(fromId,toId);
       const rid=id();
-      await env.DB.batch([
-        env.DB.prepare("INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) VALUES(?,?,?,?,?,?,?)") .bind(rid,familyId,fromId,toId,type,actorUserId,t),
-        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) VALUES(?,?,?,'relationship',?,'relationship.imported',?)") .bind(id(),familyId,actorUserId,rid,t)
-      ]);
-      relationshipsCreated++;
+      const duplicateSql=type==="spouse"
+        ? "NOT EXISTS (SELECT 1 FROM relationships r WHERE r.family_id=? AND r.relationship_type='spouse' AND ((r.from_person_id=? AND r.to_person_id=?) OR (r.from_person_id=? AND r.to_person_id=?)))"
+        : "NOT EXISTS (SELECT 1 FROM relationships r WHERE r.family_id=? AND r.from_person_id=? AND r.to_person_id=? AND r.relationship_type=?)";
+      const duplicateBindings=type==="spouse"?[familyId,fromId,toId,toId,fromId]:[familyId,fromId,toId,type];
+      const cycleSql=type==="biological_parent"
+        ? " AND NOT EXISTS (WITH RECURSIVE descendants(person_id) AS (SELECT to_person_id FROM relationships WHERE family_id=? AND from_person_id=? AND relationship_type IN ('biological_parent','adoptive_parent','step_parent') UNION SELECT r.to_person_id FROM relationships r JOIN descendants d ON r.from_person_id=d.person_id WHERE r.family_id=? AND r.relationship_type IN ('biological_parent','adoptive_parent','step_parent')) SELECT 1 FROM descendants WHERE person_id=?)"
+        : "";
+      const cycleBindings=type==="biological_parent"?[familyId,toId,familyId,fromId]:[];
+      const insertSql="INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) SELECT ?,?,?,?,?,?,? WHERE "+importAuthSql+" AND EXISTS (SELECT 1 FROM persons a JOIN persons b ON b.family_id=a.family_id WHERE a.id=? AND b.id=? AND a.family_id=?) AND "+duplicateSql+cycleSql;
+      const resultIndex=importWrites.length+1;
+      importWrites.push(env.DB.prepare(insertSql).bind(rid,familyId,fromId,toId,type,actorUserId,t,...importAuthBindings,fromId,toId,familyId,...duplicateBindings,...cycleBindings));
+      importWrites.push(env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) SELECT ?,?,?, 'relationship',?,'relationship.imported',? WHERE changes()=1")
+        .bind(id(),familyId,actorUserId,rid,t));
+      relationshipResultIndexes.push({index:resultIndex,raw});
     }
-    return json({data:{peopleCreated:created.length,peopleMatched:matched.length,peopleUpdated:updated.length,relationshipsConsidered:relationshipInputs.length,relationshipsCreated,relationshipsSkipped,relationshipsSkippedByReason:skippedByReason,skippedRelationshipDetails}});
+
+    if(importWrites.length+1>900)return fail(400,"import_too_large","Import contains too many records or relationships for one atomic operation.");
+    const statements=[guard,...importWrites];
+    try{
+      const results=await env.DB.batch(statements);
+      if(!results[0]?.meta.changes)return fail(409,"import_unavailable","Your import permissions or the family changed before the import could be applied.");
+      let relationshipsCreated=0;
+      for(const entry of relationshipResultIndexes){
+        if(results[entry.index]?.meta.changes)relationshipsCreated++;
+        else skipRelationship(entry.raw,"already_exists_or_no_longer_available");
+      }
+      return json({data:{peopleCreated:created.length,peopleMatched:matched.length,peopleUpdated:updated.length,relationshipsConsidered:relationshipInputs.length,relationshipsCreated,relationshipsSkipped,relationshipsSkippedByReason:skippedByReason,skippedRelationshipDetails}});
+    }catch{
+      return fail(409,"import_failed","The import could not be completed. No imported family records or audit entries were committed.");
+    }
   }
 
   const personUpdateMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)$/);

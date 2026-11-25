@@ -502,6 +502,20 @@ describe("server-side authorization", () => {
     expect((await request(path, null, "POST", { reason: "Family data recovery request" }, true, 1, true)).status).toBe(200);
   });
 
+  it("validates all imported people before writing any family import records", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}> = [];
+    const response=await request("/v1/families/family-1/import","owner","POST",{
+      confirmed:true,confirmDeceasedRecords:true,
+      people:[
+        {key:"valid-person",givenName:"Valid"},
+        {key:"",givenName:"Invalid late row"},
+      ],
+      relationships:[],
+    },false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+    expect(response.status).toBe(400);
+    expect(writes.some(write=>/INSERT INTO persons|UPDATE persons|INSERT INTO relationships|INSERT INTO audit_logs|INSERT INTO platform_audit_logs/.test(write.sql))).toBe(false);
+  });
+
   it("preserves biographies when importing a family workbook", async () => {
     const writes:Array<{sql:string;bound:unknown[]}> = [];
     const response=await request("/v1/families/family-1/import","owner","POST",{
