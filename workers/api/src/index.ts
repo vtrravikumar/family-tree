@@ -359,7 +359,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if(role!=="owner"&&role!=="admin")return fail(role?403:404,"forbidden","Only a family owner or admin can revoke invitations.");
     const timestamp=now();
     const results=await env.DB.batch([
-      env.DB.prepare("UPDATE invitations SET status='revoked',revoked_at=?,revoked_by_user_id=? WHERE id=? AND family_id=? AND status='pending' AND expires_at>?").bind(timestamp,actorUserId,invitationId,familyId,timestamp),
+      env.DB.prepare("UPDATE invitations SET status='revoked',revoked_at=?,revoked_by_user_id=? WHERE id=? AND family_id=? AND status='pending' AND expires_at>? AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin'))").bind(timestamp,actorUserId,invitationId,familyId,timestamp,familyId,actorUserId),
       env.DB.prepare(`INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at)
         SELECT ?,?,?, 'invitation',?,'invitation.revoked',?,? WHERE changes()=1`).bind(id(),familyId,actorUserId,invitationId,JSON.stringify({invitationId}),timestamp),
     ]);

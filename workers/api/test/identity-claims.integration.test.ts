@@ -235,6 +235,22 @@ async function createInvitation() {
   );
 }
 
+async function revokeInvitation() {
+  const timestamp = "2026-11-24T00:00:00.000Z";
+  const expires = "2026-12-01T00:00:00.000Z";
+  await run(
+    "INSERT INTO invitations(id,family_id,inviter_user_id,invitee_email,invite_code_hash,offered_role,status,expires_at,created_at) VALUES(?,?,?,?,?,?, 'pending',?,?)",
+    ["invite-test", FAMILY_ID, OWNER_ID, "invitee@example.test", "unique-invite-hash", "viewer", expires, timestamp],
+  );
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/invitations/invite-test`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${API_TOKEN}` },
+    },
+  );
+}
+
 async function review(decision: "approve" | "reject") {
   return SELF.fetch(
     `https://vansvriksh.test/v1/families/${FAMILY_ID}/identity-claims/${CLAIM_ID}/review`,
@@ -278,6 +294,22 @@ describe("identity claim review against local D1", () => {
     expect(body.data.role).toBe("viewer");
     expect(invitation?.offered_role).toBe("viewer");
     expect(invitation?.status).toBe("pending");
+    expect(audit?.count).toBe(1);
+  });
+
+  it("revokes a pending invitation and writes one audit record in local D1", async () => {
+    const response = await revokeInvitation();
+
+    expect(response.status).toBe(200);
+    const invitation = await env.DB.prepare(
+      "SELECT status, revoked_by_user_id FROM invitations WHERE id=?",
+    ).bind("invite-test").first<{ status: string; revoked_by_user_id: string | null }>();
+    const audit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE action='invitation.revoked' AND entity_id=?",
+    ).bind("invite-test").first<{ count: number }>();
+
+    expect(invitation?.status).toBe("revoked");
+    expect(invitation?.revoked_by_user_id).toBe(OWNER_ID);
     expect(audit?.count).toBe(1);
   });
 
