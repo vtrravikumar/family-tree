@@ -111,6 +111,7 @@ The following changes are under review after the initial audit. Draft PRs are ev
 | #68 (draft) | Workbook import pre-validation | Validate all person rows before import-side writes; reject duplicate keys and overlong names | Typecheck/tests/build and Pages previews passed; Workers preview failed and requires investigation. Full transactional rollback is not solved |
 | #69 (draft) | Family deletion | Recheck Owner membership inside family DELETE; conflict on zero-row delete | Validation and Workers preview passed; Production Pages preview was still running at last check |
 | #70 (draft) | Identity claim creation | Recheck membership/person scope during claim INSERT; require Owner for direct link | Validation passed; Pages and Workers previews were still running at last check |
+| #73 (draft) | Person creation | Recheck current Owner/Admin/Editor membership inside person INSERT; gate audit on success | Typecheck, tests and build passed; Cloudflare previews were not yet reported at last check |
 
 ### Additional confirmed findings
 
