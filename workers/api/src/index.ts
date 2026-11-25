@@ -1036,6 +1036,9 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 }
 
 export default {
+  async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+    await pruneExpiredAuditLogs(env.DB);
+  },
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin") ?? "";
