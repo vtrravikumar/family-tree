@@ -110,7 +110,7 @@ async function importMalformedWorkbook() {
         confirmed: true,
         confirmDeceasedRecords: true,
         people: [
-          { key: "valid-first", givenName: "Would Have Been Imported" },
+          { key: "00000000-0000-4000-8000-000000000001", givenName: "Would Have Been Imported" },
           { key: "", givenName: "Invalid Late Row" },
         ],
         relationships: [],
@@ -132,11 +132,11 @@ async function importFamilyWithRelationship() {
         confirmed: true,
         confirmDeceasedRecords: true,
         people: [
-          { key: "import-parent", givenName: "Imported Parent" },
-          { key: "import-child", givenName: "Imported Child" },
+          { key: "00000000-0000-4000-8000-000000000002", givenName: "Imported Parent" },
+          { key: "00000000-0000-4000-8000-000000000003", givenName: "Imported Child" },
         ],
         relationships: [
-          { from: "import-parent", to: "import-child", type: "biological_parent" },
+          { from: "00000000-0000-4000-8000-000000000002", to: "00000000-0000-4000-8000-000000000003", type: "biological_parent" },
         ],
       }),
     },
@@ -156,8 +156,8 @@ async function importWithForcedDatabaseFailure() {
         confirmed: true,
         confirmDeceasedRecords: true,
         people: [
-          { key: "first-row", givenName: "First Import Row" },
-          { key: "failing-row", givenName: "TriggerFailure" },
+          { key: "00000000-0000-4000-8000-000000000006", givenName: "First Import Row" },
+          { key: "00000000-0000-4000-8000-000000000007", givenName: "TriggerFailure" },
         ],
         relationships: [],
       }),
@@ -472,12 +472,12 @@ describe("identity claim review against local D1", () => {
           confirmed: true,
           confirmDeceasedRecords: true,
           people: [
-            { key: "cycle-a", givenName: "Cycle Person A" },
-            { key: "cycle-b", givenName: "Cycle Person B" },
+            { key: "00000000-0000-4000-8000-000000000004", givenName: "Cycle Person A" },
+            { key: "00000000-0000-4000-8000-000000000005", givenName: "Cycle Person B" },
           ],
           relationships: [
-            { from: "cycle-a", to: "cycle-b", type: "biological_parent" },
-            { from: "cycle-b", to: "cycle-a", type: "biological_parent" },
+            { from: "00000000-0000-4000-8000-000000000004", to: "00000000-0000-4000-8000-000000000005", type: "biological_parent" },
+            { from: "00000000-0000-4000-8000-000000000005", to: "00000000-0000-4000-8000-000000000004", type: "biological_parent" },
           ],
         }),
       },
