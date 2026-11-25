@@ -4,7 +4,7 @@ Vansvriksh production web and API are deployed for controlled friends-and-family
 
 ## Current state
 
-Status checked 2026-11-24.
+Status checked 2026-11-25.
 
 - Google sign-in, family membership, Owner/Admin/Editor/Viewer roles, identity claims and platform Super Admin are implemented.
 - Production API is deployed at `https://api.vansvriksh.vtrrk.in`, bound to the separate `vansvriksh-production` D1 database. The owner verified the health response reports `environment: production` and `database: connected`.
@@ -12,7 +12,7 @@ Status checked 2026-11-24.
 - Development remains separate: `dev.vansvriksh.vtrrk.in` uses the dev Pages project and `api-dev.vansvriksh.vtrrk.in` uses the dev Worker/database.
 - All ten D1 migrations, `0001`–`0010`, have been applied to the new production database. The shared fictional sample is available there. On 2026-11-23, Wrangler returned a current Time Travel bookmark for production D1. The owner confirmed the account is on Workers Free, which provides 7-day D1 Time Travel retention. A separate APAC scratch D1 restore drill successfully restored a test row from `after-restore` to `before-restore`; production data was untouched, and the temporary database was deleted after verification. The owner has confirmed family creation and workbook export/import work in production. The owner has also completed a development-to-production family transfer and confirmed that the imported family works as desired.
 - PR #46 made the preview banner follow the configured API host and deployed successfully to production. PR #47 was merged to `main`.
-- M3.3 was merged in PR #41. The Worker suite has 54 tests covering primary role and route boundaries. PR #50 adds mocked cross-family relationship and member-ID regressions. The owner has now confirmed that the role and invitation flows have been tested successfully. Exhaustive sensitive-route authorization, cross-family tampering and identity-claim edge-case evidence remain separate readiness items. PR #54 is merged to `main` and adds GitHub validation for production-branch changes; the workflow must also be present on `production` for PRs targeting that branch to receive those checks.
+- M3.3 was merged in PR #41. The Worker unit suite has since grown beyond the original 54-test baseline and now covers the principal role boundaries, invitation state transitions, identity-claim races, write-time authorization, relationship integrity, import validation and platform-admin paths. PRs #59–#70 and #73 are merged to `main`; PR #50's cross-family relationship/member-ID regressions remain part of the test evidence. The owner confirmed functional role and invitation flows. Exhaustive live sensitive-route authorization, broader cross-family tampering and identity-claim edge-case acceptance remain separate readiness items. PR #54 is merged to `main` and adds GitHub validation for production-branch changes; confirm the workflow exists on `production` for PRs targeting that branch.
 - A read-only development D1 inventory on 2026-11-22 found three private family records; two share the same display name. Any future migration must identify families by stable ID and verify owner/membership, not rely on names alone.
 - Initial friends-and-family beta data plan: start with a clean production D1 database and leave development data in development. Users can export a selected family from development and import it into a private production family. No bulk development-to-production migration is planned.
 - Current checklist progress: 15 of 27 items complete (56%). This is the completion of tracked readiness actions, not a claim that every production risk is closed. The owner has confirmed the selected-family development-to-production transfer and its resulting data/tree behavior.
@@ -22,7 +22,7 @@ Status checked 2026-11-24.
 
 ## Release stages
 
-The production URL and API are live, but Friends & Family invitations should wait until the safety gate below is complete. The detailed checkboxes remain the source of truth and the 15/27 completion count.
+The production URL and API are live, but Friends & Family invitations should wait until the safety gate below is complete. The detailed checkboxes remain the source of truth. The last recorded production-readiness count is 15/27 (56%); it is separate from the beta tracker score and has not been recalculated in this documentation refresh.
 
 ### Before Friends & Family beta
 
@@ -54,14 +54,14 @@ The production URL and API are live, but Friends & Family invitations should wai
 
 - [x] Implement and deploy the shared fictional sample family to development with Viewer-only access, server-enforced read-only behavior, personal remove/dismissal, and export/import into a private family. The same fictional sample is now available in the clean production database through migration 0010.
 - [x] Owner-confirmed functional role and invitation flows have been tested successfully.
-- [ ] Complete exhaustive Owner/Admin/Editor/Viewer authorization tests for every sensitive API route. The 54 Worker tests cover primary route boundaries, including cross-family relationship and member-ID tampering regressions added in PR #50; these local mocks do not exercise every route against live development D1.
-- [ ] Verify remaining security edge cases against development D1: family ID/person ID tampering, pending identity claims, invitation email mismatch, expiry/revocation and single-use acceptance.
+- [ ] Complete exhaustive Owner/Admin/Editor/Viewer authorization tests for every sensitive API route. The current Worker unit suite covers principal route boundaries and write-time guards, including cross-family relationship/member-ID tampering regressions; local mocks do not exercise every route against the intended beta environment.
+- [ ] Verify remaining security edge cases against the intended beta environment: family/person/relationship/invitation/claim ID tampering, pending identity-claim requester visibility and self-review denial, invitation email mismatch, expiry/revocation and single-use acceptance. Local unit and D1 integration tests now cover important race and rollback cases, but are not live acceptance.
 - [x] Implement Platform Super Admin import/export APIs that require a reason, target one family, and record a platform audit event. The Super Admin download format is JSON; no import preview or validation stage exists yet.
 - [x] Require explicit `SUPER_ADMIN_EMAIL` configuration before bootstrapping the platform role; configure it separately in each intended environment.
 - [x] Provide an audited, server-authorized Platform Super Admin family export. Hiding the browser workbook export button for Editor/Viewer is a usability guard because all family members can read family data through the API.
 - [x] Add fixed-window rate limits for Google sign-in and invitation creation/acceptance. Review thresholds against development traffic before production.
 - [ ] Approve invitation, account deletion, session revocation, privacy retention and audit-log retention policies. Source review found seven-day sessions and invitations, current-session-only logout, no account-deletion or revoke-all-sessions flow, and no cleanup/retention policy for expired sessions, invitations or audit logs; details are in [SECURITY.md](SECURITY.md).
-- [ ] Confirm API errors and operational logs never expose session tokens, invitation codes or family data unnecessarily. Source review found no explicit Worker console logging and generic application errors; verify the deployed Worker and platform logs before launch.
+- [ ] Confirm API errors and operational logs never expose session tokens, invitation codes or family data unnecessarily. Current Worker source returns generic internal errors and has no explicit application console logging; verify deployed Worker/platform logs and any platform-level telemetry before launch.
 
 ### Operations and environments
 
@@ -70,7 +70,7 @@ The production URL and API are live, but Friends & Family invitations should wai
 - [x] Remove development-only configuration and credentials from every production deployment path; verify that missing production configuration fails closed. PR #49 adds the production build guard, and the owner confirmed the production Pages deployment is green. The development fallback remains available for development and preview builds.
 - [x] Set and verify `VITE_API_URL` separately for development and production Pages deployments: development uses `https://api-dev.vansvriksh.vtrrk.in`; production uses `https://api.vansvriksh.vtrrk.in`. The owner confirmed successful production Google sign-in.
 - [ ] Finish verifying production origin allowlist, cookie behavior, TLS, security headers, CORS preflight and health monitoring. The production health endpoint, domain/SSL, database connection and Google sign-in have been confirmed; preflight, headers and ongoing monitoring still need evidence.
-- [ ] Establish backup frequency, retention, access controls and a tested restore procedure for D1.
+- [ ] Approve and operationalize D1 backup frequency, destination, retention and access controls, then complete the owner-approved SQL export and disposable restore rehearsal. PR #58 added `docs/BACKUP_RECOVERY.md`; it is a runbook, not configured automatic backup infrastructure.
 - [ ] Add actionable error reporting and operational alerts without logging personal data or credentials.
 
 ### Data migration and launch
@@ -82,7 +82,7 @@ The production URL and API are live, but Friends & Family invitations should wai
 - [x] Verify a development family can be exported and imported into a fresh production family with people, biographies, relationships, memberships/roles and tree behavior intact; the owner completed this transfer and confirmed it works as desired.
 - [ ] Reconcile the sample and test import in production for record counts, foreign keys, memberships, roles, relationship integrity and representative tree renderings.
 - [ ] Run end-to-end acceptance with the three intended test users and their assigned roles.
-- [x] Confirm GitHub validation and Cloudflare Pages checks are green for PR #54; PR #54 was merged to `main` on 2026-11-23. The owner confirms Cloudflare is green. A separate Worker build failure was still present in the PR-associated status snapshot and should be reconciled before claiming every Worker build check is green.
+- [x] PR #54 was merged to `main` on 2026-11-23 and the owner confirmed its Cloudflare Pages deployment. For subsequent security/documentation work, PRs #59–#70 and #73–#76 have merged to `main`; PRs #75 and #76 each passed validation and applicable Workers/Pages checks (the development deployment workflow was skipped by configuration). This evidence is not a substitute for the production-branch workflow check or live beta acceptance.
 - [ ] Complete and publish the v1.0 release notes.
 - [ ] Review and document a production rollback plan.
 - [ ] Obtain explicit approval for a formal v1.0 release.
@@ -94,13 +94,12 @@ The production service is live for controlled verification. A formal v1.0 releas
 
 ## Friends & Family beta update — 2026-11-25
 
-The separate evidence-based beta tracker currently records 62.5/100. This is not the same denominator as the 15/27 production-readiness action count above; neither score by itself authorizes a release.
+The separate evidence-based beta tracker records 62.5/100. This is not the same denominator as the last recorded 15/27 production-readiness action count above; neither score by itself authorizes a release.
 
-- PR #59 (identity-claim review) and PR #60 (member roster/member role authorization) are merged to main, not promoted to production.
-- PRs #61–#70 and #73 are draft feature branches covering identity unlink, invitation creation/revocation, person profile/lifecycle, relationship writes, import integrity, family deletion, identity-claim creation and person creation.
-- The high-risk mutation PRs now include local D1 integration tests for their principal write paths. Their validation and Cloudflare previews are being checked independently; draft code is not counted as merged or production protection.
-- PR #68 now stages workbook imports and applies people, relationships and audit records in one authorized D1 batch. Its local D1 tests exercise malformed late rows, forced database-failure rollback, relationship import and the reason-gated Super Admin audit path. The latest commit still requires final CI and Workers preview confirmation.
-- PR #58 is merged and adds `docs/BACKUP_RECOVERY.md`, a proposed D1 backup/recovery runbook. Its schedule and storage choices remain pending owner approval; no production SQL export, restore or backup destination setup has been performed.
-- PR #71 and #72 are documentation drafts for audit evidence and beta acceptance. Owner-side production checks, support/rollback decisions, monitoring/alerts, privacy/retention decisions and explicit go/no-go remain outstanding.
+- PRs #59–#70 and #73 are merged to `main`. They cover identity-claim review/unlink/create, member roster and role authorization, invitation creation/revocation, person profile/lifecycle/create, relationship mutations, family deletion and transactional workbook import.
+- These merged changes include local-D1 integration tests for key write paths, race handling, uniqueness constraints and import rollback. PR #68 applies prevalidated people, relationships and audit records in one authorized D1 batch. Passing CI and local D1 tests establish repository evidence, not production promotion or live role-matrix acceptance.
+- PR #58 is merged and adds `docs/BACKUP_RECOVERY.md`. It is an operating runbook; backup destination, schedule, retention and access controls remain pending owner approval. No production SQL export or restore has been performed.
+- PR #71 (route-authorization findings), #72 (beta acceptance checklist), #75 (beta readiness evidence refresh) and #76 (route authorization audit refresh) are merged to `main`.
+- The refreshed route audit inventories current Worker routes and test evidence. It keeps exhaustive live role/family-isolation tests, deployed import/export reconciliation, edge-security evidence, monitoring/alerts, privacy/retention, support/rollback and explicit go/no-go outstanding.
 
-No production deployment, production D1 export/restore/migration, secrets change or production-branch update was performed as part of this work. Production promotion and opening the beta require separate explicit owner approval.
+No production deployment, production D1 export/restore/migration, secrets change or production-branch update was performed as part of these documentation changes. Production promotion and opening the beta require separate explicit owner approval.
