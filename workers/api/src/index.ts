@@ -515,7 +515,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const t=now();
     if(decision==="reject"){
       const results=await env.DB.batch([
-        env.DB.prepare("UPDATE person_identity_claims SET status='rejected',reviewed_by_user_id=?,reviewed_at=?,review_reason=? WHERE id=? AND status='pending'").bind(actorUserId,t,reason,claimId),
+        env.DB.prepare("UPDATE person_identity_claims SET status='rejected',reviewed_by_user_id=?,reviewed_at=?,review_reason=? WHERE id=? AND status='pending' AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin'))").bind(actorUserId,t,reason,claimId,familyId,actorUserId),
         env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'identity.claim_rejected',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,claim.person_id,JSON.stringify({claimId,requesterUserId:claim.requester_user_id,reason}),t)
       ]);
       if(results[0]?.meta?.changes!==1)return fail(409,"claim_unavailable","This pending claim has already been reviewed.");
@@ -523,7 +523,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     }
     try{
       const results=await env.DB.batch([
-        env.DB.prepare("UPDATE person_identity_claims SET status='approved',reviewed_by_user_id=?,reviewed_at=?,review_reason=? WHERE id=? AND status='pending'").bind(actorUserId,t,reason,claimId),
+        env.DB.prepare("UPDATE person_identity_claims SET status='approved',reviewed_by_user_id=?,reviewed_at=?,review_reason=? WHERE id=? AND status='pending' AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin'))").bind(actorUserId,t,reason,claimId,familyId,actorUserId),
         env.DB.prepare("INSERT INTO person_identity_links(family_id,person_id,user_id,linked_by_user_id,linked_at) SELECT ?,?,?,?,? WHERE changes()=1").bind(familyId,claim.person_id,claim.requester_user_id,actorUserId,t),
         env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'identity.claim_approved',?,? WHERE EXISTS (SELECT 1 FROM person_identity_claims WHERE id=? AND status='approved' AND reviewed_by_user_id=? AND reviewed_at=?) AND EXISTS (SELECT 1 FROM person_identity_links WHERE family_id=? AND person_id=? AND user_id=?)").bind(id(),familyId,actorUserId,claim.person_id,JSON.stringify({claimId,requesterUserId:claim.requester_user_id}),t,claimId,actorUserId,t,familyId,claim.person_id,claim.requester_user_id)
       ]);

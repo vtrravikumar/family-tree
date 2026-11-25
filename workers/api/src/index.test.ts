@@ -529,6 +529,8 @@ describe("server-side authorization", () => {
     expect(batchWrites).toHaveLength(3);
     expect(batchWrites[0].sql).toContain("UPDATE person_identity_claims SET status='approved'");
     expect(batchWrites[0].sql).toContain("WHERE id=? AND status='pending'");
+    expect(batchWrites[0].sql).toContain("actor.role IN ('owner','admin')");
+    expect(batchWrites[0].bound.slice(-2)).toEqual(["family-1","dev-owner"]);
     expect(batchWrites[1].sql).toContain("INSERT INTO person_identity_links");
     expect(batchWrites[1].sql).toContain("WHERE changes()=1");
     expect(batchWrites[2].sql).toContain("identity.claim_approved");
@@ -589,6 +591,8 @@ describe("server-side authorization", () => {
     const batchWrites=writes.slice(-2);
     expect(batchWrites).toHaveLength(2);
     expect(batchWrites[0].sql).toContain("UPDATE person_identity_claims SET status='rejected'");
+    expect(batchWrites[0].sql).toContain("actor.role IN ('owner','admin')");
+    expect(batchWrites[0].bound.slice(-2)).toEqual(["family-1","dev-owner"]);
     expect(batchWrites[1].sql).toContain("WHERE changes()=1");
   });
 
