@@ -44,6 +44,7 @@ Family information is intended to be visible only to members authorized for that
 - Logout deletes the matching server-side session and clears the browser cookie. A regression test checks that the logout response clears the cookie; the route implementation performs the server-side deletion.
 - Invitations are created with a seven-day expiry, can be accepted only while pending and unexpired, and are single-use. Owner/Admin can revoke a pending invitation; invitation acceptance and expiry/revocation paths have regression coverage.
 - Owner/Admin member removal deletes the family-membership row and writes an audit event. Subsequent family access is governed by current family membership, so this removes that user's access to that family; it does not delete the user's Google identity or membership in other families.
+- A family can be deleted through the family DELETE API only by its current Owner. The request must include explicit confirmation, and the database write rechecks Owner authority at mutation time. This is an in-app capability; it is not an account-deletion operation.
 
 These are implementation observations, not a substitute for owner approval of the participant-facing wording or a live acceptance test.
 
@@ -54,8 +55,8 @@ These are implementation observations, not a substitute for owner approval of th
 | Session expiry and logout | State that sessions expire after seven days and users can sign out to invalidate the current session. Advise signing out on shared devices. | Source and regression-test review completed; owner to approve participant-facing wording. |
 | Invitation expiry and revocation | Invitations expire after seven days, are single-use and may be revoked by a family Owner/Admin while pending. | Implemented behaviour; retain regression coverage. |
 | Member access removal | Owner/Admin can remove a member; removal ends that member's access to that family on subsequent requests. | Source and regression-test review completed; owner to approve wording. |
-| Account deletion | Do not promise self-service account deletion. Provide a manual request route during beta and explain that Google sign-in identity and family-owned records are distinct. | Owner to name the request route and decide how family-owned records are handled. |
-| Family deletion | Do not promise immediate irreversible erasure; verify audit, backup and recovery implications before communicating deletion timing. | Owner approval required. |
+| Account deletion | There is no verified self-service account-deletion flow. During beta, send account-deletion requests to **vtr.ravikumar@gmail.com**. The owner must review the person's family ownership and records before deciding the safe next step; do not promise immediate deletion. | Request email route approved by owner. The actual account-deletion procedure and treatment of owned/shared family records still need to be defined and verified. |
+| Family deletion | A current family Owner can delete a family in the app after explicit confirmation. For help or a family-deletion request, contact **vtr.ravikumar@gmail.com**. Explain that deletion is a destructive family-level action, separate from deleting a Google account. | Owner-only API enforcement and explicit-confirmation requirement verified in source. Email contact route approved. Do not promise recovery or a deletion/backup retention period; backup and audit implications remain subject to the separate operational decisions. |
 | Audit and technical logs | No retention period is promised until configured and reviewed. Document what is retained, who can access it and when it is deleted. | Owner to set and document a retention period; deployed-log review remains outstanding. |
 | Backups | Backup destination, access, schedule and retention remain subject to the separate backup approval and recovery evidence. | Deferred operational item; do not imply complete backup coverage. |
 
@@ -70,7 +71,7 @@ These are implementation observations, not a substitute for owner approval of th
 
 ## 7. Support route
 
-During the Friends & Family beta, participants should contact the Vansvriksh beta owner through WhatsApp using the contact details they already have. If WhatsApp is unavailable or a written email route is preferred, participants may email **vtr.ravikumar@gmail.com**. This email address is also the fallback contact for account-deletion requests.
+During the Friends & Family beta, participants should contact the Vansvriksh beta owner through WhatsApp using the contact details they already have. If WhatsApp is unavailable or a written email route is preferred, participants may email **vtr.ravikumar@gmail.com**. Send both account-deletion requests and family-deletion requests or requests for help with family deletion to this email address. A family Owner may also use the existing in-app family-deletion control, which requires explicit confirmation.
 
 When reporting a problem, include:
 - Approximate time and timezone.
@@ -99,9 +100,9 @@ Before using this document as the beta-facing privacy/support note, the owner mu
 
 - [x] Verify the seven-day absolute session expiry, server-side logout invalidation and cookie clearing in source/tests.
 - [x] Verify invitation expiry/revocation and member removal behaviour in source/tests; owner approval of participant-facing wording remains pending.
-- [ ] Choose a manual account-deletion request route and decide family-record ownership implications.
+- [x] Set the account- and family-deletion request email route to vtr.ravikumar@gmail.com. Account-deletion processing and family-record ownership implications remain to be defined.
 - [ ] Decide audit/technical log retention and communicate the chosen period.
-- [x] Set the beta support route: WhatsApp with the owner; email fallback and account-deletion requests at vtr.ravikumar@gmail.com.
+- [x] Set the beta support route: WhatsApp with the owner; email fallback plus account- and family-deletion requests at vtr.ravikumar@gmail.com.
 - [ ] Review the wording against the deployed service and approve publication.
 
 Until these decisions are complete, keep this file labelled as a draft and do not award beta readiness points for privacy/lifecycle or support/incident controls solely because this document exists.
