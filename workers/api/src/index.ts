@@ -591,10 +591,12 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const familyId=peopleMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (request.method === "GET") {
-      const result=await env.DB.prepare(`SELECT id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,
-        birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,birth_place,birth_country,
-        death_date_kind,death_exact_date,death_year,death_range_start_year,death_range_end_year,death_original_text,biography,created_at,updated_at
-        FROM persons WHERE family_id=? ORDER BY family_name,given_name`).bind(familyId).all();
+      const result=await env.DB.prepare(`SELECT p.id,p.family_id,p.given_name,p.middle_name,p.family_name,p.display_name,p.gender,p.life_status,
+        p.birth_date_kind,p.birth_exact_date,p.birth_year,p.birth_range_start_year,p.birth_range_end_year,p.birth_original_text,p.birth_place,p.birth_country,
+        p.death_date_kind,p.death_exact_date,p.death_year,p.death_range_start_year,p.death_range_end_year,p.death_original_text,p.biography,p.created_at,p.updated_at,
+        (SELECT '/v1/families/'||p.family_id||'/people/'||p.id||'/photo/content' FROM media m WHERE m.family_id=p.family_id AND m.person_id=p.id AND m.media_type='person_portrait' LIMIT 1) AS family_photo_url,
+        (SELECT u.avatar_url FROM person_identity_links l JOIN users u ON u.id=l.user_id WHERE l.family_id=p.family_id AND l.person_id=p.id LIMIT 1) AS google_photo_url
+        FROM persons p WHERE p.family_id=? ORDER BY p.family_name,p.given_name`).bind(familyId).all();
       return json({data:result.results});
     }
     if (request.method === "POST") {
