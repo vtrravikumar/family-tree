@@ -581,7 +581,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     return json({data:{personId,unlinked:true}});
   }
 
-  const photoMatch=url.pathname.match(/^\\/v1\\/families\\/([^/]+)\\/people\\/([^/]+)\\/photo(\\/content)?$/);
+  const photoMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/photo(\/content)?$/);
   if(photoMatch){
     return handlePersonPhoto(request,env,photoMatch[1],photoMatch[2],actorUserId,await roleFor(env.DB,photoMatch[1],actorUserId));
   }
