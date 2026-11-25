@@ -1,0 +1,73 @@
+name: Production edge security verification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-edge-security-verification
+  cancel-in-progress: false
+
+jobs:
+  verify-production-edge:
+    name: Verify production TLS, CORS and API response headers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify production API health and response headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://api.vansvriksh.vtrrk.in"
+          allowed_origin="https://vansvriksh.vtrrk.in"
+          denied_origin="https://hostile.example"
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          # curl verifies the TLS certificate by default. Do not use --insecure.
+          health_status="$(curl --silent --show-error --location --max-time 20 \
+            --dump-header "$tmp/health.headers" --output "$tmp/health.body" \
+            --write-out '%{http_code}' "$base/health")"
+          test "$health_status" = "200"
+          jq -e '.status == "ok" and .environment == "production" and .database == "connected"' "$tmp/health.body" >/dev/null
+          grep -Eiq '^cache-control:.*no-store' "$tmp/health.headers"
+          grep -Eiq '^x-content-type-options:.*nosniff' "$tmp/health.headers"
+
+          # Allowed production origin must receive credentialed CORS permission.
+          allowed_status="$(curl --silent --show-error --max-time 20 -X OPTIONS \
+            -H "Origin: $allowed_origin" \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: content-type' \
+            --dump-header "$tmp/allowed.headers" --output /dev/null \
+            --write-out '%{http_code}' "$base/v1/auth/logout")"
+          test "$allowed_status" = "204"
+          grep -Fqi "access-control-allow-origin: $allowed_origin" "$tmp/allowed.headers"
+          grep -Eiq '^access-control-allow-credentials:.*true' "$tmp/allowed.headers"
+          grep -Eiq '^access-control-allow-methods:.*POST' "$tmp/allowed.headers"
+          grep -Eiq '^access-control-allow-headers:.*Content-Type' "$tmp/allowed.headers"
+
+          # Unapproved origin must not receive an ACAO grant.
+          denied_status="$(curl --silent --show-error --max-time 20 -X OPTIONS \
+            -H "Origin: $denied_origin" \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: content-type' \
+            --dump-header "$tmp/denied.headers" --output /dev/null \
+            --write-out '%{http_code}' "$base/v1/auth/logout")"
+          test "$denied_status" = "204"
+          if grep -Eiq '^access-control-allow-origin:' "$tmp/denied.headers"; then
+            echo "Unapproved origin unexpectedly received CORS permission."
+            exit 1
+          fi
+
+          # A cross-origin state-changing request must be rejected server-side.
+          denied_write_status="$(curl --silent --show-error --max-time 20 -X POST \
+            -H "Origin: $denied_origin" -H 'Content-Type: application/json' \
+            --data '{}' --dump-header "$tmp/write.headers" --output "$tmp/write.body" \
+            --write-out '%{http_code}' "$base/v1/auth/logout")"
+          test "$denied_write_status" = "403"
+          jq -e '.error.code == "origin_not_allowed"' "$tmp/write.body" >/dev/null
+
+          echo "Production TLS, health, security response headers and CORS checks passed."
+          echo "No authenticated session, family data, secrets or production writes were used."
