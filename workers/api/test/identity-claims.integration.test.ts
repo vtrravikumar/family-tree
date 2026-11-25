@@ -44,6 +44,29 @@ async function seedClaim() {
   );
 }
 
+async function createParentRelationship() {
+  const timestamp = "2026-11-24T00:00:00.000Z";
+  await run(
+    "INSERT INTO persons(id,family_id,given_name,created_at,updated_at) VALUES(?,?,?,?,?)",
+    ["parent-child", FAMILY_ID, "Child Person", timestamp, timestamp],
+  );
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/relationships`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fromPersonId: PERSON_ID,
+        toPersonId: "parent-child",
+        relationshipType: "biological_parent",
+      }),
+    },
+  );
+}
+
 async function createRelationship() {
   const timestamp = "2026-11-24T00:00:00.000Z";
   await run(
@@ -91,6 +114,45 @@ describe("identity claim review against local D1", () => {
     await run("DELETE FROM families");
     await run("DELETE FROM users WHERE id != ?", [OWNER_ID]);
     await seedClaim();
+  });
+
+  it("executes write-time ancestry-cycle and duplicate guards against local D1", async () => {
+    const response = await createParentRelationship();
+    expect(response.status).toBe(201);
+
+    const duplicate = await SELF.fetch(
+      `https://vansvriksh.test/v1/families/${FAMILY_ID}/relationships`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fromPersonId: PERSON_ID,
+          toPersonId: "parent-child",
+          relationshipType: "biological_parent",
+        }),
+      },
+    );
+    expect(duplicate.status).toBe(409);
+
+    const cycle = await SELF.fetch(
+      `https://vansvriksh.test/v1/families/${FAMILY_ID}/relationships`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fromPersonId: "parent-child",
+          toPersonId: PERSON_ID,
+          relationshipType: "biological_parent",
+        }),
+      },
+    );
+    expect(cycle.status).toBe(409);
   });
 
   it("creates a family-scoped relationship and one audit record in local D1", async () => {
