@@ -23,6 +23,7 @@ Changes prepared since the most recent formal release. They are not yet assigned
 - Add owner/admin person deletion with explicit name confirmation; deleting a living person also removes all connected relationships. Deceased profiles remain protected. Existing media, saved-layout, or branch-share references block deletion.
 
 ### Improved
+- Removed a leftover one-off family import dataset from the frontend source; it was unused by the application. Added a build-time guard and tests that fail if embedded family-record payloads reappear in frontend source, public assets or built JavaScript.
 - Invitation acceptance now atomically consumes a pending invitation before creating membership, preventing reuse under concurrent requests.
 - Import and export controls are limited to family owners and admins in the workspace UI.
 - Family data changes and audit events are attributed to the authenticated collaborator rather than the legacy development owner.

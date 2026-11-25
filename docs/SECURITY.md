@@ -74,6 +74,12 @@ Browser-side workbook export controls are supplementary only. The Platform Super
 - Display the Google avatar as a separate overlay; never overwrite the person's historical family portrait.
 - Verify authorization and uniqueness in the API/database transaction, not only in the UI.
 
+## Public frontend data boundary
+
+- Never embed real family records, named-person datasets, compressed family exports or private family relationships in frontend source, public assets or built bundles.
+- Use the authenticated, family-scoped workbook import for user-supplied family data. Demo/test fixtures must be synthetic and contain no real personal data.
+- The web build runs a structural guard over built assets; frontend tests also scan source and public assets for embedded record payloads. A passing guard is a safeguard, not a substitute for reviewing new data fixtures and assets.
+
 ## Deceased-profile immutability
 
 The domain service and API must reject all ordinary profile update/delete operations when life_status is deceased, regardless of caller role. The status transition itself must be an explicit owner/admin operation, confirmed and audited. Relationship operations are separate and must not be blocked solely because a linked person is deceased.
