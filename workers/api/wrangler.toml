@@ -30,6 +30,10 @@ database_name = "vansvriksh-dev"
 database_id = "6a646ce7-f920-489a-a274-002ce158c9ae"
 migrations_dir = "migrations"
 
+[[env.dev.r2_buckets]]
+binding = "PERSON_PHOTOS"
+bucket_name = "vansvriksh-person-photos-dev"
+
 [env.dev.vars]
 APP_ENV = "development"
 PUBLIC_APP_URL = "https://dev.vansvriksh.vtrrk.in"
