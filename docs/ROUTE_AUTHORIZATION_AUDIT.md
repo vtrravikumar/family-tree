@@ -121,6 +121,10 @@ The following changes are under review after the initial audit. Draft PRs are ev
 
 4. **Read-route scope review:** Reviewed the current API GET paths for family lists, member rosters, invitations, identity links/claims, people and relationships, plus platform overview/users/families/audit/support/export. Family reads are scoped by membership/family ID; identity claim requester data is self-scoped and pending requester details are Owner/Admin-only; platform data reads require Super Admin. No unscoped cross-family read was identified in this pass. Existing negative tests do not yet cover every read route, so retain broader API-level cross-family tests in the acceptance plan.
 
+### Integration and merge handling
+
+All security implementation PRs currently target the same main baseline and touch overlapping API/test files. Once the owner explicitly approves integration, merge them one at a time, recheck mergeability after each merge, resolve any shared-file conflicts, and rerun validation plus Cloudflare previews on the resulting main commit. Do not infer merge approval from green checks or a draft PR becoming mergeable. Production promotion remains a separate owner decision.
+
 ### Current audit disposition
 
 - Merged protections: PR #59 and PR #60 only.
