@@ -270,6 +270,34 @@ async function updatePersonProfile() {
   );
 }
 
+async function markPersonDeceased() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/people/${PERSON_ID}/deceased`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ confirmed: true, deathDateKind: "unknown" }),
+    },
+  );
+}
+
+async function restorePerson() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/people/${PERSON_ID}/restore`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ confirmed: true, reason: "Integration test restore" }),
+    },
+  );
+}
+
 async function review(decision: "approve" | "reject") {
   return SELF.fetch(
     `https://vansvriksh.test/v1/families/${FAMILY_ID}/identity-claims/${CLAIM_ID}/review`,
@@ -636,6 +664,27 @@ describe("identity claim review against local D1", () => {
     expect(relationship?.from_person_id).toBe(PERSON_ID);
     expect(relationship?.to_person_id).toBe("person-two");
     expect(audit?.count).toBe(1);
+  });
+
+  it("marks a person deceased and restores them with matching local D1 audit records", async () => {
+    const marked = await markPersonDeceased();
+    expect(marked.status).toBe(200);
+    const deceased = await env.DB.prepare(
+      "SELECT life_status FROM persons WHERE id=? AND family_id=?",
+    ).bind(PERSON_ID, FAMILY_ID).first<{ life_status: string }>();
+    expect(deceased?.life_status).toBe("deceased");
+
+    const restored = await restorePerson();
+    expect(restored.status).toBe(200);
+    const alive = await env.DB.prepare(
+      "SELECT life_status FROM persons WHERE id=? AND family_id=?",
+    ).bind(PERSON_ID, FAMILY_ID).first<{ life_status: string }>();
+    const audit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE entity_id=? AND action IN ('person.marked_deceased','person.restored_to_alive')",
+    ).bind(PERSON_ID).first<{ count: number }>();
+
+    expect(alive?.life_status).toBe("alive");
+    expect(audit?.count).toBe(2);
   });
 
   it("approves a pending claim and writes exactly one identity link and audit record", async () => {

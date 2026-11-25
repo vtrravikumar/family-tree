@@ -242,6 +242,32 @@ describe("server-side authorization", () => {
     expect((await request(person+"/restore","editor","POST",{confirmed:true})).status).toBe(403);
   });
 
+  it("rechecks Owner/Admin authority for person lifecycle writes and gates each audit", async () => {
+    const person="/v1/families/family-1/people/person-1";
+    const deletionWrites:Array<{sql:string;bound:unknown[]}>=[]; 
+    expect((await request(person,"owner","DELETE",{confirmed:true},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),deletionWrites)).status).toBe(200);
+    const deletion=deletionWrites.find(write=>write.sql.includes("DELETE FROM persons"));
+    const deletionAudit=deletionWrites.find(write=>write.sql.includes("person.deleted"));
+    expect(deletion?.sql).toContain("actor.role IN ('owner','admin')");
+    expect(deletionAudit?.sql).toContain("WHERE changes()=1");
+    expect((await request(person,"owner","DELETE",{confirmed:true},false,0)).status).toBe(409);
+
+    for(const [suffix,payload,action,rolePredicate] of [
+      ["/restore",{confirmed:true},"person.restored_to_alive","actor.role IN ('owner','admin')"],
+      ["/deceased",{confirmed:true,deathDateKind:"unknown"},"person.marked_deceased","actor.role IN ('owner','admin')"],
+    ] as const){
+      const writes:Array<{sql:string;bound:unknown[]}>=[]; 
+      const response=await request(person+suffix,"admin","POST",payload,false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes);
+      expect(response.status).toBe(200);
+      const mutation=writes.find(write=>write.sql.includes("UPDATE persons SET life_status"));
+      const audit=writes.find(write=>write.sql.includes(action));
+      expect(mutation?.sql).toContain("EXISTS (SELECT 1 FROM family_members actor");
+      expect(mutation?.sql).toContain(rolePredicate);
+      expect(audit?.sql).toContain("WHERE changes()=1");
+      expect((await request(person+suffix,"admin","POST",payload,false,0)).status).toBe(409);
+    }
+  });
+
   it("allows every family role to request claims while only Owners can claim directly", async () => {
     for(const role of ["admin","editor","viewer"]){
       const response=await request("/v1/families/family-1/identity-claims",role,"POST",{personId:"person-1"});
