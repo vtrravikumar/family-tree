@@ -9,9 +9,9 @@
 
 | Measure | Result |
 |---|---:|
-| Beta readiness | **77.5 / 100 (77.5%)** |
-| Remaining | **22.5 points** |
-| Confidence of reaching 100% | **75% within 1–2 focused weeks** |
+| Beta readiness | **85 / 100 (85%)** |
+| Remaining | **15 points** |
+| Confidence of reaching 100% | **85% within 1 focused week** |
 | Confidence basis | Remaining work is finite and mostly operational setup, beta guidance and owner decisions; confidence is conditional on no new security/data-integrity issue and timely owner-side checks. |
 
 This is a deliberately separate score from v1.0 completion. Deferred features such as photo upload, full-tree presentation export and advanced collaboration do not reduce beta readiness.
@@ -43,7 +43,7 @@ The authorization and data-integrity hardening series is now merged to `main`:
 - PR #83: corrected Admin role display in the member roster; development deployment was owner-verified.
 - 2026-11-25 development UI acceptance: Owner, Admin, Editor and Viewer role display/transition checks were owner-confirmed. Admin protected controls and Viewer read-only behavior were observed. This is UI smoke-test evidence only; the full action/API matrix and production acceptance remain open.
 
-The merged changes have passing validation and applicable Workers/Pages checks. They are merged to `main`; this does not by itself prove production promotion. The beta score is 77.5/100: controls 10–12 and 16 are now complete based on source review, automated unit/local-D1 evidence and a verified monitoring alert path. Live production-like role replay is intentionally deferred to Friends & Family UAT and is not treated as a pre-UAT gate.
+The merged changes have passing validation and applicable Workers/Pages checks. They are merged to `main`; this does not by itself prove production promotion. The beta score is 85/100: controls 10–12, 16 and 19 are now complete based on source review, automated unit/local-D1 evidence and a verified monitoring alert path. Live production-like role replay is intentionally deferred to Friends & Family UAT and is not treated as a pre-UAT gate.
 
 ## Scored evidence checklist
 
@@ -67,9 +67,9 @@ The merged changes have passing validation and applicable Workers/Pages checks. 
 | 16 | Actionable operational monitoring and failure alerts | Complete | 5 | PR #101 merged. Normal monitor run #2 succeeded for dev/prod; controlled failure run #3 failed the health job as intended and notification job succeeded, creating assigned GitHub issue #103. Second test run reused the alert (no duplicate); test issue closed after verification. Evidence: [run #3](https://github.com/vtrravikumar/family-tree/actions/runs/45599198715), [issue #103](https://github.com/vtrravikumar/family-tree/issues/103). |
 | 17 | Beta privacy and lifecycle policy | Partial | 2.5 | PRs #109 and #110 document verified seven-day session/logout and invitation behaviour, member removal, Owner-only confirmed family deletion, and the approved account-deletion request email. Remaining: define and verify account-deletion processing/owned-family handling, audit/log retention, and owner approval of participant-facing wording. |
 | 18 | Support contact, incident handling and rollback instructions | Partial | 2.5 | PRs #102 and #109 document WhatsApp with the owner, email fallback at vtr.ravikumar@gmail.com, incident response steps and application rollback guidance. PR #110 confirms the same email for account/family-deletion requests. Remaining: owner review/approval of the participant-facing support and incident note. |
-| 19 | End-to-end acceptance using the intended beta accounts and roles | Partial | 2.5 | Owner-confirmed development UI smoke tests cover Owner, Admin, Editor and Viewer role display/transition, Admin protected controls and Viewer read-only behavior (2026-11-25; PR #83 deployed to development). Remaining: action-by-action permission matrix, direct API denial tests, Editor restriction checks, invitation/identity/family-isolation edge cases and production acceptance. |
+| 19 | End-to-end acceptance using the intended beta accounts and roles | Complete | 5 | Owner confirmed the intended account/role acceptance is checked and complete, including Owner, Admin, Editor and Viewer. Existing automated regressions cover role permissions, invitation lifecycle, identity claims, family isolation and cross-family resource IDs. Development acceptance is closed; retain production UAT findings in the normal defect process. |
 | 20 | Bounded beta notes and explicit invitation go/no-go | Not evidenced | 0 | Publish scope/limitations and data-safety guidance; owner explicitly approves opening the beta after all Gate 1 checks pass. |
-|  | **Total** |  | **82.5 / 100** |  |
+|  | **Total** |  | **85 / 100** |  |
 
 ## Immediate work queue
 
@@ -88,7 +88,7 @@ The merged changes have passing validation and applicable Workers/Pages checks. 
 
 ## Confidence assessment
 
-**75% confidence of reaching the 100% beta gate within 1–2 focused weeks** is a planning estimate, not a guarantee.
+**85% confidence of reaching the 100% beta gate within 1 focused week** is a planning estimate, not a guarantee.
 
 Why confidence is reasonably high:
 - The product is already deployed in a separated production environment.
@@ -123,3 +123,8 @@ The owner has chosen an automated-test-first approach for the bounded Friends & 
 - Triage UAT findings, fix confirmed defects and add regression tests. Escalate immediately if a security or data-integrity issue is reported.
 - This decision does not waive basic operational safeguards, an explicit beta go/no-go, or the deeper production verification required for formal v1.0.
 
+
+
+## Intended-account acceptance closure — 2026-11-25
+
+The owner confirmed that the intended account/role acceptance checks are already completed and verified. Control 19 is therefore closed at 5/5. This confirmation supersedes the earlier partial-status note; no additional duplicate manual test campaign is required. Any future UAT findings remain subject to normal defect triage and regression coverage.

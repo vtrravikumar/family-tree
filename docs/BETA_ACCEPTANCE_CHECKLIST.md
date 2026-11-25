@@ -130,3 +130,8 @@ Accounts used: Komal Singh (Owner) and Ravi Kumar (role under test). No credenti
 **Evidence links:**
 
 A beta is not approved merely because CI is green or the tracker reaches 100%. All critical access, data-integrity, recovery and support checks must be evidenced, and the owner must explicitly approve the go/no-go.
+
+
+## Owner confirmation — 2026-11-25
+
+The owner confirmed that the intended account/role acceptance checks are already checked and confirmed. Control 19 is closed; no duplicate acceptance exercise is required. This is an owner confirmation, not a claim that every individual checkbox above was separately re-run in this document. The existing automated authorization, invitation, identity-claim and family-isolation regressions remain the implementation evidence. Production UAT findings, if any, should be triaged normally.
