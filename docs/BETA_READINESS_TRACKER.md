@@ -9,7 +9,10 @@
 
 | Measure | Result |
 |---|---:|
-| Beta readiness | **85 / 100 (85%)** |
+| Evidence score (all controls, including production backlog) | **85 / 100 (85%)** |
+| Beta-gate readiness (production-backlog work excluded) | **85 / 97.5 (87.2%)** |
+| Remaining beta-gate points | **12.5 points** |
+| Production-backlog points (not a beta blocker) | **2.5 points** |
 | Remaining | **15 points** |
 | Confidence of reaching 100% | **85% within 1 focused week** |
 | Confidence basis | Remaining work is finite and mostly operational setup, beta guidance and owner decisions; confidence is conditional on no new security/data-integrity issue and timely owner-side checks. |
@@ -62,7 +65,7 @@ The merged changes have passing validation and applicable Workers/Pages checks. 
 | 11 | Identity-claim security: pending state, self-review, uniqueness and race handling | Complete | 5 | Automated unit and local-D1 integration coverage exercises claim creation, requester scoping, Owner/Admin review, self-review denial, stale pending state, competing approve/reject actions, uniqueness conflicts, atomic unlink and audit gating. Live observations during UAT are welcome but are not a prerequisite to inviting the bounded test group. |
 | 12 | Cross-family/resource-ID tampering negative tests | Complete | 5 | Local-D1 integration test `rejects foreign-family resource IDs across member, invitation, identity, person and relationship mutations` exercises foreign resource IDs and verifies denials, unchanged foreign records and no foreign audit writes. Existing tests also cover foreign family/person substitutions. Live production-like replay is deferred to UAT feedback rather than treated as a pre-UAT gate. |
 | 13 | Local D1 integration test capability and CI execution | Complete | 5 | PR #59 added real local D1/SQLite integration tests; PR #62's latest CI run is green. Green CI is not equivalent to merged code or production deployment. |
-| 14 | Backup/recovery operating procedure, access and retention | Partial | 2.5 | PR #58 is merged with `docs/BACKUP_RECOVERY.md`; a disposable D1 restore rehearsal passed and a production Time Travel bookmark was observed. Backup destination, schedule, access controls, retention and a fresh SQL export/restore rehearsal still need owner approval/evidence. |
+| 14 | Backup/recovery operating procedure, access and retention | **Production backlog — not a beta blocker** | 2.5 | PR #58 runbook is retained. Existing disposable D1 restore rehearsal and production Time Travel bookmark are recorded. Remaining work (independent SQL export, storage, access, schedule, retention and restore rehearsal) is deferred to production readiness and is excluded from the beta go/no-go score. No production backup operation is authorized by this deferral. |
 | 15 | Production edge/security verification: CORS, cookies, TLS, headers, safe errors/logging | Partial | 2.5 | PR #107 [workflow run 45601381941](https://github.com/vtrravikumar/family-tree/actions/runs/45601381941) passed live production TLS validation, health/D1 response, no-store/nosniff headers, allowed credentialed CORS preflight, denied-origin no-ACAO and denied-origin POST (403). Source tests/review cover secure HttpOnly SameSite=Lax session cookie attributes and generic API errors. Deployed-log review remains outstanding; keep partial until that evidence exists. |
 | 16 | Actionable operational monitoring and failure alerts | Complete | 5 | PR #101 merged. Normal monitor run #2 succeeded for dev/prod; controlled failure run #3 failed the health job as intended and notification job succeeded, creating assigned GitHub issue #103. Second test run reused the alert (no duplicate); test issue closed after verification. Evidence: [run #3](https://github.com/vtrravikumar/family-tree/actions/runs/45599198715), [issue #103](https://github.com/vtrravikumar/family-tree/issues/103). |
 | 17 | Beta privacy and lifecycle policy | Partial | 2.5 | PRs #109 and #110 document verified seven-day session/logout and invitation behaviour, member removal, Owner-only confirmed family deletion, and the approved account-deletion request email. Remaining: define and verify account-deletion processing/owned-family handling, audit/log retention, and owner approval of participant-facing wording. |
@@ -80,7 +83,7 @@ The merged changes have passing validation and applicable Workers/Pages checks. 
 4. Keep the beta tracker and route audit synchronized with merged evidence; do not count CI alone as live acceptance.
 
 ### Operational / owner verification
-5. Decide and approve the D1 backup destination, schedule, retention and access controls; then complete an approved SQL export and disposable restore rehearsal.
+5. **Production backlog (after beta):** decide and approve D1 backup destination, schedule, retention and access controls; then complete an approved SQL export and disposable restore rehearsal.
 6. Capture CORS preflight, secure-cookie, TLS/header and safe-logging evidence from the intended beta environment.
 7. Configure actionable monitoring/alerts and verify the notification path.
 8. Record privacy/session/invitation/audit retention decisions and account deletion/revocation expectations.
@@ -100,13 +103,13 @@ What could reduce confidence:
 - A newly discovered authorization or data-integrity flaw.
 - A failed production-like role/acceptance test.
 - Delays in owner-side policy decisions, monitoring setup or operational verification.
-- Backup/recovery controls proving inadequate for the intended beta risk.
+- A newly identified backup/recovery risk that materially changes the bounded beta risk assessment; otherwise backup implementation remains in the production backlog.
 
 ## Scoring rules and release guardrails
 
 - A PR with green CI is **validated code**, not automatically merged or deployed. Draft PR work remains partial until reviewed and merged.
 - Production deployment, production D1 export/restore/migration, secrets changes and production resource changes require separate explicit owner approval.
-- Do not open the Friends & Family beta merely because the score reaches 100%; review the pre-UAT safety gates and explicitly approve the go/no-go. UAT is the planned live-user acceptance phase, not a prerequisite that must be completed before inviting the UAT cohort.
+- Do not open the Friends & Family beta merely because the beta-gate score reaches 100%; review the pre-UAT safety gates and explicitly approve the go/no-go. Control 14 is tracked separately as production backlog and is not part of this beta gate. UAT is the planned live-user acceptance phase, not a prerequisite that must be completed before inviting the UAT cohort.
 - Recalculate this score only when evidence changes. Keep v1.0-only and deferred product features out of this beta denominator.
 
 - PR #71 (route-authorization follow-up findings) and PR #72 (beta acceptance checklist) are merged to `main`.
@@ -128,3 +131,8 @@ The owner has chosen an automated-test-first approach for the bounded Friends & 
 ## Intended-account acceptance closure — 2026-11-25
 
 The owner confirmed that the intended account/role acceptance checks are already completed and verified. Control 19 is therefore closed at 5/5. This confirmation supersedes the earlier partial-status note; no additional duplicate manual test campaign is required. Any future UAT findings remain subject to normal defect triage and regression coverage.
+
+
+## Backup/recovery scope decision — 2026-11-25
+
+The owner confirmed backup/recovery is not a blocker for the bounded Friends & Family beta. Control 14 remains partially evidenced at 2.5/5 for transparency, but its remaining 2.5 points are excluded from the beta-gate denominator and moved to the production backlog. The runbook remains available for later production-readiness work. This decision does not mark backup/recovery complete or authorize R2 provisioning, production export/restore, secrets, schedules or retention changes.
