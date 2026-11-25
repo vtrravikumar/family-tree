@@ -19,7 +19,7 @@ export default function PersonPhotoManager(props:Props){
   const [file,setFile]=useState<File|null>(null),[preview,setPreview]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
   const canManage=["owner","admin","editor"].includes(role)&&lifeStatus!=="deceased";
   useEffect(()=>{if(!file){setPreview("");return;}const url=URL.createObjectURL(file);setPreview(url);return()=>URL.revokeObjectURL(url);},[file]);
-  const current=familyPhotoUrl||googlePhotoUrl||"";
+  const current=familyPhotoUrl?(API+familyPhotoUrl):(googlePhotoUrl||"");
   async function upload(){
     if(!file)return;
     setBusy(true);setError("");setNotice("");
