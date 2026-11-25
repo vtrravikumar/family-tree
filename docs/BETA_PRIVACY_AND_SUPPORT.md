@@ -37,16 +37,26 @@ Family information is intended to be visible only to members authorized for that
 
 ## 5. Sessions, logout, deletion and retention — owner decisions required
 
-The following must be explicitly reviewed and approved before this note is published as the beta privacy notice:
+### Implementation facts verified in source and regression tests
+
+- A successful Google sign-in creates a server-side session with an absolute expiry seven days after creation. The same seven-day value is placed in the browser cookie's `Max-Age`.
+- Authenticated requests look up the session by its token hash and reject it after the stored expiry. The inspected implementation does not establish a separate idle timeout or sliding renewal.
+- Logout deletes the matching server-side session and clears the browser cookie. A regression test checks that the logout response clears the cookie; the route implementation performs the server-side deletion.
+- Invitations are created with a seven-day expiry, can be accepted only while pending and unexpired, and are single-use. Owner/Admin can revoke a pending invitation; invitation acceptance and expiry/revocation paths have regression coverage.
+- Owner/Admin member removal deletes the family-membership row and writes an audit event. Subsequent family access is governed by current family membership, so this removes that user's access to that family; it does not delete the user's Google identity or membership in other families.
+
+These are implementation observations, not a substitute for owner approval of the participant-facing wording or a live acceptance test.
+
+### Decisions and evidence still required before publication
 
 | Topic | Proposed beta expectation | Approval / evidence |
 |---|---|---|
-| Session expiry and logout | Users should sign out on shared devices; verify the actual session lifetime and that logout invalidates the current session. | Owner to verify implementation and approve wording. |
-| Invitation expiry | Invitations expire after seven days and are single-use. | Implemented behaviour; retain regression coverage. |
-| Member access removal | Removing a member should stop future access to that family. | Verify with a bounded test account before making a public promise. |
-| Account deletion | Do not promise self-service account deletion unless the feature and downstream data handling are implemented. Provide a manual request route during beta. | Owner to name the request route and decide how family-owned records are handled. |
-| Family deletion | Do not promise immediate irreversible erasure; verify audit, backups and recovery implications before communicating deletion timing. | Owner approval required. |
-| Audit and technical logs | Retain only what is necessary for security, troubleshooting and accountability. No retention period is promised until configured and reviewed. | Owner to set and document a retention period. |
+| Session expiry and logout | State that sessions expire after seven days and users can sign out to invalidate the current session. Advise signing out on shared devices. | Source and regression-test review completed; owner to approve participant-facing wording. |
+| Invitation expiry and revocation | Invitations expire after seven days, are single-use and may be revoked by a family Owner/Admin while pending. | Implemented behaviour; retain regression coverage. |
+| Member access removal | Owner/Admin can remove a member; removal ends that member's access to that family on subsequent requests. | Source and regression-test review completed; owner to approve wording. |
+| Account deletion | Do not promise self-service account deletion. Provide a manual request route during beta and explain that Google sign-in identity and family-owned records are distinct. | Owner to name the request route and decide how family-owned records are handled. |
+| Family deletion | Do not promise immediate irreversible erasure; verify audit, backup and recovery implications before communicating deletion timing. | Owner approval required. |
+| Audit and technical logs | No retention period is promised until configured and reviewed. Document what is retained, who can access it and when it is deleted. | Owner to set and document a retention period; deployed-log review remains outstanding. |
 | Backups | Backup destination, access, schedule and retention remain subject to the separate backup approval and recovery evidence. | Deferred operational item; do not imply complete backup coverage. |
 
 ## 6. Beta participant guidance
@@ -87,8 +97,8 @@ Production D1 export/restore, migrations, secret changes, resource provisioning 
 
 Before using this document as the beta-facing privacy/support note, the owner must:
 
-- [ ] Verify actual session expiry and logout behaviour.
-- [ ] Confirm member removal and role downgrade take effect as expected.
+- [x] Verify the seven-day absolute session expiry, server-side logout invalidation and cookie clearing in source/tests.
+- [x] Verify invitation expiry/revocation and member removal behaviour in source/tests; owner approval of participant-facing wording remains pending.
 - [ ] Choose a manual account-deletion request route and decide family-record ownership implications.
 - [ ] Decide audit/technical log retention and communicate the chosen period.
 - [ ] Share the beta support contact directly with participants.
