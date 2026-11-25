@@ -596,6 +596,39 @@ describe("server-side authorization", () => {
     expect(batchWrites[1].sql).toContain("WHERE changes()=1");
   });
 
+  it.each(["owner", "admin", "editor", "viewer"])("denies family %s access to every platform-only route", async (role) => {
+    const protectedReads = [
+      "/v1/platform/overview",
+      "/v1/platform/users",
+      "/v1/platform/families",
+      "/v1/platform/audit-logs",
+    ];
+    for (const path of protectedReads) {
+      expect((await request(path, role)).status).toBe(403);
+    }
+    expect((await request("/v1/platform/families/family-1/support-access", role, "POST", {
+      reason: "Approved support investigation",
+    })).status).toBe(403);
+    expect((await request("/v1/platform/families/family-1/export", role, "POST", {
+      reason: "Approved family export investigation",
+    })).status).toBe(403);
+  });
+
+  it("allows a Super Admin session to read all platform collections and reports its status", async () => {
+    const me = await request("/v1/platform/me", null, "GET", undefined, true, 1, true);
+    expect(me.status).toBe(200);
+    expect((await me.json() as { data: { isSuperAdmin: boolean } }).data.isSuperAdmin).toBe(true);
+
+    for (const path of [
+      "/v1/platform/overview",
+      "/v1/platform/users",
+      "/v1/platform/families",
+      "/v1/platform/audit-logs",
+    ]) {
+      expect((await request(path, null, "GET", undefined, true, 1, true)).status).toBe(200);
+    }
+  });
+
   it("keeps platform administration separate from family membership", async () => {
     for(const path of ["/v1/platform/overview","/v1/platform/users","/v1/platform/families","/v1/platform/audit-logs"]){
       expect((await request(path,"owner")).status).toBe(403);
