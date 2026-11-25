@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import worker, { isGoogleRegistrationAllowed, type Env } from "./index";
+import worker, { AUDIT_LOG_RETENTION_DAYS, isGoogleRegistrationAllowed, pruneExpiredAuditLogs, type Env } from "./index";
 
 describe("open Google registration policy", () => {
   it("allows any non-empty email after Google credential verification", () => {
@@ -730,5 +730,23 @@ describe("server-side authorization", () => {
     expect(adminCanInviteEditor.status).toBe(201);
     const ownerCanInviteAdmin=await request(path,"owner","POST",{email:"relative@example.com",role:"admin"});
     expect(ownerCanInviteAdmin.status).toBe(201);
+  });
+});
+
+describe("application audit-log retention", () => {
+  it("uses the approved 90-day window", () => { expect(AUDIT_LOG_RETENTION_DAYS).toBe(90); });
+  it("deletes only audit rows older than the cutoff", async () => {
+    let sql = "", bound: unknown[] = [];
+    const statement = { bind(...values: unknown[]) { bound = values; return this; }, async run() { return { meta: { changes: 3 } }; } };
+    const db = { prepare(value: string) { sql = value; return statement; } } as unknown as Env["DB"];
+    expect(await pruneExpiredAuditLogs(db, new Date("2026-11-25T00:00:00.000Z"))).toBe(3);
+    expect(sql).toBe("DELETE FROM audit_logs WHERE created_at < ?");
+    expect(bound).toEqual(["2026-08-27T00:00:00.000Z"]);
+  });
+  it("runs scheduled cleanup against the bound D1 database", async () => {
+    let called = false;
+    const db = { prepare() { return { bind() { return this; }, async run() { called = true; return { meta: { changes: 0 } }; } }; } } as unknown as Env["DB"];
+    await worker.scheduled!({} as ScheduledController, { APP_ENV: "production", DB: db } as Env, {} as ExecutionContext);
+    expect(called).toBe(true);
   });
 });
