@@ -78,8 +78,8 @@ Expected policy: Owner has full family control; Admin has broad control but cann
 - [ ] Import preserves biographies and expected relationship semantics.
 - [ ] Name/alias matching does not create unintended duplicates.
 - [ ] Re-importing an already imported workbook does not duplicate existing people/relationships.
-- [ ] Malformed late person row is rejected before import-side writes (requires PR #68 to be reviewed and merged before relying on this behavior).
-- [ ] A forced database failure during import leaves no partial people, relationships or audit records (must remain unchecked until full transaction rollback is implemented and tested).
+- [ ] Malformed late person row is rejected before import-side writes (transactional/prevalidation implementation is merged in PR #68; execute this acceptance check against the intended beta environment).
+- [ ] A forced database failure during import leaves no partial people, relationships or audit records (local D1 rollback regression coverage is merged in PR #68; retain this as a beta acceptance/evidence check).
 - [ ] Reconcile people, biographies, relationships, roles/memberships and rendered tree after import.
 
 ## 7. Browser, API and operational checks

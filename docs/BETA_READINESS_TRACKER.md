@@ -17,19 +17,23 @@ This is a deliberately separate score from v1.0 completion. Deferred features su
 
 ## Latest engineering evidence — 2026-11-25
 
-The following feature-branch PRs have additional CI evidence, but remain unmerged and therefore do not change the readiness score:
+The authorization and data-integrity hardening series is now merged to `main`:
 
-- PR #61 identity unlink atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
-- PR #62 invitation creation atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
-- PR #64 invitation revocation atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
-- PR #65 person profile update atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
-- PR #66 person lifecycle atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
-- PR #67 relationship mutation atomicity: latest draft adds write-time duplicate/ancestry-cycle checks and local D1 create/update/delete coverage; validation passed, Production Pages preview is still running, and the latest Workers preview has not yet reported (an earlier Worker build passed).
-- PR #68 import integrity: latest validation (typecheck/tests/build, including D1 rollback, relationship/cycle and Super Admin audit tests), both Pages previews and Workers preview passed. An earlier Worker preview failed, but the latest Worker build succeeded.
-- PR #69 family deletion atomicity: validation, both Pages previews and Workers preview passed; local D1 integration coverage verifies family deletion and cascade behavior.
-- PR #70 identity claim creation atomicity: validation, both Pages previews and Workers preview passed; local D1 integration test confirms direct Owner linking and audit.
+- PR #59: identity-claim review race/uniqueness protections.
+- PR #60: route-level authorization and member-roster visibility.
+- PR #61: identity unlink rechecks Owner/Admin authority at mutation time; audit and claim withdrawal are gated on successful unlink.
+- PR #62: invitation creation rechecks current authority and allowed offered role in the INSERT.
+- PR #64: invitation revocation rechecks Owner/Admin authority at mutation time.
+- PR #65: person profile updates recheck the current editable role at mutation time.
+- PR #66: person delete/restore/deceased transitions recheck Owner/Admin authority at mutation time.
+- PR #67: relationship create/update/delete enforce write-time membership, role, person scope, duplicate and ancestry-cycle constraints.
+- PR #68: workbook imports are prevalidated and applied in one authorized D1 batch; local D1 tests cover malformed late rows and rollback after a forced database failure.
+- PR #69: family deletion rechecks Owner authority inside the delete statement.
+- PR #70: identity-claim creation/direct linking rechecks membership, person scope and Owner authority in the write.
+- PR #73: person creation rechecks role and family/person constraints in the write and gates the audit record on success.
+- PR #58: D1 backup/recovery runbook merged; operational backup schedule, destination, retention and access decisions remain pending owner approval.
 
-PR #68 now implements one-batch transactional import with write-time family/Super Admin authorization and local D1 rollback tests. Its latest validation, both Pages previews and Workers preview passed. No PR in this list has been merged or promoted to production.
+The merged changes have passing validation and applicable Workers/Pages checks. They are merged to `main`; this does not by itself prove production promotion or complete live role-matrix acceptance. The beta score remains 62.5/100 because remaining controls require independent environment verification and owner/operator decisions, not merely more merged code.
 
 ## Scored evidence checklist
 
@@ -44,11 +48,11 @@ PR #68 now implements one-batch transactional import with write-time family/Supe
 | 7 | Selected-family development-to-production transfer | Complete | 5 | Owner confirmed people, biographies, relationships, memberships/roles and rendered tree after transfer. |
 | 8 | Production family creation and workbook export/import usable | Complete | 5 | Owner-confirmed production family creation and workbook export/import. |
 | 9 | Functional Owner/Admin/Editor/Viewer and invitation flows | Complete | 5 | Owner explicitly confirmed role and invitation flows tested successfully. This is functional confirmation, not exhaustive route proof. |
-| 10 | Route-level authorization and role-boundary audit | Partial | 2.5 | PR #60 merged and tightened roster/member mutation authorization. Route-by-route audit remains incomplete. Draft PRs #61–#70 and #73 cover unlink, invitations, person creation/update/lifecycle, relationships, import, family deletion and identity-claim creation; they require final preview evidence, review and merge before counting as complete. |
-| 11 | Identity-claim security: pending state, self-review, uniqueness and race handling | Partial | 2.5 | PR #59 merged with local-D1 race/uniqueness tests. PR #61 adds atomic unlink and PR #70 adds write-time checks for claim creation, both still draft; complete end-to-end edge-case review remains open. |
+| 10 | Route-level authorization and role-boundary audit | Partial | 2.5 | PRs #60–#70 and #73 are merged, covering roster visibility and write-time authorization for identity links/claims, invitations, people, relationships, imports and family deletion. The complete route-by-route role matrix and live negative tests against the intended beta environment are still required. |
+| 11 | Identity-claim security: pending state, self-review, uniqueness and race handling | Partial | 2.5 | PR #59 (review transitions/race/uniqueness), #61 (atomic unlink) and #70 (atomic claim creation/direct link) are merged with local-D1 coverage. Remaining work is live environment verification of requester visibility, self-review denial, cross-family IDs and competing claim actions. |
 | 12 | Cross-family/resource-ID tampering negative tests | Partial | 2.5 | Mock regressions exist for relationship/member-ID substitution. Need broader route coverage and production-like D1 verification. |
 | 13 | Local D1 integration test capability and CI execution | Complete | 5 | PR #59 added real local D1/SQLite integration tests; PR #62's latest CI run is green. Green CI is not equivalent to merged code or production deployment. |
-| 14 | Backup/recovery operating procedure, access and retention | Partial | 2.5 | Disposable D1 restore rehearsal passed and production Time Travel bookmark was observed. Runbook is in an unmerged PR; backup destination, schedule, access controls and retention still need decisions. |
+| 14 | Backup/recovery operating procedure, access and retention | Partial | 2.5 | PR #58 is merged with `docs/BACKUP_RECOVERY.md`; a disposable D1 restore rehearsal passed and a production Time Travel bookmark was observed. Backup destination, schedule, access controls, retention and a fresh SQL export/restore rehearsal still need owner approval/evidence. |
 | 15 | Production edge/security verification: CORS, cookies, TLS, headers, safe errors/logging | Partial | 2.5 | Domain/SSL, production sign-in and health confirmed. CORS preflight, cookie attributes, security headers and deployed-log review need recorded evidence. |
 | 16 | Actionable operational monitoring and failure alerts | Not evidenced | 0 | Choose and verify beta-appropriate error/availability alerts without exposing family data or credentials. |
 | 17 | Beta privacy and lifecycle policy | Not evidenced | 0 | Decide/document session and invitation expiry, logout/revocation, account deletion expectations, and family/platform audit retention. |
@@ -60,16 +64,16 @@ PR #68 now implements one-batch transactional import with write-time family/Supe
 ## Immediate work queue
 
 ### Engineering / repository work
-1. Finish the route-by-route authorization audit and add regression tests for confirmed gaps.
-2. Review PR #61 (atomic identity unlink) and PR #62 (atomic invitation creation) after CI; both are draft changes and are not counted as merged.
-3. Complete the invitation revocation concurrency review and inspect people, relationship, import and platform-admin mutation paths.
-4. Reconcile the audit findings with the route inventory and update the security evidence only after tests support each status.
+1. Complete the route-by-route authorization matrix, including remaining read and platform-admin routes; add negative tests for confirmed gaps.
+2. Run the live role/family-isolation acceptance matrix against the intended beta environment, including invitation expiry/revocation and identity-claim edge cases.
+3. Review the deployed import/export behavior and reconcile record counts, memberships, relationships and audit rows after a representative import.
+4. Keep the beta tracker and route audit synchronized with merged evidence; do not count CI alone as live acceptance.
 
 ### Operational / owner verification
-5. Complete and review the D1 backup/recovery runbook; decide backup destination, schedule, retention and access controls. No production export or restore is implied by this tracker.
+5. Decide and approve the D1 backup destination, schedule, retention and access controls; then complete an approved SQL export and disposable restore rehearsal.
 6. Capture CORS preflight, secure-cookie, TLS/header and safe-logging evidence from the intended beta environment.
-7. Configure actionable monitoring/alerts.
-8. Record the privacy/session/invitation/audit retention decisions.
+7. Configure actionable monitoring/alerts and verify the notification path.
+8. Record privacy/session/invitation/audit retention decisions and account deletion/revocation expectations.
 9. Run end-to-end acceptance with the intended accounts/roles; prepare support, rollback and beta notes.
 
 ## Confidence assessment
@@ -95,6 +99,5 @@ What could reduce confidence:
 - Do not open the Friends & Family beta merely because the score reaches 100%; all Gate 1 evidence must be reviewed and the owner must explicitly approve the go/no-go.
 - Recalculate this score only when evidence changes. Keep v1.0-only and deferred product features out of this beta denominator.
 
-- PR #71 (draft documentation): route-authorization follow-up findings and roadmap status refresh; validation and Workers preview passed, Pages preview was pending at last check.
-- PR #72 (draft documentation): beta acceptance checklist; validation passed, Pages preview still pending at last check.
-- PR #73 (draft): person creation authorization-atomicity; typecheck, tests, build, both Pages previews and Workers preview passed; local D1 integration coverage verifies the person and audit record.
+- PR #71 (route-authorization follow-up findings) and PR #72 (beta acceptance checklist) are merged to `main`.
+- PR #73 (person creation authorization-atomicity) is merged to `main`; its local D1 integration test verifies the person and matching audit record.
