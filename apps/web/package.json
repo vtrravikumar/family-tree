@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/verify-no-embedded-data.mjs",
     "typecheck": "tsc -b --pretty",
     "lint": "tsc -b --pretty",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "verify:bundle": "node scripts/verify-no-embedded-data.mjs"
   },
   "dependencies": { "react": "^19.0.0", "react-dom": "^19.0.0" },
   "devDependencies": {
