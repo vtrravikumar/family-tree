@@ -653,7 +653,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     }
 
     const validDate=(value:string|null)=>{
-      if(!value||!/^\\d{4}-\\d{2}-\\d{2}$/.test(value))return false;
+      if(!value||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
       const [year,month,day]=value.split("-").map(Number);
       const parsed=new Date(Date.UTC(year,month-1,day));
       return parsed.getUTCFullYear()===year&&parsed.getUTCMonth()===month-1&&parsed.getUTCDate()===day;
@@ -680,7 +680,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       if(existingFamily===familyId){keyToId.set(key,key);matched.push(key);continue;}
 
       const given=(raw.givenName as string).trim(), middle=textOrNull(raw.middleName), familyName=textOrNull(raw.familyName);
-      let birth,death;\n      try{birth=dateFields("birth",raw);death=dateFields("death",raw);}catch{return fail(400,"invalid_import_date","Imported date precision and values must be consistent. No records were imported.");}
+      let birth:ReturnType<typeof dateFields>,death:ReturnType<typeof dateFields>;\n      try{birth=dateFields("birth",raw);death=dateFields("death",raw);}catch{return fail(400,"invalid_import_date","Imported date precision and values must be consistent. No records were imported.");}
       const hasDeathRecord=raw.lifeStatus==="deceased"||death.kind!=="unknown";
       const life=hasDeathRecord?"deceased":"alive";
       const gender=["female","male","non_binary","unspecified"].includes(String(raw.gender))?String(raw.gender):"unspecified";
