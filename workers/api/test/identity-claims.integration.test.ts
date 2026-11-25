@@ -193,85 +193,6 @@ describe("identity claim review against local D1", () => {
     await run("DELETE FROM users WHERE id != ?", [OWNER_ID]);
     await seedClaim();
   });
-
-async function tokenHash(value: string) {
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
-  let binary = "";
-  for (const byte of digest) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-async function importMalformedWorkbook() {
-  return SELF.fetch(
-    `https://vansvriksh.test/v1/families/${FAMILY_ID}/import`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        confirmed: true,
-        confirmDeceasedRecords: true,
-        people: [
-          { key: "valid-first", givenName: "Would Have Been Imported" },
-          { key: "", givenName: "Invalid Late Row" },
-        ],
-        relationships: [],
-      }),
-    },
-  );
-}
-
-async function importFamilyWithRelationship() {
-  return SELF.fetch(
-    `https://vansvriksh.test/v1/families/${FAMILY_ID}/import`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        confirmed: true,
-        confirmDeceasedRecords: true,
-        people: [
-          { key: "import-parent", givenName: "Imported Parent" },
-          { key: "import-child", givenName: "Imported Child" },
-        ],
-        relationships: [
-          { from: "import-parent", to: "import-child", type: "biological_parent" },
-        ],
-      }),
-    },
-  );
-}
-
-async function importWithForcedDatabaseFailure() {
-  return SELF.fetch(
-    `https://vansvriksh.test/v1/families/${FAMILY_ID}/import`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        confirmed: true,
-        confirmDeceasedRecords: true,
-        people: [
-          { key: "first-row", givenName: "First Import Row" },
-          { key: "failing-row", givenName: "TriggerFailure" },
-        ],
-        relationships: [],
-      }),
-    },
-  );
-}
-
-    await run("DELETE FROM platform_audit_logs");
-    await run("DELETE FROM auth_sessions");
-    await run("DELETE FROM platform_super_admins");
   it("rejects a malformed late import row before any person or audit write", async () => {
     const response = await importMalformedWorkbook();
 
@@ -406,6 +327,7 @@ async function importWithForcedDatabaseFailure() {
     expect(audit?.target_id).toBe(FAMILY_ID);
     expect(audit?.reason).toBe("Authorized integration import");
   });
+
 
   it("executes write-time ancestry-cycle and duplicate guards against local D1", async () => {
     const response = await createParentRelationship();
