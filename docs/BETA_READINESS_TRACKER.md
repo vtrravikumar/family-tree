@@ -25,8 +25,8 @@ The following feature-branch PRs have additional CI evidence, but remain unmerge
 - PR #65 person profile update atomicity: validation, both Pages previews and Workers preview passed.
 - PR #66 person lifecycle atomicity: validation, both Pages previews and Workers preview passed.
 - PR #67 relationship mutation atomicity: validation, both Pages previews and Workers preview passed.
-- PR #68 import pre-validation: typecheck, tests, build and Pages previews passed; the Cloudflare Workers preview build failed and requires investigation. This change is not counted as complete.
-- PR #69 family deletion atomicity: validation and Workers preview passed; Pages preview was still running at the last check.
+- PR #68 import integrity: the draft now validates all rows first and applies people, relationships and audit writes in one D1 batch; local D1 tests cover malformed late rows, forced rollback and Super Admin audit. Typecheck/tests/build passed on an intermediate commit; the latest commit is being revalidated. An earlier Workers preview failed, so the latest Worker preview must be checked before considering this PR validated.
+- PR #69 family deletion atomicity: validation and Workers preview passed on the latest tested head; Production Pages preview was still running at the last check. Local D1 integration coverage verifies family deletion and cascade behavior.
 - PR #70 identity claim creation atomicity: validation passed; Cloudflare Pages and Workers previews were still running at the last check.
 
 The import work in PR #68 is an initial guard only. Full transactional import rollback and write-time authorization remain open. No PR in this list has been merged or promoted to production.
@@ -95,6 +95,6 @@ What could reduce confidence:
 - Do not open the Friends & Family beta merely because the score reaches 100%; all Gate 1 evidence must be reviewed and the owner must explicitly approve the go/no-go.
 - Recalculate this score only when evidence changes. Keep v1.0-only and deferred product features out of this beta denominator.
 
-- PR #71 (draft documentation): route-authorization follow-up findings and roadmap status refresh; validation and Workers preview passed, Pages preview still pending at last check.
+- PR #71 (draft documentation): route-authorization follow-up findings and roadmap status refresh; validation and Workers preview passed, Pages preview was pending at last check.
 - PR #72 (draft documentation): beta acceptance checklist; validation passed, Pages preview still pending at last check.
-- PR #73 (draft): person creation authorization-atomicity; typecheck, tests and build passed, Cloudflare previews not yet reported at last check.
+- PR #73 (draft): person creation authorization-atomicity; typecheck, tests, build, both Pages previews and Workers preview passed; local D1 integration coverage verifies the person and audit record.
