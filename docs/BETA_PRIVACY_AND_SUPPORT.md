@@ -35,7 +35,7 @@ Family records are stored in the application's Cloudflare D1 database. The appli
 
 Family information is intended to be visible only to members authorized for that family and to service operators when necessary to maintain, secure or support the service. The beta should not be treated as an end-to-end encrypted private vault.
 
-## 5. Sessions, logout, deletion and retention — owner decisions required
+## 5. Sessions, logout, deletion and retention
 
 ### Implementation facts verified in source and regression tests
 
@@ -48,17 +48,32 @@ Family information is intended to be visible only to members authorized for that
 
 These are implementation observations, not a substitute for owner approval of the participant-facing wording or a live acceptance test.
 
-### Decisions and evidence still required before publication
+### Approved beta policies and remaining evidence
 
 | Topic | Proposed beta expectation | Approval / evidence |
 |---|---|---|
 | Session expiry and logout | State that sessions expire after seven days and users can sign out to invalidate the current session. Advise signing out on shared devices. | Source and regression-test review completed; owner to approve participant-facing wording. |
 | Invitation expiry and revocation | Invitations expire after seven days, are single-use and may be revoked by a family Owner/Admin while pending. | Implemented behaviour; retain regression coverage. |
 | Member access removal | Owner/Admin can remove a member; removal ends that member's access to that family on subsequent requests. | Source and regression-test review completed; owner to approve wording. |
-| Account deletion | There is no verified self-service account-deletion flow. During beta, send account-deletion requests to **vtr.ravikumar@gmail.com**. The owner must review the person's family ownership and records before deciding the safe next step; do not promise immediate deletion. | Request email route approved by owner. The actual account-deletion procedure and treatment of owned/shared family records still need to be defined and verified. |
+| Account deletion | No self-service account-deletion flow exists. During beta, requests go to **vtr.ravikumar@gmail.com** and are handled manually by the owner. Verify the requester; inventory all family memberships and ownership; never delete a shared family solely because its owner requests account deletion. Resolve each owned family first through an agreed continuity/ownership decision. Revoke sessions and remove access only after those decisions. Review identity and audit references before any account-level deletion; do not promise immediate deletion. | Owner approved this manual owner-reviewed policy on 2026-11-25. This is an operator workflow, not an implemented self-service endpoint. If ownership cannot be resolved using a verified capability, pause and explain the dependency. |
 | Family deletion | A current family Owner can delete a family in the app after explicit confirmation. For help or a family-deletion request, contact **vtr.ravikumar@gmail.com**. Explain that deletion is a destructive family-level action, separate from deleting a Google account. | Owner-only API enforcement and explicit-confirmation requirement verified in source. Email contact route approved. Do not promise recovery or a deletion/backup retention period; backup and audit implications remain subject to the separate operational decisions. |
-| Audit and technical logs | No retention period is promised until configured and reviewed. Document what is retained, who can access it and when it is deleted. | Owner to set and document a retention period; deployed-log review remains outstanding. |
-| Backups | Backup destination, access, schedule and retention remain subject to the separate backup approval and recovery evidence. | Deferred operational item; do not imply complete backup coverage. |
+| Application audit logs (D1 audit_logs) | Retain for 90 days; automatically delete older application audit rows daily. | Owner approved 90 days on 2026-11-25. Scheduled cleanup code and automated tests are included in this change; deployment and first scheduled-run evidence remain pending. |
+| Cloudflare invocation/observability logs | Platform-managed invocation logs are separate from application audit rows. This policy does not change Cloudflare platform retention, sampling or billing settings. | Governed separately in Cloudflare; this application cleanup does not change them. |\n| Backups | Backup destination, access, schedule and retention remain subject to the separate backup approval and recovery evidence. | Deferred operational item; do not imply complete backup coverage. |
+
+
+### Manual account-deletion handling during beta
+
+This is an owner-operated request workflow; the application has no self-service account-deletion endpoint.
+
+1. Receive the request at **vtr.ravikumar@gmail.com** and verify the requester. Never ask for passwords, Google verification codes or session cookies.
+2. Identify the account and every family membership, including families where the person is Owner.
+3. For each owned family, agree whether it should continue under another responsible owner or be deleted at the current Owner's explicit request. Do not delete shared family data by default.
+4. If ownership cannot be safely resolved using an implemented, verified control, pause the request and explain the dependency. Do not improvise a production database change.
+5. After ownership decisions, revoke active sessions and remove family access using supported controls. Member removal does not delete the Google identity or other family memberships.
+6. Review remaining identity-claim and audit references. Application audit rows are retained only within the approved 90-day window unless a separately approved legal/security hold applies.
+7. Do not claim full account deletion until a separately reviewed and tested account-level deletion procedure exists. Tell the requester exactly what was completed and what remains.
+
+No production account, family, membership or audit data is changed by this policy documentation or by adding the scheduled cleanup code. Once deployed, the job deletes only D1 audit_logs rows older than 90 days; Cloudflare platform invocation logs are outside its scope.
 
 ## 6. Beta participant guidance
 
@@ -101,8 +116,8 @@ Before using this document as the beta-facing privacy/support note, the owner mu
 - [x] Verify the seven-day absolute session expiry, server-side logout invalidation and cookie clearing in source/tests.
 - [x] Verify invitation expiry/revocation and member removal behaviour in source/tests; owner approval of participant-facing wording remains pending.
 - [x] Set the account- and family-deletion request email route to vtr.ravikumar@gmail.com. Account-deletion processing and family-record ownership implications remain to be defined.
-- [ ] Decide audit/technical log retention and communicate the chosen period.
+- [x] Owner approved 90-day retention for application D1 audit rows; scheduled cleanup code and tests are included. Cloudflare platform invocation-log retention remains separate.
 - [x] Set the beta support route: WhatsApp with the owner; email fallback plus account- and family-deletion requests at vtr.ravikumar@gmail.com.
 - [ ] Review the wording against the deployed service and approve publication.
 
-Until these decisions are complete, keep this file labelled as a draft and do not award beta readiness points for privacy/lifecycle or support/incident controls solely because this document exists.
+The 90-day application audit retention and manual owner-reviewed account-deletion policy are approved. Keep this file labelled as a draft until scheduled cleanup is deployed and verified and the owner completes the participant-facing wording review.

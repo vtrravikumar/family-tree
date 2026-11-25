@@ -9,11 +9,11 @@
 
 | Measure | Result |
 |---|---:|
-| Evidence score (all controls, including production backlog) | **85 / 100 (85%)** |
-| Beta-gate readiness (production-backlog work excluded) | **85 / 97.5 (87.2%)** |
-| Remaining beta-gate points | **12.5 points** |
+| Evidence score (all controls, including production backlog) | **87.5 / 100 (87.5%)** |
+| Beta-gate readiness (production-backlog work excluded) | **87.5 / 97.5 (89.7%)** |
+| Remaining beta-gate points | **10 points** |
 | Production-backlog points (not a beta blocker) | **2.5 points** |
-| Remaining | **15 points** |
+| Remaining | **12.5 points** |
 | Confidence of reaching 100% | **85% within 1 focused week** |
 | Confidence basis | Remaining work is finite and mostly operational setup, beta guidance and owner decisions; confidence is conditional on no new security/data-integrity issue and timely owner-side checks. |
 
@@ -22,9 +22,9 @@ This is a deliberately separate score from v1.0 completion. Deferred features su
 ## Latest engineering evidence — 2026-11-25
 
 - PR #110 merged on 2026-11-25. It records the approved account- and family-deletion request route (**vtr.ravikumar@gmail.com**), documents the existing Owner-only, explicit-confirmation in-app family deletion API, and distinguishes account deletion from family deletion. Validation, Cloudflare Pages dev and production, and Workers production checks succeeded; development deployment was skipped as expected. Merge commit: `9facfedbd6b53135f02fc24369dc696516938a86`.
-- The privacy/support document now has source-verified session/logout, invitation, member-removal and family-deletion implementation facts; the owner-approved email route for account/family deletion and support; and incident/rollback instructions. Account-deletion processing, audit/log retention and final owner approval of participant-facing privacy wording remain open. This earns partial evidence for controls 17 and 18, not full completion.
+- The privacy/support document now has source-verified session/logout, invitation, member-removal and family-deletion implementation facts; the owner-approved email route for account/family deletion and support; and incident/rollback instructions. The owner approved a manual owner-reviewed account-deletion process and 90-day D1 application audit retention; scheduled cleanup deployment/evidence and final participant-facing wording approval remain open. This earns partial evidence for controls 17 and 18, not full completion.
 
-- PR #107 production edge verification workflow was manually run on `main` on 2026-11-25; [workflow run 45601381941](https://github.com/vtrravikumar/family-tree/actions/runs/45601381941) succeeded. From a GitHub-hosted runner, TLS certificate validation, production API health (HTTP 200, production environment, D1 connected), `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, allowed-origin credentialed CORS preflight, absence of CORS permission for an unapproved origin, and server-side rejection of an unapproved-origin POST (HTTP 403, `origin_not_allowed`) all passed. The run used no authenticated session, family data, secrets or production writes. This closes the live TLS/CORS/health/header portion of control 15; deployed-log review remains outstanding, so control 15 stays partial at 2.5 points.
+- PR #107 production edge verification workflow was manually run on `main` on 2026-11-25; [workflow run 45601381941](https://github.com/vtrravikumar/family-tree/actions/runs/45601381941) succeeded. From a GitHub-hosted runner, TLS certificate validation, production API health (HTTP 200, production environment, D1 connected), `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, allowed-origin credentialed CORS preflight, absence of CORS permission for an unapproved origin, and server-side rejection of an unapproved-origin POST (HTTP 403, `origin_not_allowed`) all passed. The run used no authenticated session, family data, secrets or production writes. This closes the live TLS/CORS/health/header portion of control 15; deployed production invocation review is now complete as recorded below, closing control 15 at 5/5.
 
 - PR #101 actionable beta health alerts is merged. Controlled failure test on 2026-11-25 (workflow run #3, [run 45599198715](https://github.com/vtrravikumar/family-tree/actions/runs/45599198715)) intentionally failed the health-check job; the notification job succeeded and created [issue #103](https://github.com/vtrravikumar/family-tree/issues/103), assigned to `vtrravikumar`. A second controlled run reused the existing alert rather than creating a duplicate. Test alert #103 was closed after verification. Normal scheduled run #2 completed successfully. This verifies the alert delivery path; the simulated failure is not evidence of an actual service outage.
 
@@ -66,13 +66,13 @@ The merged changes have passing validation and applicable Workers/Pages checks. 
 | 12 | Cross-family/resource-ID tampering negative tests | Complete | 5 | Local-D1 integration test `rejects foreign-family resource IDs across member, invitation, identity, person and relationship mutations` exercises foreign resource IDs and verifies denials, unchanged foreign records and no foreign audit writes. Existing tests also cover foreign family/person substitutions. Live production-like replay is deferred to UAT feedback rather than treated as a pre-UAT gate. |
 | 13 | Local D1 integration test capability and CI execution | Complete | 5 | PR #59 added real local D1/SQLite integration tests; PR #62's latest CI run is green. Green CI is not equivalent to merged code or production deployment. |
 | 14 | Backup/recovery operating procedure, access and retention | **Production backlog — not a beta blocker** | 2.5 | PR #58 runbook is retained. Existing disposable D1 restore rehearsal and production Time Travel bookmark are recorded. Remaining work (independent SQL export, storage, access, schedule, retention and restore rehearsal) is deferred to production readiness and is excluded from the beta go/no-go score. No production backup operation is authorized by this deferral. |
-| 15 | Production edge/security verification: CORS, cookies, TLS, headers, safe errors/logging | Partial | 2.5 | PR #107 [workflow run 45601381941](https://github.com/vtrravikumar/family-tree/actions/runs/45601381941) passed live production TLS validation, health/D1 response, no-store/nosniff headers, allowed credentialed CORS preflight, denied-origin no-ACAO and denied-origin POST (403). Source tests/review cover secure HttpOnly SameSite=Lax session cookie attributes and generic API errors. Deployed-log review remains outstanding; keep partial until that evidence exists. |
+| 15 | Production edge/security verification: CORS, cookies, TLS, headers, safe errors/logging | Complete | 5 | PR #107 [workflow run 45601381941](https://github.com/vtrravikumar/family-tree/actions/runs/45601381941) passed live production TLS validation, health/D1 response, no-store/nosniff headers, allowed credentialed CORS preflight, denied-origin no-ACAO and denied-origin POST (403). Source tests/review cover secure HttpOnly SameSite=Lax session cookie attributes and generic API errors. On 2026-11-25, production invocation details for `GET /v1/families/sample-family-v1/identity` were reviewed: the cookie header value was redacted, request/response bodies and credentials were not present, and the event exposed only method/path, response status and operational metadata. This closes the deployed-log evidence for the bounded beta. Client IP/geolocation metadata is visible; retention/minimization decisions remain tracked under Control 17. |
 | 16 | Actionable operational monitoring and failure alerts | Complete | 5 | PR #101 merged. Normal monitor run #2 succeeded for dev/prod; controlled failure run #3 failed the health job as intended and notification job succeeded, creating assigned GitHub issue #103. Second test run reused the alert (no duplicate); test issue closed after verification. Evidence: [run #3](https://github.com/vtrravikumar/family-tree/actions/runs/45599198715), [issue #103](https://github.com/vtrravikumar/family-tree/issues/103). |
-| 17 | Beta privacy and lifecycle policy | Partial | 2.5 | PRs #109 and #110 document verified seven-day session/logout and invitation behaviour, member removal, Owner-only confirmed family deletion, and the approved account-deletion request email. Remaining: define and verify account-deletion processing/owned-family handling, audit/log retention, and owner approval of participant-facing wording. |
+| 17 | Beta privacy and lifecycle policy | Partial | 2.5 | PRs #109/#110 verify session/logout, invitation, member-removal and family-deletion behaviour. Owner approved manual owner-reviewed account-deletion handling and 90-day D1 audit_logs retention on 2026-11-25. Scheduled cleanup implementation/tests are in PR #118; deployment and first scheduled-run evidence plus final participant-facing wording approval remain. No self-service account-deletion endpoint is claimed. |
 | 18 | Support contact, incident handling and rollback instructions | Partial | 2.5 | PRs #102 and #109 document WhatsApp with the owner, email fallback at vtr.ravikumar@gmail.com, incident response steps and application rollback guidance. PR #110 confirms the same email for account/family-deletion requests. Remaining: owner review/approval of the participant-facing support and incident note. |
 | 19 | End-to-end acceptance using the intended beta accounts and roles | Complete | 5 | Owner confirmed the intended account/role acceptance is checked and complete, including Owner, Admin, Editor and Viewer. Existing automated regressions cover role permissions, invitation lifecycle, identity claims, family isolation and cross-family resource IDs. Development acceptance is closed; retain production UAT findings in the normal defect process. |
 | 20 | Bounded beta notes and explicit invitation go/no-go | Not evidenced | 0 | Publish scope/limitations and data-safety guidance; owner explicitly approves opening the beta after all Gate 1 checks pass. |
-|  | **Total** |  | **85 / 100** |  |
+|  | **Total** |  | **87.5 / 100** |  |
 
 ## Immediate work queue
 
@@ -84,7 +84,7 @@ The merged changes have passing validation and applicable Workers/Pages checks. 
 
 ### Operational / owner verification
 5. **Production backlog (after beta):** decide and approve D1 backup destination, schedule, retention and access controls; then complete an approved SQL export and disposable restore rehearsal.
-6. Capture CORS preflight, secure-cookie, TLS/header and safe-logging evidence from the intended beta environment.
+6. CORS preflight, secure-cookie, TLS/header and deployed invocation-log evidence are complete for Control 15.
 7. Configure actionable monitoring/alerts and verify the notification path.
 8. Record privacy/session/invitation/audit retention decisions and account deletion/revocation expectations.
 9. Prepare the bounded UAT cohort, instructions, feedback channel and issue-triage process. Friends & Family use is the live acceptance phase; production-style certification remains part of the later v1.0 release process.
@@ -136,3 +136,8 @@ The owner confirmed that the intended account/role acceptance checks are already
 ## Backup/recovery scope decision — 2026-11-25
 
 The owner confirmed backup/recovery is not a blocker for the bounded Friends & Family beta. Control 14 remains partially evidenced at 2.5/5 for transparency, but its remaining 2.5 points are excluded from the beta-gate denominator and moved to the production backlog. The runbook remains available for later production-readiness work. This decision does not mark backup/recovery complete or authorize R2 provisioning, production export/restore, secrets, schedules or retention changes.
+
+
+## Production invocation-log review — 2026-11-25
+
+The owner reviewed a production invocation detail for `GET /v1/families/sample-family-v1/identity` in Cloudflare Workers Observability. The cookie header value was explicitly redacted. The event contained request method/path, response status and operational metadata; no request or response body, session token, invitation code or family-record content was present in the displayed event. Client IP and approximate geolocation/connection metadata were visible; decisions on log retention and data minimization remain open under Control 17. Together with the successful production edge workflow and source-reviewed cookie/error handling, this closes Control 15 at 5/5.
