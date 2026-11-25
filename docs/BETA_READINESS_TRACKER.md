@@ -9,14 +9,16 @@
 
 | Measure | Result |
 |---|---:|
-| Beta readiness | **72.5 / 100 (72.5%)** |
-| Remaining | **27.5 points** |
+| Beta readiness | **77.5 / 100 (77.5%)** |
+| Remaining | **22.5 points** |
 | Confidence of reaching 100% | **75% within 1–2 focused weeks** |
 | Confidence basis | Remaining work is finite and mostly operational setup, beta guidance and owner decisions; confidence is conditional on no new security/data-integrity issue and timely owner-side checks. |
 
 This is a deliberately separate score from v1.0 completion. Deferred features such as photo upload, full-tree presentation export and advanced collaboration do not reduce beta readiness.
 
 ## Latest engineering evidence — 2026-11-25
+
+- PR #101 actionable beta health alerts is merged. Controlled failure test on 2026-11-25 (workflow run #3, [run 45599198715](https://github.com/vtrravikumar/family-tree/actions/runs/45599198715)) intentionally failed the health-check job; the notification job succeeded and created [issue #103](https://github.com/vtrravikumar/family-tree/issues/103), assigned to `vtrravikumar`. A second controlled run reused the existing alert rather than creating a duplicate. Test alert #103 was closed after verification. Normal scheduled run #2 completed successfully. This verifies the alert delivery path; the simulated failure is not evidence of an actual service outage.
 
 The authorization and data-integrity hardening series is now merged to `main`:
 
@@ -36,7 +38,7 @@ The authorization and data-integrity hardening series is now merged to `main`:
 - PR #83: corrected Admin role display in the member roster; development deployment was owner-verified.
 - 2026-11-25 development UI acceptance: Owner, Admin, Editor and Viewer role display/transition checks were owner-confirmed. Admin protected controls and Viewer read-only behavior were observed. This is UI smoke-test evidence only; the full action/API matrix and production acceptance remain open.
 
-The merged changes have passing validation and applicable Workers/Pages checks. They are merged to `main`; this does not by itself prove production promotion. The beta score is 72.5/100: controls 10–12 are now complete based on source review and automated unit/local-D1 evidence. Live production-like role replay is intentionally deferred to Friends & Family UAT and is not treated as a pre-UAT gate.
+The merged changes have passing validation and applicable Workers/Pages checks. They are merged to `main`; this does not by itself prove production promotion. The beta score is 77.5/100: controls 10–12 and 16 are now complete based on source review, automated unit/local-D1 evidence and a verified monitoring alert path. Live production-like role replay is intentionally deferred to Friends & Family UAT and is not treated as a pre-UAT gate.
 
 ## Scored evidence checklist
 
@@ -57,12 +59,12 @@ The merged changes have passing validation and applicable Workers/Pages checks. 
 | 13 | Local D1 integration test capability and CI execution | Complete | 5 | PR #59 added real local D1/SQLite integration tests; PR #62's latest CI run is green. Green CI is not equivalent to merged code or production deployment. |
 | 14 | Backup/recovery operating procedure, access and retention | Partial | 2.5 | PR #58 is merged with `docs/BACKUP_RECOVERY.md`; a disposable D1 restore rehearsal passed and a production Time Travel bookmark was observed. Backup destination, schedule, access controls, retention and a fresh SQL export/restore rehearsal still need owner approval/evidence. |
 | 15 | Production edge/security verification: CORS, cookies, TLS, headers, safe errors/logging | Partial | 2.5 | Domain/SSL, production sign-in and health confirmed. CORS preflight, cookie attributes, security headers and deployed-log review need recorded evidence. |
-| 16 | Actionable operational monitoring and failure alerts | Not evidenced | 0 | Choose and verify beta-appropriate error/availability alerts without exposing family data or credentials. |
+| 16 | Actionable operational monitoring and failure alerts | Complete | 5 | PR #101 merged. Normal monitor run #2 succeeded for dev/prod; controlled failure run #3 failed the health job as intended and notification job succeeded, creating assigned GitHub issue #103. Second test run reused the alert (no duplicate); test issue closed after verification. Evidence: [run #3](https://github.com/vtrravikumar/family-tree/actions/runs/45599198715), [issue #103](https://github.com/vtrravikumar/family-tree/issues/103). |
 | 17 | Beta privacy and lifecycle policy | Not evidenced | 0 | Decide/document session and invitation expiry, logout/revocation, account deletion expectations, and family/platform audit retention. |
 | 18 | Support contact, incident handling and rollback instructions | Not evidenced | 0 | Name the beta support route and document operator steps for a failed release or serious data/access issue. |
 | 19 | End-to-end acceptance using the intended beta accounts and roles | Partial | 2.5 | Owner-confirmed development UI smoke tests cover Owner, Admin, Editor and Viewer role display/transition, Admin protected controls and Viewer read-only behavior (2026-11-25; PR #83 deployed to development). Remaining: action-by-action permission matrix, direct API denial tests, Editor restriction checks, invitation/identity/family-isolation edge cases and production acceptance. |
 | 20 | Bounded beta notes and explicit invitation go/no-go | Not evidenced | 0 | Publish scope/limitations and data-safety guidance; owner explicitly approves opening the beta after all Gate 1 checks pass. |
-|  | **Total** |  | **72.5 / 100** |  |
+|  | **Total** |  | **77.5 / 100** |  |
 
 ## Immediate work queue
 
