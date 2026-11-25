@@ -24,7 +24,7 @@ The following feature-branch PRs have additional CI evidence, but remain unmerge
 - PR #64 invitation revocation atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
 - PR #65 person profile update atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
 - PR #66 person lifecycle atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
-- PR #67 relationship mutation atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
+- PR #67 relationship mutation atomicity: latest draft adds write-time duplicate/ancestry-cycle checks and local D1 create/update/delete coverage; validation passed, Production Pages preview is still running, and the latest Workers preview has not yet reported (an earlier Worker build passed).
 - PR #68 import integrity: latest validation (typecheck/tests/build, including D1 rollback, relationship/cycle and Super Admin audit tests), both Pages previews and Workers preview passed. An earlier Worker preview failed, but the latest Worker build succeeded.
 - PR #69 family deletion atomicity: validation, both Pages previews and Workers preview passed; local D1 integration coverage verifies family deletion and cascade behavior.
 - PR #70 identity claim creation atomicity: validation, both Pages previews and Workers preview passed; local D1 integration test confirms direct Owner linking and audit.
