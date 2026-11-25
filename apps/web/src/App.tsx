@@ -3,7 +3,6 @@ import FamilyTree from "./FamilyTree";
 import VersionHistory from "./VersionHistory";
 import PlatformAdmin from "./PlatformAdmin";
 import { FamilyMembers, InvitationLanding } from "./FamilyMembers";
-import { ramanImportGzipBase64 } from "./ramanImportData";
 declare global { interface Window { google?: { accounts: { id: { initialize: (options:{client_id:string;callback:(response:{credential:string})=>void})=>void; renderButton:(element:HTMLElement,options:Record<string,string>)=>void; prompt:()=>void } } } } }
 type SignedInUser={id:string;email:string;displayName:string};
 const GOOGLE_CLIENT_ID="569004813603-bgdrv8dmth1po7hvn84ke5jq9vmkkalt.apps.googleusercontent.com";
