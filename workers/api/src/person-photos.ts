@@ -71,8 +71,8 @@ export async function handlePersonPhoto(
     if(contentLength>MAX_PERSON_PHOTO_BYTES+65536)return error(413,"photo_too_large","Portraits must be 5 MiB or smaller.");
     let form:FormData;
     try{form=await request.formData();}catch{return error(400,"invalid_photo_upload","Upload a JPEG, PNG or WebP image.");}
-    const file=form.get("photo");
-    if(!(file instanceof File))return error(400,"photo_required","Choose a JPEG, PNG or WebP image.");
+    const file=form.get("photo") as unknown as File|null;
+    if(!file||typeof file==="string"||typeof file.arrayBuffer!=="function")return error(400,"photo_required","Choose a JPEG, PNG or WebP image.");
     if(file.size===0||file.size>MAX_PERSON_PHOTO_BYTES)return error(413,"photo_too_large","Portraits must be between 1 byte and 5 MiB.");
     const bytes=new Uint8Array(await file.arrayBuffer());
     const detected=Object.entries(PHOTO_TYPES).find(([type,rule])=>rule.signature(bytes)&&file.type===type);
