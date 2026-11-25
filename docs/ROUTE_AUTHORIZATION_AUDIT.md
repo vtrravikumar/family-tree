@@ -119,6 +119,8 @@ The following changes are under review after the initial audit. Draft PRs are ev
 2. **Identity claim creation had a stale-membership window.** The original handler checked membership and person scope before a later INSERT. PR #70 moves membership/person scope into the INSERT and gates audit rows.
 3. **Workbook import integrity is implemented in draft PR #68 but not yet accepted.** The latest code plans all records first and executes person, relationship and audit writes in one authorized D1 batch. Local D1 tests cover malformed late rows, forced database-failure rollback and the reason-gated Super Admin audit path. Keep the finding open until the Production Pages preview completes and the PR is reviewed/merged.
 
+4. **Read-route scope review:** Reviewed the current API GET paths for family lists, member rosters, invitations, identity links/claims, people and relationships, plus platform overview/users/families/audit/support/export. Family reads are scoped by membership/family ID; identity claim requester data is self-scoped and pending requester details are Owner/Admin-only; platform data reads require Super Admin. No unscoped cross-family read was identified in this pass. Existing negative tests do not yet cover every read route, so retain broader API-level cross-family tests in the acceptance plan.
+
 ### Current audit disposition
 
 - Merged protections: PR #59 and PR #60 only.
