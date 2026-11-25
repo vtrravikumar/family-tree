@@ -19,17 +19,17 @@ This is a deliberately separate score from v1.0 completion. Deferred features su
 
 The following feature-branch PRs have additional CI evidence, but remain unmerged and therefore do not change the readiness score:
 
-- PR #61 identity unlink atomicity: local D1 integration test added; validation, Development Pages and Workers preview passed; Production Pages preview is still running.
+- PR #61 identity unlink atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
 - PR #62 invitation creation atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
 - PR #64 invitation revocation atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
 - PR #65 person profile update atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
 - PR #66 person lifecycle atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
 - PR #67 relationship mutation atomicity: local D1 integration test added; validation, both Pages previews and Workers preview passed.
-- PR #68 import integrity: latest validation (typecheck/tests/build, including D1 rollback, relationship/cycle and Super Admin audit tests) and Workers preview passed; Production Pages preview is still running.
+- PR #68 import integrity: latest validation (typecheck/tests/build, including D1 rollback, relationship/cycle and Super Admin audit tests) and Workers preview passed; Production Pages preview is still running. An earlier Worker preview failed, but the latest Worker build succeeded.
 - PR #69 family deletion atomicity: validation, both Pages previews and Workers preview passed; local D1 integration coverage verifies family deletion and cascade behavior.
 - PR #70 identity claim creation atomicity: validation, both Pages previews and Workers preview passed; local D1 integration test confirms direct Owner linking and audit.
 
-PR #68 now implements one-batch transactional import with write-time family/Super Admin authorization and local D1 rollback tests. Its latest validation passed, but a fresh Workers preview has not yet reported after an earlier Workers preview failure. No PR in this list has been merged or promoted to production.
+PR #68 now implements one-batch transactional import with write-time family/Super Admin authorization and local D1 rollback tests. Its latest validation and Workers preview passed; the Production Pages preview is still running. No PR in this list has been merged or promoted to production.
 
 ## Scored evidence checklist
 
