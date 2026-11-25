@@ -1,6 +1,6 @@
 # Route-by-Route Authorization Audit
 
-**Reviewed baseline:** `main` after PR #75 (2026-11-25).  
+**Reviewed baseline:** `main` after PR #78 (2026-11-25).  
 **Runtime scope:** `workers/api/src/index.ts`; unit tests in `workers/api/src/index.test.ts`; local-D1 integration tests in `workers/api/test/identity-claims.integration.test.ts`.  
 **Purpose:** Record source/test evidence and remaining acceptance work. This document is not a production security certification.
 
@@ -66,6 +66,9 @@ The following PRs are merged to `main`. This list records implementation scope; 
 - **#69:** family deletion rechecks Owner membership in the delete statement.
 - **#70:** identity claim creation/direct linking rechecks membership, person scope and Owner authority in the write.
 - **#73:** person creation rechecks current role in the insert and gates its audit row.
+- **#76:** refreshed this route inventory and recorded the remaining live-acceptance boundaries.
+- **#77:** refreshed production-readiness evidence after the merged security changes.
+- **#78:** identity-claim approval and rejection recheck current Owner/Admin membership inside the conditional state-transition writes; unit regressions assert the predicate and family/actor bindings.
 - **#71:** follow-up audit findings documentation.
 - **#72:** beta acceptance checklist.
 - **#75:** beta readiness evidence refreshed after the security merges.
