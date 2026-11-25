@@ -15,6 +15,22 @@
 
 This is a deliberately separate score from v1.0 completion. Deferred features such as photo upload, full-tree presentation export and advanced collaboration do not reduce beta readiness.
 
+## Latest engineering evidence — 2026-11-25
+
+The following feature-branch PRs have additional CI evidence, but remain unmerged and therefore do not change the readiness score:
+
+- PR #61 identity unlink atomicity: validation, both Pages previews and Workers preview passed.
+- PR #62 invitation creation atomicity: validation, both Pages previews and Workers preview passed.
+- PR #64 invitation revocation atomicity: validation, both Pages previews and Workers preview passed.
+- PR #65 person profile update atomicity: validation, both Pages previews and Workers preview passed.
+- PR #66 person lifecycle atomicity: validation, both Pages previews and Workers preview passed.
+- PR #67 relationship mutation atomicity: validation, both Pages previews and Workers preview passed.
+- PR #68 import pre-validation: typecheck, tests, build and Pages previews passed; the Cloudflare Workers preview build failed and requires investigation. This change is not counted as complete.
+- PR #69 family deletion atomicity: validation and Workers preview passed; Pages preview was still running at the last check.
+- PR #70 identity claim creation atomicity: validation passed; Cloudflare Pages and Workers previews were still running at the last check.
+
+The import work in PR #68 is an initial guard only. Full transactional import rollback and write-time authorization remain open. No PR in this list has been merged or promoted to production.
+
 ## Scored evidence checklist
 
 | # | Control / evidence required | Status | Points | Evidence / remaining work |
