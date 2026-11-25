@@ -1,6 +1,6 @@
 # Person Photo Management — Feature Design
 
-**Status:** Design review; no implementation or infrastructure changes authorized by this document  
+**Status:** Product decisions confirmed; implementation pending separate approval  
 **Scope:** Family-tree person portraits and approved Google identity photos
 
 ## 1. Goals
@@ -23,7 +23,7 @@ The family portrait and Google identity photo must never overwrite or mutate one
 | Editor | Yes | Yes | Yes |
 | Viewer | Yes | No | No |
 
-Authorization must be enforced by the API for every operation. Hiding controls in the frontend is not authorization.
+Authorization must be enforced by the API for every operation. Hiding controls in the frontend is not authorization. Once a person is marked deceased, their portrait is immutable: no role, including Owner, Admin or Editor, may upload, replace or remove the family portrait. Existing portraits remain visible to family members.
 
 ### Display precedence and fallback
 
@@ -100,9 +100,9 @@ The D1 pointer must not be committed before the R2 write succeeds. If the D1 wri
 - Replacement must be safe against partial failure: upload and validate the new object first, atomically point the person to the new media row, then remove the old object. Failed cleanup should be retryable.
 - Family/person deletion must not leave orphaned R2 objects. D1 cascade deletion alone cannot delete R2 objects; add an explicit cleanup strategy before enabling photo deletion flows.
 
-## 5. Image validation and limits — proposal for approval
+## 5. Image validation and limits — approved
 
-Recommended initial limits:
+The owner approved these initial limits:
 
 - Maximum upload size: **5 MiB**.
 - Accepted formats: **JPEG, PNG and WebP**.
@@ -112,7 +112,7 @@ Recommended initial limits:
 - Set a safe image response Content-Type from the validated format.
 - Provide client-side preview and clear upload/replace/remove feedback.
 
-Image dimensions and image re-encoding/metadata stripping need a deliberate implementation choice. Browser-side re-encoding can reduce size and remove some metadata but is not a security boundary. If server-side normalization is required, select and test a Cloudflare-compatible image-processing approach before implementation.
+Client-side resize and preview are approved for the initial release. Client-side processing improves usability and can reduce upload size, but is not a security boundary; the API must still validate file signatures and enforce the 5 MiB limit. Server-side image normalization and metadata stripping are not required for the initial release.
 
 ## 6. Google photo lifecycle and privacy
 
@@ -120,7 +120,7 @@ Image dimensions and image re-encoding/metadata stripping need a deliberate impl
 - Do not permanently copy the Google image into R2 by default.
 - Do not treat a Google photo URL as proof of identity; the approved database identity link is the authorization condition.
 - A Google photo can change or become unavailable. The UI must gracefully fall back to initials when the URL is absent or the image fails to load.
-- Direct browser loading of a Google-hosted image causes the viewer's browser to contact Google's image host. This is a privacy consideration. A same-origin image proxy could reduce direct browser disclosure but adds SSRF, host-validation, caching and operational complexity. Keep direct loading as the simpler initial option only after documenting this trade-off; evaluate a tightly allowlisted proxy separately if privacy requirements call for it.
+- **Approved approach:** load the linked user's Google-hosted image directly in the browser. The viewer's browser therefore contacts Google's image host; this privacy trade-off is accepted for the initial release in exchange for a simpler implementation. Do not add a proxy or accept arbitrary external image URLs.
 - Never accept an arbitrary external image URL from a client and proxy it.
 
 ## 7. Data model proposal
@@ -160,7 +160,7 @@ Provide a consistent avatar component used in:
 - Person details/profile.
 - Family directory and relevant person lists.
 
-For Owner/Admin/Editor, expose photo actions in the person's profile: upload, replace and remove. Viewer sees the photo but no mutation controls.
+For Owner/Admin/Editor, expose photo actions in the person's profile: upload, replace and remove, except when the person is deceased (then all portrait mutation actions are unavailable and rejected by the API). Viewer sees the photo but no mutation controls. All current family members, including Viewers, can view photos.
 
 When both sources exist, the uploaded family portrait is the main avatar. The Google identity photo may be shown as a small secondary identity indicator, with a clear accessible label; avoid two competing large portraits.
 
@@ -183,7 +183,7 @@ Tests must cover:
 - Object key is not guessable from user data and R2 is not publicly accessible.
 - Upload/DB failure and replacement cleanup do not leave an active broken pointer.
 - Family/person deletion and cleanup do not orphan R2 objects.
-- Deceased-person policy is enforced consistently (see open decision below).
+- Deceased-person portrait immutability is enforced by the API: no role can upload, replace or remove a deceased person's portrait; existing portrait remains readable.
 - Audit records contain no photo bytes, Google token or sensitive URL.
 
 ## 11. Rollout plan
@@ -198,10 +198,14 @@ Tests must cover:
 
 No production R2 bucket, binding, migration, or application change is authorized by this design document.
 
-## 12. Open decisions before implementation
+## 12. Confirmed decisions and remaining implementation gate
 
-1. **Deceased persons:** Should Owner/Admin/Editor still be allowed to upload/change/remove a portrait for a deceased person, or should the existing deceased-profile immutability rule also lock portraits?
-2. **Upload limit and formats:** Approve the proposed 5 MiB JPEG/PNG/WebP limit, or specify another limit.
-3. **Google photo presentation:** Approve direct Google-hosted image loading (simpler, but viewers' browsers contact Google), or require a same-origin proxy despite its added complexity.
-4. **Image processing:** Is client-side resize/preview sufficient for the first release, or is server-side image normalization/metadata stripping required?
-5. **Photo visibility:** This design assumes photos follow the existing private family membership boundary and are visible to every current family member, including Viewers. Confirm if this is correct.
+The owner has confirmed:
+
+1. Deceased-person portraits are immutable; existing portraits remain visible, but nobody can upload, replace or remove them.
+2. Maximum upload size is 5 MiB; accepted formats are JPEG, PNG and WebP.
+3. Google identity photos load directly from Google's image host in the browser; the associated privacy trade-off is accepted for the initial release.
+4. Client-side resize and preview are sufficient initially. API-side signature and size validation remain mandatory.
+5. All current family members, including Viewers, can view photos. Only Owner/Admin/Editor can mutate portraits, subject to the deceased-person immutability rule.
+
+The product decisions are closed. Implementation still requires a separate go-ahead, environment-specific R2 provisioning/bindings, migration and code review. No production infrastructure or application change is authorized by this design approval.
