@@ -812,8 +812,18 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       const cycle=await env.DB.prepare(`WITH RECURSIVE descendants(person_id) AS (SELECT to_person_id FROM relationships WHERE family_id=? AND from_person_id=? AND relationship_type IN ('biological_parent','adoptive_parent','step_parent') AND id<>? UNION SELECT r.to_person_id FROM relationships r JOIN descendants d ON r.from_person_id=d.person_id WHERE r.family_id=? AND r.relationship_type IN ('biological_parent','adoptive_parent','step_parent') AND r.id<>?) SELECT 1 FROM descendants WHERE person_id=? LIMIT 1`).bind(familyId,toId,relationshipId,familyId,relationshipId,fromId).first();
       if(cycle)return fail(409,"relationship_cycle","This parent-child relationship would create an ancestry cycle.");
     }
+    const duplicateWriteSql=type==="spouse"
+      ? " AND NOT EXISTS (SELECT 1 FROM relationships r WHERE r.family_id=? AND r.relationship_type='spouse' AND r.id<>? AND ((r.from_person_id=? AND r.to_person_id=?) OR (r.from_person_id=? AND r.to_person_id=?)))"
+      : " AND NOT EXISTS (SELECT 1 FROM relationships r WHERE r.family_id=? AND r.from_person_id=? AND r.to_person_id=? AND r.relationship_type=? AND r.id<>?)";
+    const duplicateWriteBindings=type==="spouse"
+      ? [familyId,relationshipId,fromId,toId,toId,fromId]
+      : [familyId,fromId,toId,type,relationshipId];
+    const cycleWriteSql=parentTypes.includes(type)
+      ? " AND NOT EXISTS (WITH RECURSIVE descendants(person_id) AS (SELECT to_person_id FROM relationships WHERE family_id=? AND from_person_id=? AND relationship_type IN ('biological_parent','adoptive_parent','step_parent') AND id<>? UNION SELECT r.to_person_id FROM relationships r JOIN descendants d ON r.from_person_id=d.person_id WHERE r.family_id=? AND r.relationship_type IN ('biological_parent','adoptive_parent','step_parent') AND r.id<>?) SELECT 1 FROM descendants WHERE person_id=?)"
+      : "";
+    const cycleWriteBindings=parentTypes.includes(type)?[familyId,toId,relationshipId,familyId,relationshipId,fromId]:[];
     const results=await env.DB.batch([
-      env.DB.prepare("UPDATE relationships SET from_person_id=?,to_person_id=?,relationship_type=? WHERE id=? AND family_id=? AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin','editor')) AND EXISTS (SELECT 1 FROM persons a JOIN persons b ON b.family_id=a.family_id WHERE a.id=? AND b.id=? AND a.family_id=?)").bind(fromId,toId,type,relationshipId,familyId,familyId,actorUserId,fromId,toId,familyId),
+      env.DB.prepare("UPDATE relationships SET from_person_id=?,to_person_id=?,relationship_type=? WHERE id=? AND family_id=? AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin','editor')) AND EXISTS (SELECT 1 FROM persons a JOIN persons b ON b.family_id=a.family_id WHERE a.id=? AND b.id=? AND a.family_id=?)"+duplicateWriteSql+cycleWriteSql).bind(fromId,toId,type,relationshipId,familyId,familyId,actorUserId,fromId,toId,familyId,...duplicateWriteBindings,...cycleWriteBindings),
       env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'relationship',?,'relationship.updated',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,relationshipId,JSON.stringify({from:fromId,to:toId,type}),t)
     ]);
     if(!results[0]?.meta.changes)return fail(409,"relationship_change_unavailable","This relationship changed or your editing permission is no longer available.");
@@ -851,8 +861,16 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       }
       const relationshipId=id(), t=now();
       try {
+        const duplicateWriteSql=type==="spouse"
+          ? " AND NOT EXISTS (SELECT 1 FROM relationships r WHERE r.family_id=? AND r.relationship_type='spouse' AND ((r.from_person_id=? AND r.to_person_id=?) OR (r.from_person_id=? AND r.to_person_id=?)))"
+          : " AND NOT EXISTS (SELECT 1 FROM relationships r WHERE r.family_id=? AND r.from_person_id=? AND r.to_person_id=? AND r.relationship_type=?)";
+        const duplicateWriteBindings=type==="spouse"?[familyId,fromId,toId,toId,fromId]:[familyId,fromId,toId,type];
+        const cycleWriteSql=parentTypes.includes(type)
+          ? " AND NOT EXISTS (WITH RECURSIVE descendants(person_id) AS (SELECT to_person_id FROM relationships WHERE family_id=? AND from_person_id=? AND relationship_type IN ('biological_parent','adoptive_parent','step_parent') UNION SELECT r.to_person_id FROM relationships r JOIN descendants d ON r.from_person_id=d.person_id WHERE r.family_id=? AND r.relationship_type IN ('biological_parent','adoptive_parent','step_parent')) SELECT 1 FROM descendants WHERE person_id=?)"
+          : "";
+        const cycleWriteBindings=parentTypes.includes(type)?[familyId,toId,familyId,fromId]:[];
         const results=await env.DB.batch([
-          env.DB.prepare("INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin','editor')) AND EXISTS (SELECT 1 FROM persons a JOIN persons b ON b.family_id=a.family_id WHERE a.id=? AND b.id=? AND a.family_id=?)").bind(relationshipId,familyId,fromId,toId,type,actorUserId,t,familyId,actorUserId,fromId,toId,familyId),
+          env.DB.prepare("INSERT INTO relationships(id,family_id,from_person_id,to_person_id,relationship_type,created_by_user_id,created_at) SELECT ?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin','editor')) AND EXISTS (SELECT 1 FROM persons a JOIN persons b ON b.family_id=a.family_id WHERE a.id=? AND b.id=? AND a.family_id=?)"+duplicateWriteSql+cycleWriteSql).bind(relationshipId,familyId,fromId,toId,type,actorUserId,t,familyId,actorUserId,fromId,toId,familyId,...duplicateWriteBindings,...cycleWriteBindings),
           env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,created_at) SELECT ?,?,?, 'relationship',?,'relationship.created',? WHERE changes()=1").bind(id(),familyId,actorUserId,relationshipId,t)
         ]);
         if(!results[0]?.meta.changes)return fail(409,"relationship_create_unavailable","Your editing permission or the selected family members changed before this relationship could be saved.");
