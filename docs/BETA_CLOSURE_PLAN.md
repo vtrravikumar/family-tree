@@ -65,7 +65,7 @@ Use development tests and disposable D1 restore rehearsals wherever they can pro
 
 ## Current baseline
 
-The source tracker records an evidence score of **85/100**. Beta-gate readiness is **85/97.5 (87.2%)**, with **12.5 beta-gate points remaining**. Control 14's remaining 2.5 points are explicitly excluded from the beta gate and moved to the production backlog. Control 16 (monitoring/alerts) and control 19 (intended account/role acceptance) are complete. Control 15 is now complete. The remaining sequence is privacy/account-deletion and support-note approvals, then beta notes and the explicit beta go/no-go.
+The source tracker records an evidence score of **87.5/100**. Beta-gate readiness is **87.5/97.5 (89.7%)**, with **10 beta-gate points remaining**. Control 14's remaining 2.5 points are explicitly excluded from the beta gate and moved to the production backlog. Controls 15 (production edge/security), 16 (monitoring/alerts) and 19 (intended account/role acceptance) are complete. The remaining sequence is privacy/account-deletion and support-note approvals, then beta notes and the explicit beta go/no-go.
 
 
 ## Intended-account acceptance closure — 2026-11-25
