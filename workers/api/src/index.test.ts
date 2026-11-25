@@ -159,6 +159,16 @@ describe("server-side authorization", () => {
     }
   });
 
+  it("rechecks Owner membership inside the family deletion statement", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}> = [];
+    expect((await request("/v1/families/family-1","owner","DELETE",{confirmed:true},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes)).status).toBe(200);
+    const deletion=writes.find(write=>write.sql.includes("DELETE FROM families"));
+    expect(deletion?.sql).toContain("actor.role='owner'");
+    expect(deletion?.sql).toContain("actor.user_id=?");
+
+    expect((await request("/v1/families/family-1","owner","DELETE",{confirmed:true},false,0)).status).toBe(409);
+  });
+
   it("keeps the shared sample read-only for every family role, including Owners", async () => {
     for(const role of ["owner","admin","editor","viewer"]){
       expect((await request("/v1/families/sample-family-v1/people",role,"POST",{givenName:"Not allowed"})).status).toBe(403);

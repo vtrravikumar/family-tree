@@ -440,7 +440,10 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const family=await env.DB.prepare("SELECT name FROM families WHERE id=?").bind(familyId).first<{name:string}>();
     if (!family) return fail(404,"family_not_found","Family not found.");
     try {
-      await env.DB.prepare("DELETE FROM families WHERE id=?").bind(familyId).run();
+      const results=await env.DB.batch([
+        env.DB.prepare("DELETE FROM families WHERE id=? AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role='owner')").bind(familyId,familyId,actorUserId),
+      ]);
+      if(!results[0]?.meta.changes)return fail(409,"family_delete_unavailable","The family ownership changed before deletion could complete.");
       return json({data:{id:familyId,name:family.name,deleted:true}});
     } catch {
       return fail(409,"family_delete_blocked","This family could not be deleted because dependent records are protected. No family data was intentionally changed.");

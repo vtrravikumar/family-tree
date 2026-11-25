@@ -165,6 +165,20 @@ async function importWithForcedDatabaseFailure() {
   );
 }
 
+async function deleteFamily() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ confirmed: true }),
+    },
+  );
+}
+
 async function review(decision: "approve" | "reject") {
   return SELF.fetch(
     `https://vansvriksh.test/v1/families/${FAMILY_ID}/identity-claims/${CLAIM_ID}/review`,
@@ -193,6 +207,21 @@ describe("identity claim review against local D1", () => {
     await run("DELETE FROM users WHERE id != ?", [OWNER_ID]);
     await seedClaim();
   });
+  it("deletes a family only for its current owner in local D1", async () => {
+    const response = await deleteFamily();
+
+    expect(response.status).toBe(200);
+    const family = await env.DB.prepare(
+      "SELECT id FROM families WHERE id=?",
+    ).bind(FAMILY_ID).first<{ id: string }>();
+    const person = await env.DB.prepare(
+      "SELECT id FROM persons WHERE id=? AND family_id=?",
+    ).bind(PERSON_ID, FAMILY_ID).first<{ id: string }>();
+
+    expect(family).toBeNull();
+    expect(person).toBeNull();
+  });
+
   it("rejects a malformed late import row before any person or audit write", async () => {
     const response = await importMalformedWorkbook();
 
