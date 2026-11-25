@@ -179,6 +179,20 @@ async function deleteFamily() {
   );
 }
 
+async function createDirectClaim() {
+  return SELF.fetch(
+    `https://vansvriksh.test/v1/families/${FAMILY_ID}/identity-claims`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ personId: PERSON_ID }),
+    },
+  );
+}
+
 async function review(decision: "approve" | "reject") {
   return SELF.fetch(
     `https://vansvriksh.test/v1/families/${FAMILY_ID}/identity-claims/${CLAIM_ID}/review`,
@@ -207,6 +221,22 @@ describe("identity claim review against local D1", () => {
     await run("DELETE FROM users WHERE id != ?", [OWNER_ID]);
     await seedClaim();
   });
+  it("creates a direct identity link for the current family owner and audits it", async () => {
+    const response = await createDirectClaim();
+
+    expect(response.status).toBe(201);
+    const link = await env.DB.prepare(
+      "SELECT user_id, linked_by_user_id FROM person_identity_links WHERE family_id=? AND person_id=?",
+    ).bind(FAMILY_ID, PERSON_ID).first<{ user_id: string; linked_by_user_id: string }>();
+    const audit = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE action='identity.claimed_directly' AND entity_id=?",
+    ).bind(PERSON_ID).first<{ count: number }>();
+
+    expect(link?.user_id).toBe(OWNER_ID);
+    expect(link?.linked_by_user_id).toBe(OWNER_ID);
+    expect(audit?.count).toBe(1);
+  });
+
   it("deletes a family only for its current owner in local D1", async () => {
     const response = await deleteFamily();
 
