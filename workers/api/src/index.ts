@@ -634,10 +634,10 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       platformFamilyName=family.name;
     }
     const importPeople=input.people as JsonObject[];
-    const existing=await env.DB.prepare("SELECT id,display_name,given_name,family_name FROM persons WHERE family_id=?").bind(familyId).all<{id:string;display_name:string;given_name:string;family_name:string|null}>();
+    const importedIds=importPeople.map(person=>String(person.key));
+    const existingIds=await env.DB.prepare("SELECT id,family_id FROM persons WHERE id IN ("+importedIds.map(()=>"?").join(",")+")").bind(...importedIds).all<{id:string;family_id:string}>();
+    const existingById=new Map(existingIds.results.map(person=>[person.id,person.family_id]));
     const existingRelationships=await env.DB.prepare("SELECT id,from_person_id,to_person_id,relationship_type FROM relationships WHERE family_id=?").bind(familyId).all<{id:string;from_person_id:string;to_person_id:string;relationship_type:string}>();
-    const normalize=(value:string)=>value.toLocaleLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu," ").trim().replace(/\s+/g," ");
-    const existingByName=new Map(existing.results.map(p=>[normalize(p.display_name||[p.given_name,p.family_name].filter(Boolean).join(" ")),p.id]));
     const keyToId=new Map<string,string>(), created:string[]=[], matched:string[]=[], updated:string[]=[];
     const t=now();
     const importAuthSql=platformImport
@@ -652,58 +652,59 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
         .bind(id(),actorUserId,familyId,importReason,JSON.stringify({familyName:platformFamilyName,peopleCount:input.people.length}),t,actorUserId));
     }
 
+    const validDate=(value:string|null)=>{
+      if(!value||!/^\\d{4}-\\d{2}-\\d{2}$/.test(value))return false;
+      const [year,month,day]=value.split("-").map(Number);
+      const parsed=new Date(Date.UTC(year,month-1,day));
+      return parsed.getUTCFullYear()===year&&parsed.getUTCMonth()===month-1&&parsed.getUTCDate()===day;
+    };
+    const dateFields=(prefix:"birth"|"death",raw:JsonObject)=>{
+      const kind=String(raw[prefix+"DateKind"]??"unknown");
+      const exact=textOrNull(raw[prefix+"ExactDate"]);
+      const year=yearOrNull(raw[prefix+"Year"]);
+      const start=yearOrNull(raw[prefix+"RangeStartYear"]);
+      const finish=yearOrNull(raw[prefix+"RangeEndYear"]);
+      const original=textOrNull(raw[prefix+"OriginalText"]);
+      if(!["exact","year","approximate_year","range","unknown"].includes(kind))throw new Error("invalid_date_precision");
+      if((kind==="exact"&&(!validDate(exact)||year!==null||start!==null||finish!==null))||
+        ((kind==="year"||kind==="approximate_year")&&(year===null||exact!==null||start!==null||finish!==null))||
+        (kind==="range"&&(start===null||finish===null||start>finish||exact!==null||year!==null))||
+        (kind==="unknown"&&(exact!==null||year!==null||start!==null||finish!==null)))throw new Error("invalid_date_value");
+      return {kind,exact,year,start,finish,original};
+    };
+
     for (const raw of importPeople) {
-      const key=raw.key as string, given=(raw.givenName as string).trim(), familyName=textOrNull(raw.familyName);
-      const display=[given,familyName].filter(Boolean).join(" ");
-      const aliases=Array.isArray(raw.aliases)?raw.aliases.filter((v):v is string=>typeof v==="string"):[];
-      let match=existingByName.get(normalize(display));
-      if (!match) {
-        const aliasMatches=[...new Set(aliases.map(a=>existingByName.get(normalize(a))).filter((v):v is string=>!!v))];
-        if (aliasMatches.length===1) match=aliasMatches[0];
-      }
-      if (match) {
-        keyToId.set(key,match);matched.push(match);
-        if ((raw.sourceName==="Varsha"||raw.sourceName==="Bhoodevi") && raw.gender==="female") {
-          importWrites.push(env.DB.prepare("UPDATE persons SET gender='female',updated_at=? WHERE id=? AND family_id=? AND life_status='alive' AND "+importAuthSql)
-            .bind(t,match,familyId,...importAuthBindings));
-          importWrites.push(env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.import_match_updated',?,? WHERE changes()=1")
-            .bind(id(),familyId,actorUserId,match,JSON.stringify({source:"family-tree.xlsx",field:"gender"}),t));
-          updated.push(match);
-        }
-        continue;
-      }
-      const suppliedBirth=textOrNull(raw.birthExactDate), suppliedDeath=textOrNull(raw.deathExactDate);
-      const validDate=(v:string|null)=>{
-        if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
-        const [year,month,day]=v.split("-").map(Number);
-        const parsed=new Date(Date.UTC(year,month-1,day));
-        return parsed.getUTCFullYear()===year && parsed.getUTCMonth()===month-1 && parsed.getUTCDate()===day;
-      };
-      // Uncertain historical dates are retained as unknown precision, not treated as import errors.
-      const birth=validDate(suppliedBirth)?suppliedBirth:null;
-      const death=validDate(suppliedDeath)?suppliedDeath:null;
-      const hasDeathRecord=raw.lifeStatus==="deceased" || Boolean(suppliedDeath);
-      const personId=id(), gender=["female","male","non_binary","unspecified"].includes(String(raw.gender))?String(raw.gender):"unspecified";
+      const key=raw.key as string;
+      const existingFamily=existingById.get(key);
+      if(existingFamily&&existingFamily!==familyId)return fail(409,"foreign_person_id","The workbook contains a person ID that belongs to another family. No records were imported.");
+      if(existingFamily===familyId){keyToId.set(key,key);matched.push(key);continue;}
+
+      const given=(raw.givenName as string).trim(), middle=textOrNull(raw.middleName), familyName=textOrNull(raw.familyName);
+      const birth=dateFields("birth",raw), death=dateFields("death",raw);
+      const hasDeathRecord=raw.lifeStatus==="deceased"||death.kind!=="unknown";
       const life=hasDeathRecord?"deceased":"alive";
-      const middle=textOrNull(raw.middleName);
-      const birthKind=birth?(raw.birthDateKind==="exact"?"exact":"exact"):"unknown";
-      const deathKind=hasDeathRecord?(death?"exact":"unknown"):"unknown";
-      importWrites.push(env.DB.prepare("INSERT INTO persons(id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,birth_date_kind,birth_exact_date,death_date_kind,death_exact_date,biography,created_by_user_id,created_at,updated_at) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE "+importAuthSql)
-        .bind(personId,familyId,given,middle,familyName,[given,middle,familyName].filter(Boolean).join(" "),gender,life,birthKind,birth,deathKind,death,textOrNull(raw.biography),actorUserId,t,t,...importAuthBindings));
+      const gender=["female","male","non_binary","unspecified"].includes(String(raw.gender))?String(raw.gender):"unspecified";
+      const personId=key;
+      const display=[given,middle,familyName].filter(Boolean).join(" ");
+      const values=[
+        personId,familyId,given,middle,familyName,display,gender,life,
+        birth.kind,birth.exact,birth.year,birth.start,birth.finish,birth.original,
+        textOrNull(raw.birthPlace),textOrNull(raw.birthCountry),
+        death.kind,death.exact,death.year,death.start,death.finish,death.original,
+        textOrNull(raw.biography),actorUserId,t,t
+      ];
+      const columns="id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,birth_place,birth_country,death_date_kind,death_exact_date,death_year,death_range_start_year,death_range_end_year,death_original_text,biography,created_by_user_id,created_at,updated_at";
+      const placeholders=values.map(()=>"?").join(",");
+      importWrites.push(env.DB.prepare("INSERT INTO persons("+columns+") SELECT "+placeholders+" WHERE "+importAuthSql).bind(...values,...importAuthBindings));
       importWrites.push(env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,?,?,? WHERE changes()=1")
         .bind(id(),familyId,actorUserId,personId,"person.imported",JSON.stringify({source:"family-tree.xlsx",lifeStatus:life}),t));
-      if (death) importWrites.push(env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.marked_deceased',?,? WHERE changes()=1")
-        .bind(id(),familyId,actorUserId,personId,JSON.stringify({source:"family-tree.xlsx",deathDate:death}),t));
-      keyToId.set(key,personId);created.push(personId);existingByName.set(normalize(display),personId);
+      if(death.kind!=="unknown")importWrites.push(env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.marked_deceased',?,? WHERE changes()=1")
+        .bind(id(),familyId,actorUserId,personId,JSON.stringify({source:"family-tree.xlsx",deathDateKind:death.kind}),t));
+      keyToId.set(key,personId);created.push(personId);
     }
 
     const sourceKeys=new Map<string,string>();
-    for (const raw of importPeople) if (typeof raw.sourceName==="string") sourceKeys.set(normalize(raw.sourceName),raw.key as string);
-    for (const raw of importPeople) {
-      const key=raw.key as string, given=raw.givenName as string;
-      sourceKeys.set(normalize(given),key);
-      sourceKeys.set(normalize([given,textOrNull(raw.familyName)].filter(Boolean).join(" ")),key);
-    }
+    for(const raw of importPeople)sourceKeys.set(raw.key as string,raw.key as string);
     const relationshipInputs:JsonObject[]=[];
     const edgeSeen=new Set<string>();
     for (const raw of (Array.isArray(input.relationships)?input.relationships:[])) {
