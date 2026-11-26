@@ -286,3 +286,48 @@
  .person-photo-crop-actions{display:grid;grid-template-columns:1fr 1fr}
  .person-photo-crop-actions button{padding:9px 8px}
 }
+
+
+/* Keep the portrait manager visually integrated with the dark Vansvriksh profile panel. */
+.person-photo-manager{
+  background:linear-gradient(145deg,#263428 0%,#202d23 100%);
+  border:1px solid #596348;
+  color:#e8e1ce;
+  box-shadow:inset 0 1px 0 #ffffff08,0 8px 24px #101b1420;
+}
+.person-photo-heading{border-bottom-color:#4b5844}
+.person-photo-heading .eyebrow{color:#c2a467}
+.person-photo-heading h4{color:#eee6d2}
+.person-photo-heading p:last-child{color:#aeb5a2}
+.person-photo-lock{border-color:#756747;background:#303a2b;color:#d2bd85}
+.person-photo-current-copy strong{color:#e9e2cf}
+.person-photo-current-copy small{color:#aeb5a2}
+.person-photo-preview{border-color:#b39a5f;background:#354332;color:#e9dfc2}
+.person-photo-drop{
+  border-color:#85764f;
+  background:#29372b;
+  color:#e8e1ce;
+}
+.person-photo-drop:hover{border-color:#c4a86b;background:#303e30}
+.person-photo-drop-icon{border-color:#a18b59;color:#d0b579}
+.person-photo-drop strong{color:#eee5cf}
+.person-photo-drop small{color:#adb5a3}
+.person-photo-browse{border-color:#a78c52;background:#927847;color:#fff4d8}
+.person-photo-crop{border-color:#536047;background:#29372b}
+.person-photo-crop-top strong{color:#eee5cf}
+.person-photo-crop-top small{color:#adb5a3}
+.person-photo-text-action{color:#d3b979}
+.person-photo-crop-stage{background:#19271e}
+.person-photo-crop-stage canvas{border-color:#b39a5f;background:#354332}
+.person-photo-zoom{color:#c1c6b5}
+.person-photo-zoom input{accent-color:#c0a264}
+.person-photo-zoom output{color:#d7bd83}
+.person-photo-crop-actions button{border-color:#a78c52;background:#927847;color:#fff4d8}
+.person-photo-crop-actions button.button-secondary{border-color:#68745c;background:#29372b;color:#e1ddca}
+.person-photo-optimization{color:#9fa995}
+.person-photo-remove{padding:8px 11px;border:1px solid #77634a;border-radius:5px;background:#352f25;color:#e0c69a;font-size:11px;text-decoration:none}
+.person-photo-remove:hover{background:#45392a;border-color:#a38a5b}
+.person-photo-locked{border-left-color:#c0a264;background:#2b392c;color:#c6cbb9}
+.person-photo-manager .message.error{background:#4a3029;color:#f0c2b5}
+.person-photo-manager .message.success{background:#2d4433;color:#c5ddc2}
+@media(max-width:520px){.person-photo-manager{background:linear-gradient(145deg,#263428 0%,#202d23 100%)}}
