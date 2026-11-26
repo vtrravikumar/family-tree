@@ -1,5 +1,5 @@
 import { sendInvitationEmail } from "./invitation-email";
-import { handlePersonPhoto } from "./person-photos";
+import { cleanupQueuedPersonPhotoObjects, handlePersonPhoto } from "./person-photos";
 
 export interface Env {
   APP_ENV: string;
@@ -474,12 +474,18 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if (input?.confirmed !== true) return fail(400,"confirmation_required","Explicit confirmation is required.");
     const family=await env.DB.prepare("SELECT name FROM families WHERE id=?").bind(familyId).first<{name:string}>();
     if (!family) return fail(404,"family_not_found","Family not found.");
+    const portraits=await env.DB.prepare("SELECT object_key FROM media WHERE family_id=? AND media_type='person_portrait'")
+      .bind(familyId).all<{object_key:string}>();
     try {
-      const results=await env.DB.batch([
+      const statements=[
         env.DB.prepare("DELETE FROM families WHERE id=? AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role='owner')").bind(familyId,familyId,actorUserId),
-      ]);
+        ...(portraits.results??[]).map(item=>env.DB.prepare("INSERT OR IGNORE INTO person_photo_cleanup(object_key,created_at) SELECT ?,? WHERE changes()=1")
+          .bind(item.object_key,now()))
+      ];
+      const results=await env.DB.batch(statements);
       if(!results[0]?.meta.changes)return fail(409,"family_delete_unavailable","The family ownership changed before deletion could complete.");
-      return json({data:{id:familyId,name:family.name,deleted:true}});
+      if(env.PERSON_PHOTOS)await cleanupQueuedPersonPhotoObjects(env.DB,env.PERSON_PHOTOS,50).catch(()=>0);
+      return json({data:{id:familyId,name:family.name,deleted:true,photoCleanupPending:portraits.results?.length??0}});
     } catch {
       return fail(409,"family_delete_blocked","This family could not be deleted because dependent records are protected. No family data was intentionally changed.");
     }
@@ -1047,6 +1053,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 export default {
   async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
     await pruneExpiredAuditLogs(env.DB);
+    if(env.PERSON_PHOTOS)await cleanupQueuedPersonPhotoObjects(env.DB,env.PERSON_PHOTOS,100);
   },
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
