@@ -394,3 +394,78 @@ html{scroll-behavior:smooth;scroll-padding-top:150px}
   .atlas-overview{padding-inline:8px}
   .family-summary{padding:22px 18px 18px}
 }
+
+
+/* Family overview: use a real responsive statistics grid, not a compressed flex row. */
+.atlas-overview{
+  padding-inline:0;
+  min-width:0;
+}
+.atlas-overview .family-summary{
+  box-sizing:border-box;
+  display:block;
+  width:100%;
+  min-width:0;
+  margin:22px 0 26px;
+  padding:24px 26px 18px;
+  border:1px solid #46543d;
+  outline:none;
+  border-radius:12px;
+  background:#202f24;
+}
+.atlas-overview .family-summary h3{
+  margin:0 0 16px;
+  text-align:left;
+  color:#c2a467;
+  font:700 12px/1.4 Inter,ui-sans-serif,system-ui,sans-serif;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.atlas-overview .family-summary dl{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px 12px;
+  margin:0;
+  padding:0;
+}
+.atlas-overview .family-summary-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  min-height:54px;
+  padding:10px 12px;
+  border:1px solid #3d4c39;
+  border-radius:6px;
+  background:#26372b;
+}
+.atlas-overview .family-summary-row dt{
+  min-width:0;
+  color:#b8c0ad;
+  font-size:12px;
+  line-height:1.4;
+}
+.atlas-overview .family-summary-row dd{
+  min-width:0;
+  color:#eee6d2;
+  text-align:right;
+  overflow-wrap:anywhere;
+  font:700 14px/1.35 Georgia,serif;
+}
+.atlas-overview .family-summary-note{
+  margin:14px 0 0;
+  padding:12px 0 0;
+  border-top:1px solid #46543d;
+  color:#aeb5a2;
+  font-size:10px;
+  line-height:1.55;
+}
+@media(max-width:900px){
+  .atlas-overview .family-summary dl{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:520px){
+  .atlas-overview .family-summary{padding:18px 16px 15px}
+  .atlas-overview .family-summary dl{grid-template-columns:1fr;gap:8px}
+  .atlas-overview .family-summary-row{min-height:48px;padding:9px 11px}
+}
