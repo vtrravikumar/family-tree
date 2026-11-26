@@ -37,6 +37,12 @@ async function body(request: Request): Promise<JsonObject | null> {
   catch { return null; }
 }
 
+async function countPendingPersonPhotoCleanup(db: D1Database, prefix: string): Promise<number> {
+  const result = await db.prepare("SELECT COUNT(*) AS count FROM person_photo_cleanup WHERE substr(object_key,1,length(?))=?")
+    .bind(prefix,prefix).first<{count:number}>();
+  return result?.count ?? 0;
+}
+
 export const AUDIT_LOG_RETENTION_DAYS = 90;
 export async function pruneExpiredAuditLogs(db: D1Database, at = new Date()): Promise<number> {
   const cutoff = new Date(at.getTime() - AUDIT_LOG_RETENTION_DAYS * 86400000).toISOString();
@@ -485,7 +491,8 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       const results=await env.DB.batch(statements);
       if(!results[0]?.meta.changes)return fail(409,"family_delete_unavailable","The family ownership changed before deletion could complete.");
       if(env.PERSON_PHOTOS)await cleanupQueuedPersonPhotoObjects(env.DB,env.PERSON_PHOTOS,50).catch(()=>0);
-      return json({data:{id:familyId,name:family.name,deleted:true,photoCleanupPending:portraits.results?.length??0}});
+      const photoCleanupPending=await countPendingPersonPhotoCleanup(env.DB,`families/${familyId}/`).catch(()=>portraits.results?.length??0);
+      return json({data:{id:familyId,name:family.name,deleted:true,photoCleanupPending}});
     } catch {
       return fail(409,"family_delete_blocked","This family could not be deleted because dependent records are protected. No family data was intentionally changed.");
     }
@@ -908,7 +915,8 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       ]);
       if(!results[(portraits.results?.length??0)+1]?.meta.changes)return fail(409,"person_delete_unavailable","This person changed or your deletion permission is no longer available.");
       if(env.PERSON_PHOTOS)await cleanupQueuedPersonPhotoObjects(env.DB,env.PERSON_PHOTOS,50).catch(()=>0);
-      return json({data:{id:personId,deleted:true,relationshipsDeleted:"all",photoCleanupPending:portraits.results?.length??0}});
+      const photoCleanupPending=await countPendingPersonPhotoCleanup(env.DB,`families/${familyId}/persons/${personId}/portraits/`).catch(()=>portraits.results?.length??0);
+      return json({data:{id:personId,deleted:true,relationshipsDeleted:"all",photoCleanupPending}});
     } catch { return fail(409,"person_delete_failed","This person could not be deleted. No records were removed."); }
   }
 
