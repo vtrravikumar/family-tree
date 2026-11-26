@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { handlePersonPhoto } from "./person-photos";
+import { cleanupQueuedPersonPhotoObjects, handlePersonPhoto } from "./person-photos";
 
 function setup(role="owner", lifeStatus="alive", linkedPhoto:string|null=null) {
   const writes:string[]=[];
@@ -93,5 +93,43 @@ describe("private person portraits",()=>{
   it("does not disclose photos to non-members",async()=>{
     const {call}=setup(null as unknown as string);
     expect((await call("GET","/photo/content")).status).toBe(404);
+  });
+});
+
+
+describe("portrait object cleanup retries",()=>{
+  it("retains failed R2 deletions and removes the queue row after a successful retry",async()=>{
+    const pending=[{object_key:"families/f1/persons/p1/portraits/object-1"}];
+    let shouldFail=true;
+    let attempts=0;
+    const db={
+      prepare(sql:string){
+        let values:unknown[]=[];
+        const statement={
+          bind(...args:unknown[]){values=args;return statement;},
+          async all(){return {results:pending.map(item=>({...item}))};},
+          async run(){
+            if(sql.startsWith("UPDATE person_photo_cleanup")){attempts++;return {meta:{changes:1}};}
+            if(sql.startsWith("DELETE FROM person_photo_cleanup")){
+              const index=pending.findIndex(item=>item.object_key===values[0]);
+              if(index>=0)pending.splice(index,1);
+              return {meta:{changes:index>=0?1:0}};
+            }
+            return {meta:{changes:1}};
+          }
+        };
+        return statement;
+      }
+    } as unknown as D1Database;
+    const bucket={async delete(){if(shouldFail)throw new Error("simulated R2 outage");}} as unknown as R2Bucket;
+
+    expect(await cleanupQueuedPersonPhotoObjects(db,bucket,10)).toBe(0);
+    expect(pending).toHaveLength(1);
+    expect(attempts).toBe(1);
+
+    shouldFail=false;
+    expect(await cleanupQueuedPersonPhotoObjects(db,bucket,10)).toBe(1);
+    expect(pending).toHaveLength(0);
+    expect(attempts).toBe(1);
   });
 });
