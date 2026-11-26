@@ -35,6 +35,10 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Validate production Worker configuration (dry run)
+        if: github.event_name == 'pull_request' && github.base_ref == 'production'
+        run: pnpm --filter @family-tree/api exec wrangler deploy --dry-run --outdir /tmp/vansvriksh-production-dry-run --env production
+
   deploy-development:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: validate
