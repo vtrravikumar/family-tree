@@ -52,6 +52,8 @@ jobs:
           pnpm --filter @family-tree/api exec wrangler r2 bucket list | tee /tmp/vansvriksh-r2-buckets.txt
           grep -F "vansvriksh-person-photos-production" /tmp/vansvriksh-r2-buckets.txt
           pnpm --filter @family-tree/api exec wrangler d1 migrations list vansvriksh-production --remote --env production | tee /tmp/vansvriksh-production-migrations.txt
+          pnpm --filter @family-tree/api exec wrangler r2 bucket dev-url get vansvriksh-person-photos-production | tee /tmp/vansvriksh-production-r2-dev-url.txt
+          pnpm --filter @family-tree/api exec wrangler r2 bucket domain list vansvriksh-person-photos-production | tee /tmp/vansvriksh-production-r2-domains.txt
 
   deploy-development:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
