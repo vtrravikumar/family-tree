@@ -132,6 +132,22 @@ export async function handlePersonPhoto(
 }
 
 
+async function queueObjectCleanup(db: D1Database, objectKey: string): Promise<void> {
+  await db.prepare("INSERT OR IGNORE INTO person_photo_cleanup(object_key,created_at) VALUES(?,?)")
+    .bind(objectKey,new Date().toISOString()).run();
+}
+
+async function tryDeleteQueuedObject(db: D1Database, bucket: R2Bucket, objectKey: string): Promise<boolean> {
+  try {
+    await bucket.delete(objectKey);
+    await db.prepare("DELETE FROM person_photo_cleanup WHERE object_key=?").bind(objectKey).run();
+    return true;
+  } catch {
+    await queueObjectCleanup(db,objectKey).catch(()=>undefined);
+    return false;
+  }
+}
+
 export async function cleanupQueuedPersonPhotoObjects(db: D1Database, bucket: R2Bucket, limit=50): Promise<number> {
   const pending=await db.prepare("SELECT object_key FROM person_photo_cleanup ORDER BY created_at LIMIT ?")
     .bind(limit).all<{object_key:string}>();
