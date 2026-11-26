@@ -42,6 +42,9 @@ INITIAL_OWNER_EMAIL = "vtrravikumar@gmail.com"
 SUPER_ADMIN_EMAIL = "vtrravikumar@gmail.com"
 ALLOWED_ORIGINS = "https://vansvriksh-web-dev.pages.dev,https://dev.vansvriksh.vtrrk.in,https://vansvriksh.vtrrk.in,http://localhost:5173,http://127.0.0.1:5173"
 
+[env.dev.triggers]
+crons = ["17 2 * * *"]
+
 # This production database was created empty for the friends-and-family beta.
 # Keep production migrations and deployment manual until explicitly approved.
 [env.production]
