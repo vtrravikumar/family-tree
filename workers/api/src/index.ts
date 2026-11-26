@@ -901,8 +901,8 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const t=now();
     try {
       const results=await env.DB.batch([
-        env.DB.prepare("DELETE FROM media WHERE person_id=? AND family_id=? AND media_type='person_portrait'").bind(personId,familyId),
-        ...(portraits.results??[]).map(item=>env.DB.prepare("INSERT OR IGNORE INTO person_photo_cleanup(object_key,created_at) VALUES(?,?)").bind(item.object_key,t)),
+        env.DB.prepare("DELETE FROM media WHERE person_id=? AND family_id=? AND media_type='person_portrait' AND EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=? AND p.life_status='alive') AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin'))").bind(personId,familyId,personId,familyId,familyId,actorUserId),
+        ...(portraits.results??[]).map(item=>env.DB.prepare("INSERT OR IGNORE INTO person_photo_cleanup(object_key,created_at) SELECT ?,? WHERE changes()=1").bind(item.object_key,t)),
         env.DB.prepare("DELETE FROM persons WHERE id=? AND family_id=? AND life_status='alive' AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin'))").bind(personId,familyId,familyId,actorUserId),
         env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.deleted',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,personId,JSON.stringify({displayName:current.display_name,relationships:"cascade_deleted",portraitObjectsQueued:portraits.results?.length??0}),t)
       ]);
