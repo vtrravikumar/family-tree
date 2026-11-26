@@ -74,9 +74,10 @@ describe("private person portraits",()=>{
   });
 
   it("fails closed when the environment has no private photo bucket",async()=>{
-    const {call}=setup();
-    const result=await handlePersonPhoto(new Request("https://api.test/v1/families/family-1/people/person-1/photo",{method:"GET"}),{DB:(null as unknown as D1Database)},"family-1","person-1","user-1","owner");
-    expect(result.status).toBe(500);
+    const db={prepare(sql:string){const statement={bind(){return statement;},async first(){return sql.includes("SELECT id,life_status FROM persons")?{id:"person-1",life_status:"alive"}:null;}};return statement;}} as unknown as D1Database;
+    const form=new FormData();form.set("photo",new File([jpeg],"portrait.jpg",{type:"image/jpeg"}));
+    const result=await handlePersonPhoto(new Request("https://api.test/v1/families/family-1/people/person-1/photo",{method:"POST",body:form}),{DB:db},"family-1","person-1","user-1","owner");
+    expect(result.status).toBe(503);
   });
 
   it("blocks viewer mutations",async()=>{
