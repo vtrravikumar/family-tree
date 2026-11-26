@@ -39,7 +39,7 @@ function exportFamilyExcel(familyName:string,people:Person[],relationships:Relat
  const workbook=`<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">${sheets.map(s=>`<Worksheet ss:Name="${s.name}">${s.table}</Worksheet>`).join("")}</Workbook>`;
  const blob=new Blob([workbook],{type:"application/vnd.ms-excel;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`${familyName.replace(/[^a-z0-9]+/gi,"-").replace(/^-|-$/g,"").toLowerCase()||"family"}-data-review.xls`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
 }
-const API=import.meta.env.VITE_API_URL||"https://api-dev.vtrrk.in";
+const API=import.meta.env.VITE_API_URL||"https://api-dev.vansvriksh.vtrrk.in";
 const IS_DEVELOPMENT_PREVIEW=new URL(API).hostname.startsWith("api-dev.");
 const labels:Record<string,string>={biological_parent:"Parent of",adoptive_parent:"Adoptive parent of",step_parent:"Step-parent of",spouse:"Spouse of",partner:"Partner of",sibling:"Sibling of"};
 
