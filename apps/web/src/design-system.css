@@ -2664,3 +2664,28 @@ details[open] > .heritage-section-heading .heritage-disclosure-mark {
   .atlas-overview .family-summary dl{grid-template-columns:1fr !important;gap:9px !important}
   .atlas-overview .family-summary-row{min-height:50px !important;padding:10px 12px !important}
 }
+
+
+/* Family workspace heading: keep the family name and actions inset from panel edges. */
+.main-panel > .family-heading{
+  box-sizing:border-box;
+  width:100%;
+  padding:18px 22px 20px !important;
+  gap:18px;
+}
+.main-panel > .family-heading > div:first-child{
+  min-width:0;
+  padding:0;
+}
+.main-panel > .family-heading h2{
+  margin:4px 0 0;
+}
+.main-panel > .family-heading .family-heading-actions{
+  padding-right:0;
+}
+@media(max-width:640px){
+  .main-panel > .family-heading{
+    padding:16px 16px 18px !important;
+    gap:12px;
+  }
+}
