@@ -2,7 +2,7 @@ const MAX_PERSON_PHOTO_BYTES = 5 * 1024 * 1024;
 const PHOTO_TYPES = {
   "image/jpeg": { extension: "jpg", signature: (b: Uint8Array) => b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
   "image/png": { extension: "png", signature: (b: Uint8Array) => b.length >= 24 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 && b[4] === 0x0d && b[5] === 0x0a && b[6] === 0x1a && b[7] === 0x0a && !containsBytes(b, [0x61,0x63,0x54,0x4c]) },
-  "image/webp": { extension: "webp", signature: (b: Uint8Array) => b.length >= 16 && ascii(b,0,4)==="RIFF" && ascii(b,8,4)==="WEBP" && !(ascii(b,12,4)==="VP8X" && (b[20] & 0x02) !== 0) },
+  "image/webp": { extension: "webp", signature: (b: Uint8Array) => b.length >= 21 && ascii(b,0,4)==="RIFF" && ascii(b,8,4)==="WEBP" && !(ascii(b,12,4)==="VP8X" && (b[20] & 0x02) !== 0) },
 } as const;
 
 function ascii(bytes: Uint8Array, start: number, length: number): string {
@@ -88,8 +88,9 @@ export async function handlePersonPhoto(
         const updated=await env.DB.prepare("UPDATE media SET object_key=?,content_type=?,byte_size=?,metadata_json=?,uploaded_by_user_id=?,created_at=? WHERE id=? AND family_id=? AND person_id=? AND EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=? AND p.life_status='alive') AND EXISTS (SELECT 1 FROM family_members fm WHERE fm.family_id=? AND fm.user_id=? AND fm.role IN ('owner','admin','editor'))")
           .bind(objectKey,contentType,bytes.byteLength,JSON.stringify({extension:rule.extension}),actorUserId,createdAt,old.id,familyId,personId,personId,familyId,familyId,actorUserId).run();
         if((updated.meta?.changes??0)!==1)throw new Error("photo_update_not_authorized");
+        await queueObjectCleanup(env.DB,old.object_key);
         dbCommitted=true;
-        await env.PERSON_PHOTOS.delete(old.object_key).catch(()=>undefined);
+        await tryDeleteQueuedObject(env.DB,env.PERSON_PHOTOS,old.object_key);
       }else{
         const inserted=await env.DB.prepare("INSERT INTO media(id,family_id,person_id,object_key,media_type,content_type,byte_size,metadata_json,uploaded_by_user_id,created_at) SELECT ?,?,?,?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=? AND p.life_status='alive') AND EXISTS (SELECT 1 FROM family_members fm WHERE fm.family_id=? AND fm.user_id=? AND fm.role IN ('owner','admin','editor'))")
           .bind(mediaId,familyId,personId,objectKey,"person_portrait",contentType,bytes.byteLength,JSON.stringify({extension:rule.extension}),actorUserId,createdAt,personId,familyId,familyId,actorUserId).run();
@@ -112,13 +113,17 @@ export async function handlePersonPhoto(
     const media=await env.DB.prepare("SELECT id,object_key FROM media WHERE family_id=? AND person_id=? AND media_type='person_portrait' LIMIT 1")
       .bind(familyId,personId).first<{id:string;object_key:string}>();
     if(!media)return error(404,"photo_not_found","This person has no family portrait.");
-    const deleted=await env.DB.prepare("DELETE FROM media WHERE id=? AND family_id=? AND person_id=? AND EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=? AND p.life_status='alive') AND EXISTS (SELECT 1 FROM family_members fm WHERE fm.family_id=? AND fm.user_id=? AND fm.role IN ('owner','admin','editor'))")
-      .bind(media.id,familyId,personId,personId,familyId,familyId,actorUserId).run();
-    if((deleted.meta?.changes??0)!==1)return error(409,"photo_remove_unavailable","The portrait or your permissions changed. Refresh and retry.");
-    await env.PERSON_PHOTOS.delete(media.object_key);
+    const deleted=await env.DB.batch([
+      env.DB.prepare("DELETE FROM media WHERE id=? AND family_id=? AND person_id=? AND EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=? AND p.life_status='alive') AND EXISTS (SELECT 1 FROM family_members fm WHERE fm.family_id=? AND fm.user_id=? AND fm.role IN ('owner','admin','editor'))")
+        .bind(media.id,familyId,personId,personId,familyId,familyId,actorUserId),
+      env.DB.prepare("INSERT OR IGNORE INTO person_photo_cleanup(object_key,created_at) SELECT ?,? WHERE changes()=1")
+        .bind(media.object_key,new Date().toISOString())
+    ]);
+    if((deleted[0]?.meta?.changes??0)!==1)return error(409,"photo_remove_unavailable","The portrait or your permissions changed. Refresh and retry.");
+    const cleaned=await tryDeleteQueuedObject(env.DB,env.PERSON_PHOTOS,media.object_key);
     await env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,?,?,?,?,?)")
-      .bind(uuid(),familyId,actorUserId,"person",personId,"person.portrait_removed","{}",new Date().toISOString()).run();
-    return response({data:{removed:true}});
+      .bind(uuid(),familyId,actorUserId,"person",personId,"person.portrait_removed",JSON.stringify({storageCleanupPending:!cleaned}),new Date().toISOString()).run().catch(()=>undefined);
+    return response({data:{removed:true,storageCleanupPending:!cleaned}});
   }
   return error(405,"method_not_allowed","This photo operation is not supported.");
 }
