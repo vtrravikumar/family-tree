@@ -4,7 +4,7 @@ type TreePerson = { id:string; display_name:string; gender?:string; life_status:
 type TreeRelationship = { id:string; from_person_id:string; to_person_id:string; relationship_type:string };
 type Node = { person:TreePerson; generation:number; x:number; y:number };
 type ViewMode = "generation" | "focus" | "ancestors" | "descendants";
-const API=import.meta.env.VITE_API_URL||"https://api-dev.vtrrk.in";
+const API=import.meta.env.VITE_API_URL||"https://api-dev.vansvriksh.vtrrk.in";
 const parentTypes=["biological_parent","adoptive_parent","step_parent"];
 function parentConnectorPath(a:Node,b:Node,nodes:Node[]):string {
   const sx=a.x+80, sy=a.y+104, tx=b.x+80, ty=b.y;
