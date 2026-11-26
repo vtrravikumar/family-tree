@@ -1,7 +1,7 @@
 # Friends & Family Beta Readiness Tracker
 
 **Baseline date:** 2026-11-24  
-**Latest evidence update:** 2026-11-25 (Controls 18 and 20 owner approvals)  
+**Latest evidence update:** 2026-11-26 (participant privacy/lifecycle wording approved; Control 17 scheduled-run evidence pending)  
 **Scope:** The minimum safe, bounded Friends & Family beta — not full v1.0.  
 **Scoring:** 20 evidence-based controls, each worth 5 points. Complete = 5; partial = 2.5; not evidenced = 0. The score is earned points divided by 100. Automated unit and local-D1 integration tests, source review and green CI are accepted evidence for implementation/security controls when they exercise the relevant behaviour; a live production-like test is not automatically required before a bounded Friends & Family UAT.
 
@@ -138,6 +138,18 @@ The owner confirmed that the intended account/role acceptance checks are already
 The owner confirmed backup/recovery is not a blocker for the bounded Friends & Family beta. Control 14 remains partially evidenced at 2.5/5 for transparency, but its remaining 2.5 points are excluded from the beta-gate denominator and moved to the production backlog. The runbook remains available for later production-readiness work. This decision does not mark backup/recovery complete or authorize R2 provisioning, production export/restore, secrets, schedules or retention changes.
 
 
-## Control 18 owner approval — 2026-11-25\n\nThe owner explicitly approved Control 18, including the participant-facing support, incident-handling and rollback note. Control 18 is closed at 5/5. The approved support route remains WhatsApp with the owner as primary and vtr.ravikumar@gmail.com as the email fallback.\n\n\n## Production invocation-log review — 2026-11-25
+## Control 18 owner approval — 2026-11-25
+
+The owner explicitly approved Control 18, including the participant-facing support, incident-handling and rollback note. Control 18 is closed at 5/5. The approved support route remains WhatsApp with the owner as primary and vtr.ravikumar@gmail.com as the email fallback.
+
+
+## Production invocation-log review — 2026-11-25
 
 The owner reviewed a production invocation detail for `GET /v1/families/sample-family-v1/identity` in Cloudflare Workers Observability. The cookie header value was explicitly redacted. The event contained request method/path, response status and operational metadata; no request or response body, session token, invitation code or family-record content was present in the displayed event. Client IP and approximate geolocation/connection metadata were visible; decisions on log retention and data minimization remain open under Control 17. Together with the successful production edge workflow and source-reviewed cookie/error handling, this closes Control 15 at 5/5.
+
+
+## Participant privacy/lifecycle wording approval — 2026-11-26
+
+The owner explicitly approved the participant-facing privacy and lifecycle disclosures in `docs/BETA_PARTICIPANT_NOTES.md` on 2026-11-26. The approved wording clearly states family-membership access (Google sign-in alone grants no family access), authorized-family sharing, sensitive-data minimization, consent for living-relative details, seven-day session and invitation expiry, sign-out guidance, manual owner-reviewed account deletion, participant responsibility to retain appropriate copies, and the beta's incomplete backup/disaster-recovery posture.
+
+This closes the owner-wording-approval portion of Control 17, but **does not close Control 17**. The first scheduled production cleanup execution must still be observed and recorded. The daily production cron is configured for 02:17 UTC (07:47 IST). The next expected run after the 2026-11-26 deployment is 2026-11-27. Invitations remain on hold until that evidence is captured and the remaining Control 17 evidence is reviewed.
