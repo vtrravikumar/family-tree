@@ -2604,3 +2604,63 @@ details[open] > .heritage-section-heading .heritage-disclosure-mark {
 .viewer-family-picker .family-item { display:flex; align-items:center; gap:12px; min-width:min(260px,100%); padding:10px 14px; border:1px solid var(--color-line); color:var(--color-ink); background:var(--color-surface); text-align:left; }
 .viewer-family-picker .family-item strong,.viewer-family-picker .family-item small { display:block; }
 .viewer-family-picker .family-item small { color:var(--color-muted); margin-top:3px; }
+
+
+/* Final cascade fix: design-system.css loads after styles.css.
+   Keep the overview and every statistic comfortably inset from its borders. */
+.atlas-overview .family-summary{
+  box-sizing:border-box !important;
+  width:100% !important;
+  padding:26px 28px 20px !important;
+  border:1px solid rgba(190,174,125,.28) !important;
+  border-radius:14px !important;
+}
+.atlas-overview .family-summary h3{
+  margin:0 0 16px !important;
+  padding:0 !important;
+}
+.atlas-overview .family-summary dl{
+  display:grid !important;
+  grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  gap:12px !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+.atlas-overview .family-summary-row{
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) auto !important;
+  align-items:center !important;
+  gap:10px !important;
+  min-width:0 !important;
+  min-height:56px !important;
+  margin:0 !important;
+  padding:12px 14px !important;
+  border:1px solid rgba(190,174,125,.28) !important;
+  border-radius:8px !important;
+  background:rgba(41,56,42,.72) !important;
+}
+.atlas-overview .family-summary-row dt{
+  min-width:0 !important;
+  padding:0 !important;
+  line-height:1.45 !important;
+}
+.atlas-overview .family-summary-row dd{
+  min-width:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+  text-align:right !important;
+  line-height:1.4 !important;
+  overflow-wrap:anywhere !important;
+}
+.atlas-overview .family-summary-note{
+  margin:14px 0 0 !important;
+  padding:12px 0 0 !important;
+}
+@media(max-width:900px){
+  .atlas-overview .family-summary dl{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+}
+@media(max-width:520px){
+  .atlas-overview .family-summary{padding:20px 16px 16px !important}
+  .atlas-overview .family-summary dl{grid-template-columns:1fr !important;gap:9px !important}
+  .atlas-overview .family-summary-row{min-height:50px !important;padding:10px 12px !important}
+}
