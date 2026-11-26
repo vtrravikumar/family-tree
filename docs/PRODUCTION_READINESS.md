@@ -20,6 +20,21 @@ Status checked 2026-11-25.
 - PR #49 was merged to `production` as commit `61fcb1b`. It adds a branch-specific build guard requiring an HTTPS `VITE_API_URL` and rejecting the development API host. GitHub typecheck, tests and build passed, and the owner confirmed the Cloudflare Pages production deployment is green.
 - PR #51 makes family creation available to accounts viewing only the shared sample while preserving the sample's read-only role. PR #53 preserves biographies through workbook export/import and adds API regression coverage. Both merged to `production`; the owner has confirmed family creation and workbook export/import work in production. The owner has since confirmed a selected development-family transfer into production works as desired. The earlier PR #52 was closed as superseded.
 
+## Portrait feature production release candidate — 2026-11-26
+
+PR #134 is the release candidate for private person portraits and the associated family-tree/profile UI integration.
+
+- A full `production...main` comparison found 22 commits ahead on `main` and two production-only merge commits (PRs #116 and #120). The reverse comparison has no production-only file changes. The actual content delta is 16 files covering portrait storage/API, UI integration, production environment configuration, CI/deployment safeguards and related documentation. Earlier beta-readiness and Viewer-only work is already represented in the production tree; no separate replay of unrelated development features is required.
+- Development R2 bucket `vansvriksh-person-photos-dev` and production R2 bucket `vansvriksh-person-photos-production` both exist. Production bucket creation was observed by Wrangler on 2026-11-26 at 07:44:40 UTC.
+- Production Wrangler 4.168.0 dry-run resolves the production Worker, `vansvriksh-production` D1 and `vansvriksh-person-photos-production` R2 binding.
+- Production R2 privacy inspection passed: public `r2.dev` access is disabled and no custom domain is connected (PR validation run #45780620686).
+- Read-only production D1 migration inventory reports exactly two pending migrations: `0011_person_portraits.sql` and `0012_person_photo_cleanup.sql`. No portrait migration has been applied to production.
+- PR validation run #45780700838 passed typecheck, tests, build, production Worker dry-run, bucket existence and privacy checks.
+- Development Worker deployment completed with the separate dev D1/R2 bindings. The development API fallback hostname was corrected to `api-dev.vansvriksh.vtrrk.in` in App, FamilyTree and PersonPhotoManager.
+- A guarded manual production Worker workflow is prepared. It requires explicit `DEPLOY-PORTRAITS` authorization, checks that only migrations 0011 and 0012 are pending, applies those migrations, deploys the production Worker and verifies production API health.
+- **Still outstanding:** production D1 migration and Worker deployment, frontend promotion through the `production` branch, and authenticated production acceptance of upload/read/replace/delete, Viewer denial and deceased-profile immutability. Remove any controlled test portrait after acceptance.
+- This portrait release is separate from the Friends & Family beta score above. The existing production backup automation deferral remains unchanged.
+
 ## Release stages
 
 The production URL and API are live, but Friends & Family invitations should wait until the safety gate below is complete. The detailed checkboxes remain the source of truth. The last recorded production-readiness count is 15/27 (56%); it is separate from the beta tracker score and has not been recalculated in this documentation refresh.
