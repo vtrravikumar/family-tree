@@ -1,0 +1,79 @@
+name: Production Portrait Worker Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval_phrase:
+        description: "Type DEPLOY-PORTRAITS to authorize production D1 migrations and Worker deployment"
+        required: true
+        type: string
+
+concurrency:
+  group: vansvriksh-production-worker-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-production:
+    if: github.ref == 'refs/heads/main' && inputs.approval_phrase == 'DEPLOY-PORTRAITS'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout validated main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Require Cloudflare credentials
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+      - name: Validate production Worker configuration
+        run: pnpm --filter @family-tree/api exec wrangler deploy --dry-run --outdir /tmp/vansvriksh-production-dry-run --env production
+
+      - name: Confirm only portrait migrations are pending
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --filter @family-tree/api exec wrangler d1 migrations list vansvriksh-production --remote --env production | tee /tmp/production-migrations.txt
+          pending="$(sed -n '/Migrations to be applied:/,$p' /tmp/production-migrations.txt | grep -oE '[0-9]{4}_[[:alnum:]_]+\.sql' | sort || true)"
+          expected="$(printf '%s\n' '0011_person_portraits.sql' '0012_person_photo_cleanup.sql' | sort)"
+          if [ "$pending" != "$expected" ]; then
+            echo "Refusing production migration: pending migrations differ from the reviewed portrait migrations."
+            printf 'Expected:\n%s\nActual:\n%s\n' "$expected" "$pending"
+            exit 1
+          fi
+
+      - name: Apply portrait migrations to production D1
+        run: pnpm --filter @family-tree/api exec wrangler d1 migrations apply vansvriksh-production --remote --env production
+
+      - name: Verify production migrations are applied
+        run: |
+          pnpm --filter @family-tree/api exec wrangler d1 migrations list vansvriksh-production --remote --env production | tee /tmp/production-migrations-after.txt
+          grep -F "No migrations to apply" /tmp/production-migrations-after.txt
+
+      - name: Deploy production Worker
+        run: pnpm --filter @family-tree/api exec wrangler deploy --env production
+
+      - name: Verify production API health
+        run: |
+          response="$(curl --fail --silent --show-error https://api.vansvriksh.vtrrk.in/health)"
+          printf '%s\n' "$response"
+          printf '%s' "$response" | grep -F '"environment":"production"'
+          printf '%s' "$response" | grep -F '"database":"connected"'
