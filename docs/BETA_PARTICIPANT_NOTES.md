@@ -59,7 +59,8 @@ Before invitations are sent, the owner must:
 - [x] Owner approved this participant note as the staged beta plan on 2026-11-25; the companion privacy/lifecycle wording remains subject to Control 17 closure.
 - [x] Confirmed initial cohort: close family, siblings and selected relatives; all initially Viewer-only.
 - [x] Support route approved: WhatsApp with the owner; email fallback vtr.ravikumar@gmail.com.
-- [x] Owner approved participant-facing privacy/lifecycle wording on 2026-11-26.\n- [ ] Verify Control 17's first scheduled cleanup execution before sending invitations.
+- [x] Owner approved participant-facing privacy/lifecycle wording on 2026-11-26.
+- [ ] Verify Control 17's first scheduled cleanup execution before sending invitations.
 - [x] Conditional GO approved for a manually managed, gradual invitation sequence after Control 17 closes. The owner will send invitations personally; no automated or bulk invitation campaign.
 
 **Current release state:** Staged beta plan approved; invitations are not yet authorized. The owner will send invitations manually and gradually only after Control 17 is closed. This document does not authorize automated invitations or bulk rollout.
