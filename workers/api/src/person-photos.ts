@@ -85,11 +85,14 @@ export async function handlePersonPhoto(
     try{
       await env.PERSON_PHOTOS.put(objectKey,bytes,{httpMetadata:{contentType,cacheControl:"private, no-store"},customMetadata:{mediaId}});
       if(old){
-        const updated=await env.DB.prepare("UPDATE media SET object_key=?,content_type=?,byte_size=?,metadata_json=?,uploaded_by_user_id=?,created_at=? WHERE id=? AND family_id=? AND person_id=? AND EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=? AND p.life_status='alive') AND EXISTS (SELECT 1 FROM family_members fm WHERE fm.family_id=? AND fm.user_id=? AND fm.role IN ('owner','admin','editor'))")
-          .bind(objectKey,contentType,bytes.byteLength,JSON.stringify({extension:rule.extension}),actorUserId,createdAt,old.id,familyId,personId,personId,familyId,familyId,actorUserId).run();
-        if((updated.meta?.changes??0)!==1)throw new Error("photo_update_not_authorized");
+        const updated=await env.DB.batch([
+          env.DB.prepare("UPDATE media SET object_key=?,content_type=?,byte_size=?,metadata_json=?,uploaded_by_user_id=?,created_at=? WHERE id=? AND family_id=? AND person_id=? AND EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=? AND p.life_status='alive') AND EXISTS (SELECT 1 FROM family_members fm WHERE fm.family_id=? AND fm.user_id=? AND fm.role IN ('owner','admin','editor'))")
+            .bind(objectKey,contentType,bytes.byteLength,JSON.stringify({extension:rule.extension}),actorUserId,createdAt,old.id,familyId,personId,personId,familyId,familyId,actorUserId),
+          env.DB.prepare("INSERT OR IGNORE INTO person_photo_cleanup(object_key,created_at) SELECT ?,? WHERE changes()=1")
+            .bind(old.object_key,createdAt)
+        ]);
+        if((updated[0]?.meta?.changes??0)!==1)throw new Error("photo_update_not_authorized");
         dbCommitted=true;
-        await queueObjectCleanup(env.DB,old.object_key);
         await tryDeleteQueuedObject(env.DB,env.PERSON_PHOTOS,old.object_key);
       }else{
         const inserted=await env.DB.prepare("INSERT INTO media(id,family_id,person_id,object_key,media_type,content_type,byte_size,metadata_json,uploaded_by_user_id,created_at) SELECT ?,?,?,?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=? AND p.life_status='alive') AND EXISTS (SELECT 1 FROM family_members fm WHERE fm.family_id=? AND fm.user_id=? AND fm.role IN ('owner','admin','editor'))")
