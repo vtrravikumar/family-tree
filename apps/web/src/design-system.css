@@ -2689,3 +2689,40 @@ details[open] > .heritage-section-heading .heritage-disclosure-mark {
     gap:12px;
   }
 }
+
+
+/* Identity claim card: align it with the dark forest family workspace theme. */
+.viewer-identity-card{
+  color:#e8e4d5 !important;
+  background:#202f24 !important;
+  border:1px solid #46543d !important;
+  border-radius:12px !important;
+  box-shadow:0 2px 8px rgba(8,18,11,.12) !important;
+}
+.viewer-identity-copy h3{
+  color:#eee6d2 !important;
+}
+.viewer-identity-copy p:not(.eyebrow){
+  color:#b8c0ad !important;
+}
+.viewer-identity-card .eyebrow{
+  color:#c2a467 !important;
+}
+.viewer-identity-card .identity-status{
+  color:#d8c18b !important;
+}
+.viewer-identity-card .identity-status.approved{
+  color:#a9c69d !important;
+}
+.viewer-identity-card .identity-status.pending{
+  color:#d8b978 !important;
+}
+.viewer-identity-card .identity-dismiss{
+  color:#d2c49c !important;
+  background:rgba(255,255,255,.07) !important;
+  border:1px solid rgba(194,164,103,.25) !important;
+  border-radius:8px !important;
+}
+.viewer-identity-card .identity-dismiss:hover{
+  background:rgba(194,164,103,.16) !important;
+}
