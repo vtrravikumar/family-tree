@@ -47,8 +47,9 @@ export default function PersonPhotoManager(props:Props){
     const drag=dragRef.current;if(!drag||!bitmap)return;
     const rect=event.currentTarget.getBoundingClientRect();
     const side=Math.min(bitmap.width,bitmap.height)/zoom;
-    const nextX=Math.max(-1,Math.min(1,drag.panX+(event.clientX-drag.x)/rect.width*2*bitmap.width/side));
-    const nextY=Math.max(-1,Math.min(1,drag.panY+(event.clientY-drag.y)/rect.height*2*bitmap.height/side));
+    const travelX=bitmap.width-side,travelY=bitmap.height-side;
+    const nextX=travelX?Math.max(-1,Math.min(1,drag.panX+(event.clientX-drag.x)/rect.width*2*side/travelX)):0;
+    const nextY=travelY?Math.max(-1,Math.min(1,drag.panY+(event.clientY-drag.y)/rect.height*2*side/travelY)):0;
     setPan({x:nextX,y:nextY});
   }
 
