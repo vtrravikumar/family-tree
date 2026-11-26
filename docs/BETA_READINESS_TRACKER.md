@@ -138,7 +138,12 @@ The owner confirmed that the intended account/role acceptance checks are already
 The owner confirmed backup/recovery is not a blocker for the bounded Friends & Family beta. Control 14 remains partially evidenced at 2.5/5 for transparency, but its remaining 2.5 points are excluded from the beta-gate denominator and moved to the production backlog. The runbook remains available for later production-readiness work. This decision does not mark backup/recovery complete or authorize R2 provisioning, production export/restore, secrets, schedules or retention changes.
 
 
-## Control 18 owner approval — 2026-11-25\n\nThe owner explicitly approved Control 18, including the participant-facing support, incident-handling and rollback note. Control 18 is closed at 5/5. The approved support route remains WhatsApp with the owner as primary and vtr.ravikumar@gmail.com as the email fallback.\n\n\n## Production invocation-log review — 2026-11-25
+## Control 18 owner approval — 2026-11-25
+
+The owner explicitly approved Control 18, including the participant-facing support, incident-handling and rollback note. Control 18 is closed at 5/5. The approved support route remains WhatsApp with the owner as primary and vtr.ravikumar@gmail.com as the email fallback.
+
+
+## Production invocation-log review — 2026-11-25
 
 The owner reviewed a production invocation detail for `GET /v1/families/sample-family-v1/identity` in Cloudflare Workers Observability. The cookie header value was explicitly redacted. The event contained request method/path, response status and operational metadata; no request or response body, session token, invitation code or family-record content was present in the displayed event. Client IP and approximate geolocation/connection metadata were visible; decisions on log retention and data minimization remain open under Control 17. Together with the successful production edge workflow and source-reviewed cookie/error handling, this closes Control 15 at 5/5.
 
