@@ -46,6 +46,39 @@ describe("private person portraits",()=>{
     expect(payload.data.googlePhotoUrl).toBe("https://lh3.googleusercontent.com/avatar");
   });
 
+  it.each(["owner","admin","editor"])("%s can upload a validated family portrait",async(role)=>{
+    const {call,objects}=setup(role);
+    const form=new FormData();form.set("photo",new File([jpeg],"my-private-filename.jpg",{type:"image/jpeg"}));
+    const result=await call("POST","/photo",form);
+    expect(result.status).toBe(201);
+    expect(objects.size).toBe(1);
+    const [objectKey]=[...objects.keys()];
+    expect(objectKey).toMatch(/^families\/family-1\/persons\/person-1\/portraits\/[0-9a-f-]{36}$/);
+    expect(objectKey).not.toContain("my-private-filename");
+  });
+
+  it("does not expose a Google photo when there is no approved identity link",async()=>{
+    const {call}=setup("viewer","alive",null);
+    const result=await call("GET");
+    const payload=await result.json() as {data:{displaySource:string;googlePhotoUrl:string|null}};
+    expect(result.status).toBe(200);
+    expect(payload.data.displaySource).toBe("initials");
+    expect(payload.data.googlePhotoUrl).toBeNull();
+  });
+
+  it("rejects cross-family person identifiers",async()=>{
+    const db={prepare(sql:string){const statement={bind(){return statement;},async first(){return null;}};return statement;}} as unknown as D1Database;
+    const env={DB:db,PERSON_PHOTOS:{} as R2Bucket};
+    const result=await handlePersonPhoto(new Request("https://api.test/v1/families/family-1/people/foreign-person/photo",{method:"GET"}),env,"family-1","foreign-person","user-1","viewer");
+    expect(result.status).toBe(404);
+  });
+
+  it("fails closed when the environment has no private photo bucket",async()=>{
+    const {call}=setup();
+    const result=await handlePersonPhoto(new Request("https://api.test/v1/families/family-1/people/person-1/photo",{method:"GET"}),{DB:(null as unknown as D1Database)},"family-1","person-1","user-1","owner");
+    expect(result.status).toBe(500);
+  });
+
   it("blocks viewer mutations",async()=>{
     const {call}=setup("viewer");
     const form=new FormData();form.set("photo",new File([jpeg],"portrait.jpg",{type:"image/jpeg"}));
