@@ -127,3 +127,21 @@ export async function handlePersonPhoto(
   }
   return error(405,"method_not_allowed","This photo operation is not supported.");
 }
+
+
+export async function cleanupQueuedPersonPhotoObjects(db: D1Database, bucket: R2Bucket, limit=50): Promise<number> {
+  const pending=await db.prepare("SELECT object_key FROM person_photo_cleanup ORDER BY created_at LIMIT ?")
+    .bind(limit).all<{object_key:string}>();
+  let cleaned=0;
+  for(const item of pending.results??[]){
+    try{
+      await bucket.delete(item.object_key);
+      await db.prepare("DELETE FROM person_photo_cleanup WHERE object_key=?").bind(item.object_key).run();
+      cleaned++;
+    }catch{
+      await db.prepare("UPDATE person_photo_cleanup SET attempts=attempts+1,last_error='R2 delete failed' WHERE object_key=?")
+        .bind(item.object_key).run().catch(()=>undefined);
+    }
+  }
+  return cleaned;
+}
