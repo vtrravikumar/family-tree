@@ -1,9 +1,11 @@
 import { sendInvitationEmail } from "./invitation-email";
+import { cleanupQueuedPersonPhotoObjects, handlePersonPhoto } from "./person-photos";
 
 export interface Env {
   APP_ENV: string;
   ALLOWED_ORIGINS?: string;
   DB: D1Database;
+  PERSON_PHOTOS?: R2Bucket;
   DEV_API_TOKEN?: string;
   GOOGLE_CLIENT_ID?: string;
   BETA_ALLOWED_EMAILS?: string;
@@ -33,6 +35,12 @@ async function body(request: Request): Promise<JsonObject | null> {
   if (Number(request.headers.get("content-length") ?? 0) > 65536) return null;
   try { const value: unknown = await request.json(); return isObject(value) ? value : null; }
   catch { return null; }
+}
+
+async function countPendingPersonPhotoCleanup(db: D1Database, prefix: string): Promise<number> {
+  const result = await db.prepare("SELECT COUNT(*) AS count FROM person_photo_cleanup WHERE substr(object_key,1,length(?))=?")
+    .bind(prefix,prefix).first<{count:number}>();
+  return result?.count ?? 0;
 }
 
 export const AUDIT_LOG_RETENTION_DAYS = 90;
@@ -472,12 +480,19 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if (input?.confirmed !== true) return fail(400,"confirmation_required","Explicit confirmation is required.");
     const family=await env.DB.prepare("SELECT name FROM families WHERE id=?").bind(familyId).first<{name:string}>();
     if (!family) return fail(404,"family_not_found","Family not found.");
+    const portraits=await env.DB.prepare("SELECT object_key FROM media WHERE family_id=? AND media_type='person_portrait'")
+      .bind(familyId).all<{object_key:string}>();
     try {
-      const results=await env.DB.batch([
+      const statements=[
         env.DB.prepare("DELETE FROM families WHERE id=? AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role='owner')").bind(familyId,familyId,actorUserId),
-      ]);
+        ...(portraits.results??[]).map(item=>env.DB.prepare("INSERT OR IGNORE INTO person_photo_cleanup(object_key,created_at) SELECT ?,? WHERE changes()=1")
+          .bind(item.object_key,now()))
+      ];
+      const results=await env.DB.batch(statements);
       if(!results[0]?.meta.changes)return fail(409,"family_delete_unavailable","The family ownership changed before deletion could complete.");
-      return json({data:{id:familyId,name:family.name,deleted:true}});
+      if(env.PERSON_PHOTOS)await cleanupQueuedPersonPhotoObjects(env.DB,env.PERSON_PHOTOS,50).catch(()=>0);
+      const photoCleanupPending=await countPendingPersonPhotoCleanup(env.DB,`families/${familyId}/`).catch(()=>portraits.results?.length??0);
+      return json({data:{id:familyId,name:family.name,deleted:true,photoCleanupPending}});
     } catch {
       return fail(409,"family_delete_blocked","This family could not be deleted because dependent records are protected. No family data was intentionally changed.");
     }
@@ -579,15 +594,22 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     return json({data:{personId,unlinked:true}});
   }
 
+  const photoMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/photo(\/content)?$/);
+  if(photoMatch){
+    return handlePersonPhoto(request,env,photoMatch[1],photoMatch[2],actorUserId,await roleFor(env.DB,photoMatch[1],actorUserId));
+  }
+
   const peopleMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people$/);
   if (peopleMatch) {
     const familyId=peopleMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (request.method === "GET") {
-      const result=await env.DB.prepare(`SELECT id,family_id,given_name,middle_name,family_name,display_name,gender,life_status,
-        birth_date_kind,birth_exact_date,birth_year,birth_range_start_year,birth_range_end_year,birth_original_text,birth_place,birth_country,
-        death_date_kind,death_exact_date,death_year,death_range_start_year,death_range_end_year,death_original_text,biography,created_at,updated_at
-        FROM persons WHERE family_id=? ORDER BY family_name,given_name`).bind(familyId).all();
+      const result=await env.DB.prepare(`SELECT p.id,p.family_id,p.given_name,p.middle_name,p.family_name,p.display_name,p.gender,p.life_status,
+        p.birth_date_kind,p.birth_exact_date,p.birth_year,p.birth_range_start_year,p.birth_range_end_year,p.birth_original_text,p.birth_place,p.birth_country,
+        p.death_date_kind,p.death_exact_date,p.death_year,p.death_range_start_year,p.death_range_end_year,p.death_original_text,p.biography,p.created_at,p.updated_at,
+        (SELECT '/v1/families/'||p.family_id||'/people/'||p.id||'/photo/content' FROM media m WHERE m.family_id=p.family_id AND m.person_id=p.id AND m.media_type='person_portrait' LIMIT 1) AS family_photo_url,
+        (SELECT u.avatar_url FROM person_identity_links l JOIN users u ON u.id=l.user_id WHERE l.family_id=p.family_id AND l.person_id=p.id LIMIT 1) AS google_photo_url
+        FROM persons p WHERE p.family_id=? ORDER BY p.family_name,p.given_name`).bind(familyId).all();
       return json({data:result.results});
     }
     if (request.method === "POST") {
@@ -880,16 +902,21 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const current=await env.DB.prepare("SELECT display_name,life_status FROM persons WHERE id=? AND family_id=?").bind(personId,familyId).first<{display_name:string|null,life_status:string}>();
     if (!current) return fail(404,"person_not_found","Family member not found.");
     if (current.life_status === "deceased") return fail(409,"person_immutable","Deceased profiles cannot be deleted.");
-    const dependencies=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM media WHERE person_id=? AND family_id=?) AS media_count,(SELECT COUNT(*) FROM tree_layouts WHERE focus_person_id=? AND family_id=?) AS layout_count,(SELECT COUNT(*) FROM share_links WHERE focus_person_id=? AND family_id=?) AS share_count").bind(personId,familyId,personId,familyId,personId,familyId).first<{media_count:number,layout_count:number,share_count:number}>();
-    if (dependencies && (dependencies.media_count||dependencies.layout_count||dependencies.share_count)) return fail(409,"person_has_dependencies","This person is referenced by a photo, saved layout, or branch share link. Remove or reassign those items before deleting the person.");
+    const dependencies=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM media WHERE person_id=? AND family_id=? AND media_type<>'person_portrait') AS media_count,(SELECT COUNT(*) FROM tree_layouts WHERE focus_person_id=? AND family_id=?) AS layout_count,(SELECT COUNT(*) FROM share_links WHERE focus_person_id=? AND family_id=?) AS share_count").bind(personId,familyId,personId,familyId,personId,familyId).first<{media_count:number,layout_count:number,share_count:number}>();
+    if (dependencies && (dependencies.media_count||dependencies.layout_count||dependencies.share_count)) return fail(409,"person_has_dependencies","This person is referenced by other media, saved layouts, or branch share links. Remove or reassign those items before deleting the person.");
+    const portraits=await env.DB.prepare("SELECT object_key FROM media WHERE person_id=? AND family_id=? AND media_type='person_portrait'").bind(personId,familyId).all<{object_key:string}>();
     const t=now();
     try {
       const results=await env.DB.batch([
+        env.DB.prepare("DELETE FROM media WHERE person_id=? AND family_id=? AND media_type='person_portrait' AND EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=? AND p.life_status='alive') AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin'))").bind(personId,familyId,personId,familyId,familyId,actorUserId),
+        ...(portraits.results??[]).map(item=>env.DB.prepare("INSERT OR IGNORE INTO person_photo_cleanup(object_key,created_at) SELECT ?,? WHERE changes()=1").bind(item.object_key,t)),
         env.DB.prepare("DELETE FROM persons WHERE id=? AND family_id=? AND life_status='alive' AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin'))").bind(personId,familyId,familyId,actorUserId),
-        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.deleted',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,personId,JSON.stringify({displayName:current.display_name,relationships:"cascade_deleted"}),t)
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.deleted',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,personId,JSON.stringify({displayName:current.display_name,relationships:"cascade_deleted",portraitObjectsQueued:portraits.results?.length??0}),t)
       ]);
-      if(!results[0]?.meta.changes)return fail(409,"person_delete_unavailable","This person changed or your deletion permission is no longer available.");
-      return json({data:{id:personId,deleted:true,relationshipsDeleted:"all"}});
+      if(!results[(portraits.results?.length??0)+1]?.meta.changes)return fail(409,"person_delete_unavailable","This person changed or your deletion permission is no longer available.");
+      if(env.PERSON_PHOTOS)await cleanupQueuedPersonPhotoObjects(env.DB,env.PERSON_PHOTOS,50).catch(()=>0);
+      const photoCleanupPending=await countPendingPersonPhotoCleanup(env.DB,`families/${familyId}/persons/${personId}/portraits/`).catch(()=>portraits.results?.length??0);
+      return json({data:{id:personId,deleted:true,relationshipsDeleted:"all",photoCleanupPending}});
     } catch { return fail(409,"person_delete_failed","This person could not be deleted. No records were removed."); }
   }
 
@@ -1038,6 +1065,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 export default {
   async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
     await pruneExpiredAuditLogs(env.DB);
+    if(env.PERSON_PHOTOS)await cleanupQueuedPersonPhotoObjects(env.DB,env.PERSON_PHOTOS,100);
   },
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);

@@ -1,7 +1,7 @@
 # Friends & Family Beta Readiness Tracker
 
 **Baseline date:** 2026-11-24  
-**Latest evidence update:** 2026-11-25  
+**Latest evidence update:** 2026-11-25 (Controls 18 and 20 owner approvals)  
 **Scope:** The minimum safe, bounded Friends & Family beta — not full v1.0.  
 **Scoring:** 20 evidence-based controls, each worth 5 points. Complete = 5; partial = 2.5; not evidenced = 0. The score is earned points divided by 100. Automated unit and local-D1 integration tests, source review and green CI are accepted evidence for implementation/security controls when they exercise the relevant behaviour; a live production-like test is not automatically required before a bounded Friends & Family UAT.
 
@@ -9,11 +9,11 @@
 
 | Measure | Result |
 |---|---:|
-| Evidence score (all controls, including production backlog) | **87.5 / 100 (87.5%)** |
-| Beta-gate readiness (production-backlog work excluded) | **87.5 / 97.5 (89.7%)** |
-| Remaining beta-gate points | **10 points** |
+| Evidence score (all controls, including production backlog) | **92.5 / 100 (92.5%)** |
+| Beta-gate readiness (production-backlog work excluded) | **92.5 / 97.5 (94.9%)** |
+| Remaining beta-gate points | **5 points** |
 | Production-backlog points (not a beta blocker) | **2.5 points** |
-| Remaining | **12.5 points** |
+| Remaining | **7.5 points** |
 | Confidence of reaching 100% | **85% within 1 focused week** |
 | Confidence basis | Remaining work is finite and mostly operational setup, beta guidance and owner decisions; confidence is conditional on no new security/data-integrity issue and timely owner-side checks. |
 
@@ -69,10 +69,10 @@ The merged changes have passing validation and applicable Workers/Pages checks. 
 | 15 | Production edge/security verification: CORS, cookies, TLS, headers, safe errors/logging | Complete | 5 | PR #107 [workflow run 45601381941](https://github.com/vtrravikumar/family-tree/actions/runs/45601381941) passed live production TLS validation, health/D1 response, no-store/nosniff headers, allowed credentialed CORS preflight, denied-origin no-ACAO and denied-origin POST (403). Source tests/review cover secure HttpOnly SameSite=Lax session cookie attributes and generic API errors. On 2026-11-25, production invocation details for `GET /v1/families/sample-family-v1/identity` were reviewed: the cookie header value was redacted, request/response bodies and credentials were not present, and the event exposed only method/path, response status and operational metadata. This closes the deployed-log evidence for the bounded beta. Client IP/geolocation metadata is visible; retention/minimization decisions remain tracked under Control 17. |
 | 16 | Actionable operational monitoring and failure alerts | Complete | 5 | PR #101 merged. Normal monitor run #2 succeeded for dev/prod; controlled failure run #3 failed the health job as intended and notification job succeeded, creating assigned GitHub issue #103. Second test run reused the alert (no duplicate); test issue closed after verification. Evidence: [run #3](https://github.com/vtrravikumar/family-tree/actions/runs/45599198715), [issue #103](https://github.com/vtrravikumar/family-tree/issues/103). |
 | 17 | Beta privacy and lifecycle policy | Partial | 2.5 | PRs #109/#110 verify session/logout, invitation, member-removal and family-deletion behaviour. Owner approved manual owner-reviewed account-deletion handling and 90-day D1 audit_logs retention on 2026-11-25. Scheduled cleanup implementation/tests are in PR #118; deployment and first scheduled-run evidence plus final participant-facing wording approval remain. No self-service account-deletion endpoint is claimed. |
-| 18 | Support contact, incident handling and rollback instructions | Partial | 2.5 | PRs #102 and #109 document WhatsApp with the owner, email fallback at vtr.ravikumar@gmail.com, incident response steps and application rollback guidance. PR #110 confirms the same email for account/family-deletion requests. Remaining: owner review/approval of the participant-facing support and incident note. |
+| 18 | Support contact, incident handling and rollback instructions | **Complete** | **5** | PRs #102 and #109 document WhatsApp with the owner, email fallback at vtr.ravikumar@gmail.com, incident response steps and application rollback guidance. PR #110 confirms the same email for account/family-deletion requests. Owner explicitly approved Control 18 and its participant-facing support/incident wording on 2026-11-25. |
 | 19 | End-to-end acceptance using the intended beta accounts and roles | Complete | 5 | Owner confirmed the intended account/role acceptance is checked and complete, including Owner, Admin, Editor and Viewer. Existing automated regressions cover role permissions, invitation lifecycle, identity claims, family isolation and cross-family resource IDs. Development acceptance is closed; retain production UAT findings in the normal defect process. |
-| 20 | Bounded beta notes and explicit invitation go/no-go | Not evidenced | 0 | Publish scope/limitations and data-safety guidance; owner explicitly approves opening the beta after all Gate 1 checks pass. |
-|  | **Total** |  | **87.5 / 100** |  |
+| 20 | Bounded beta notes and explicit invitation go/no-go | **Complete** | **5** | Owner approved a bounded, staged Friends & Family cohort: close family, siblings and selected relatives, initially Viewer-only. Owner will issue invitations manually in an organized, gradual sequence; no automated or bulk invitation campaign. Owner approved this staged approach on 2026-11-25. Invitations remain on hold until Control 17's scheduled-run evidence and participant-facing privacy wording are closed. |
+|  | **Total** |  | **92.5 / 100** |  |
 
 ## Immediate work queue
 
@@ -138,6 +138,6 @@ The owner confirmed that the intended account/role acceptance checks are already
 The owner confirmed backup/recovery is not a blocker for the bounded Friends & Family beta. Control 14 remains partially evidenced at 2.5/5 for transparency, but its remaining 2.5 points are excluded from the beta-gate denominator and moved to the production backlog. The runbook remains available for later production-readiness work. This decision does not mark backup/recovery complete or authorize R2 provisioning, production export/restore, secrets, schedules or retention changes.
 
 
-## Production invocation-log review — 2026-11-25
+## Control 18 owner approval — 2026-11-25\n\nThe owner explicitly approved Control 18, including the participant-facing support, incident-handling and rollback note. Control 18 is closed at 5/5. The approved support route remains WhatsApp with the owner as primary and vtr.ravikumar@gmail.com as the email fallback.\n\n\n## Production invocation-log review — 2026-11-25
 
 The owner reviewed a production invocation detail for `GET /v1/families/sample-family-v1/identity` in Cloudflare Workers Observability. The cookie header value was explicitly redacted. The event contained request method/path, response status and operational metadata; no request or response body, session token, invitation code or family-record content was present in the displayed event. Client IP and approximate geolocation/connection metadata were visible; decisions on log retention and data minimization remain open under Control 17. Together with the successful production edge workflow and source-reviewed cookie/error handling, this closes Control 15 at 5/5.

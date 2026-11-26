@@ -1,7 +1,7 @@
 # Vansvriksh Friends & Family Beta — Participant Notes
 
-**Status: Draft for owner review. Do not distribute as an invitation or treat as launch approval.**  
-**Audience:** A small, invited Friends & Family UAT cohort.
+**Status: Owner-approved staged beta plan. Participant distribution is held until Control 17 is closed.**  
+**Audience:** Close family, siblings and selected relatives, invited gradually by the owner. Initial role: Viewer for every participant.
 
 ## What this beta is for
 
@@ -11,7 +11,9 @@ This is a limited UAT release, not a declaration that the product is complete or
 
 ## What participants can do
 
-Depending on their family membership and assigned role, participants may be able to:
+For the initial staged cohort, participants will be assigned the **Viewer** role. They can view family information and the family tree. Editing, importing/exporting and membership administration are not part of the initial Viewer access. Any later role changes will be made deliberately by the owner after reviewing beta feedback.
+
+For future role assignments, the application supports role-dependent capabilities such as:
 - View family information and the family tree.
 - Add or update people and relationships where their role permits.
 - Invite family members and manage membership where their role permits.
@@ -54,10 +56,10 @@ For account-deletion requests, or help with family deletion, email **vtr.ravikum
 ## Owner release checklist — not participant instructions
 
 Before invitations are sent, the owner must:
-- [ ] Review and approve this participant note and the companion privacy/support/incident note.
-- [ ] Confirm the intended cohort, participant list and assigned roles.
-- [ ] Confirm the support channel is ready and participants have the correct contact details.
-- [ ] Review current beta-gate evidence and any unresolved operational limitations.
-- [ ] Explicitly record a go/no-go decision. A readiness score alone does not authorize invitations.
+- [x] Owner approved this participant note as the staged beta plan on 2026-11-25; the companion privacy/lifecycle wording remains subject to Control 17 closure.
+- [x] Confirmed initial cohort: close family, siblings and selected relatives; all initially Viewer-only.
+- [x] Support route approved: WhatsApp with the owner; email fallback vtr.ravikumar@gmail.com.
+- [ ] Verify Control 17's first scheduled cleanup execution and approve participant-facing privacy/lifecycle wording before sending invitations.
+- [x] Conditional GO approved for a manually managed, gradual invitation sequence after Control 17 closes. The owner will send invitations personally; no automated or bulk invitation campaign.
 
-**Current release state:** Not approved for invitation. This document is a draft and does not itself authorize beta access.
+**Current release state:** Staged beta plan approved; invitations are not yet authorized. The owner will send invitations manually and gradually only after Control 17 is closed. This document does not authorize automated invitations or bulk rollout.
