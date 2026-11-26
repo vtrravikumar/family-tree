@@ -895,16 +895,20 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const current=await env.DB.prepare("SELECT display_name,life_status FROM persons WHERE id=? AND family_id=?").bind(personId,familyId).first<{display_name:string|null,life_status:string}>();
     if (!current) return fail(404,"person_not_found","Family member not found.");
     if (current.life_status === "deceased") return fail(409,"person_immutable","Deceased profiles cannot be deleted.");
-    const dependencies=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM media WHERE person_id=? AND family_id=?) AS media_count,(SELECT COUNT(*) FROM tree_layouts WHERE focus_person_id=? AND family_id=?) AS layout_count,(SELECT COUNT(*) FROM share_links WHERE focus_person_id=? AND family_id=?) AS share_count").bind(personId,familyId,personId,familyId,personId,familyId).first<{media_count:number,layout_count:number,share_count:number}>();
-    if (dependencies && (dependencies.media_count||dependencies.layout_count||dependencies.share_count)) return fail(409,"person_has_dependencies","This person is referenced by a photo, saved layout, or branch share link. Remove or reassign those items before deleting the person.");
+    const dependencies=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM media WHERE person_id=? AND family_id=? AND media_type<>'person_portrait') AS media_count,(SELECT COUNT(*) FROM tree_layouts WHERE focus_person_id=? AND family_id=?) AS layout_count,(SELECT COUNT(*) FROM share_links WHERE focus_person_id=? AND family_id=?) AS share_count").bind(personId,familyId,personId,familyId,personId,familyId).first<{media_count:number,layout_count:number,share_count:number}>();
+    if (dependencies && (dependencies.media_count||dependencies.layout_count||dependencies.share_count)) return fail(409,"person_has_dependencies","This person is referenced by other media, saved layouts, or branch share links. Remove or reassign those items before deleting the person.");
+    const portraits=await env.DB.prepare("SELECT object_key FROM media WHERE person_id=? AND family_id=? AND media_type='person_portrait'").bind(personId,familyId).all<{object_key:string}>();
     const t=now();
     try {
       const results=await env.DB.batch([
+        env.DB.prepare("DELETE FROM media WHERE person_id=? AND family_id=? AND media_type='person_portrait'").bind(personId,familyId),
+        ...(portraits.results??[]).map(item=>env.DB.prepare("INSERT OR IGNORE INTO person_photo_cleanup(object_key,created_at) VALUES(?,?)").bind(item.object_key,t)),
         env.DB.prepare("DELETE FROM persons WHERE id=? AND family_id=? AND life_status='alive' AND EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=? AND actor.role IN ('owner','admin'))").bind(personId,familyId,familyId,actorUserId),
-        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.deleted',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,personId,JSON.stringify({displayName:current.display_name,relationships:"cascade_deleted"}),t)
+        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'person.deleted',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,personId,JSON.stringify({displayName:current.display_name,relationships:"cascade_deleted",portraitObjectsQueued:portraits.results?.length??0}),t)
       ]);
-      if(!results[0]?.meta.changes)return fail(409,"person_delete_unavailable","This person changed or your deletion permission is no longer available.");
-      return json({data:{id:personId,deleted:true,relationshipsDeleted:"all"}});
+      if(!results[(portraits.results?.length??0)+1]?.meta.changes)return fail(409,"person_delete_unavailable","This person changed or your deletion permission is no longer available.");
+      if(env.PERSON_PHOTOS)await cleanupQueuedPersonPhotoObjects(env.DB,env.PERSON_PHOTOS,50).catch(()=>0);
+      return json({data:{id:personId,deleted:true,relationshipsDeleted:"all",photoCleanupPending:portraits.results?.length??0}});
     } catch { return fail(409,"person_delete_failed","This person could not be deleted. No records were removed."); }
   }
 
