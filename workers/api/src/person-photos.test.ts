@@ -71,6 +71,25 @@ describe("private person portraits",()=>{
     expect((await call("POST","/photo",form)).status).toBe(413);
   });
 
+
+  it("rejects animated WebP and truncated VP8X headers",async()=>{
+    const animated=new Uint8Array(24);
+    animated.set(new TextEncoder().encode("RIFF"),0);
+    animated.set(new TextEncoder().encode("WEBP"),8);
+    animated.set(new TextEncoder().encode("VP8X"),12);
+    animated[20]=0x02;
+    const {call}=setup();
+    const animatedForm=new FormData();
+    animatedForm.set("photo",new File([animated],"animated.webp",{type:"image/webp"}));
+    expect((await call("POST","/photo",animatedForm)).status).toBe(415);
+
+    const truncated=animated.slice(0,20);
+    truncated[20-1]=0;
+    const truncatedForm=new FormData();
+    truncatedForm.set("photo",new File([truncated],"truncated.webp",{type:"image/webp"}));
+    expect((await call("POST","/photo",truncatedForm)).status).toBe(415);
+  });
+
   it("does not disclose photos to non-members",async()=>{
     const {call}=setup(null as unknown as string);
     expect((await call("GET","/photo/content")).status).toBe(404);
