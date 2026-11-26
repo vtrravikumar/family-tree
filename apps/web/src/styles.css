@@ -331,3 +331,12 @@
 .person-photo-manager .message.error{background:#4a3029;color:#f0c2b5}
 .person-photo-manager .message.success{background:#2d4433;color:#c5ddc2}
 @media(max-width:520px){.person-photo-manager{background:linear-gradient(145deg,#263428 0%,#202d23 100%)}}
+
+
+/* Keep in-page workspace navigation targets clear of the persistent header. */
+html{scroll-behavior:smooth;scroll-padding-top:150px}
+#overview,#family-tree,#people,#members,#settings{scroll-margin-top:150px}
+@media(max-width:700px){
+  html{scroll-padding-top:118px}
+  #overview,#family-tree,#people,#members,#settings{scroll-margin-top:118px}
+}
