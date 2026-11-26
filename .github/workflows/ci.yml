@@ -2,7 +2,7 @@ name: CI and Development Deployment
 
 on:
   push:
-    branches: [main, production]
+    branches: [main, production, feature/person-photo-management]
   pull_request:
     branches: [main, production]
 
@@ -36,7 +36,7 @@ jobs:
         run: pnpm build
 
   deploy-development:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/person-photo-management')
     needs: validate
     runs-on: ubuntu-latest
     env:
