@@ -61,6 +61,10 @@ database_name = "vansvriksh-production"
 database_id = "661c073a-20be-491c-bed0-104594e5c4cb"
 migrations_dir = "migrations"
 
+[[env.production.r2_buckets]]
+binding = "PERSON_PHOTOS"
+bucket_name = "vansvriksh-person-photos-production"
+
 [env.production.vars]
 APP_ENV = "production"
 PUBLIC_APP_URL = "https://vansvriksh.vtrrk.in"
