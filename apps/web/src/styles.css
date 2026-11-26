@@ -340,3 +340,22 @@ html{scroll-behavior:smooth;scroll-padding-top:150px}
   html{scroll-padding-top:118px}
   #overview,#family-tree,#people,#members,#settings{scroll-margin-top:118px}
 }
+
+
+/* Identity claim belongs to the selected person's profile, not a separate card. */
+.profile-identity-claim,.profile-identity-status{
+  display:flex;align-items:center;justify-content:space-between;gap:18px;
+  margin:4px 0 18px;padding:16px 18px;border:1px solid #687354;border-radius:8px;
+  background:linear-gradient(110deg,#2a392b,#253328);color:#e8e1ce
+}
+.profile-identity-claim>div{min-width:0}
+.profile-identity-claim .eyebrow{margin:0 0 5px;color:#c2a467}
+.profile-identity-claim strong,.profile-identity-status strong{display:block;color:#eee6d2;font:17px Georgia,serif;font-weight:500}
+.profile-identity-claim p:not(.eyebrow){margin:5px 0 0;color:#b8c0ad;font-size:12px;line-height:1.55}
+.profile-identity-claim button{flex:0 0 auto;padding:10px 15px;border:1px solid #a78c52;border-radius:5px;background:#927847;color:#fff4d8;font-size:12px;font-weight:600}
+.profile-identity-claim button:disabled{opacity:.6;cursor:wait}
+.profile-identity-status{justify-content:flex-start}
+.profile-identity-status .profile-identity-mark{display:grid;place-items:center;width:30px;height:30px;flex:0 0 30px;border:1px solid #9caa7d;border-radius:50%;color:#d5dfb7}
+.profile-identity-status small{display:block;margin-top:4px;color:#b8c0ad;font-size:11px}
+.profile-identity-status.pending .profile-identity-mark{border-color:#a78c52;color:#d8bd7e}
+@media(max-width:560px){.profile-identity-claim{align-items:stretch;flex-direction:column}.profile-identity-claim button{align-self:flex-start}}
