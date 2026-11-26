@@ -1,6 +1,6 @@
 import { useEffect,useRef,useState } from "react";
 
-const API=import.meta.env.VITE_API_URL||"https://api-dev.vtrrk.in";
+const API=import.meta.env.VITE_API_URL||"https://api-dev.vansvriksh.vtrrk.in";
 const OUTPUT_SIZE=960;
 const MAX_UPLOAD_BYTES=5*1024*1024;
 type Props={familyId:string;personId:string;displayName:string;role:string;lifeStatus:string;familyPhotoUrl?:string|null;googlePhotoUrl?:string|null;onChanged:()=>void};
