@@ -359,3 +359,38 @@ html{scroll-behavior:smooth;scroll-padding-top:150px}
 .profile-identity-status small{display:block;margin-top:4px;color:#b8c0ad;font-size:11px}
 .profile-identity-status.pending .profile-identity-mark{border-color:#a78c52;color:#d8bd7e}
 @media(max-width:560px){.profile-identity-claim{align-items:stretch;flex-direction:column}.profile-identity-claim button{align-self:flex-start}}
+
+
+/* Final spacing and action styling refinements requested during production review. */
+.atlas-overview{padding-inline:16px;min-width:0}
+.family-summary{
+  box-sizing:border-box;
+  width:100%;
+  padding:28px 30px 22px;
+  border:1px solid #596348;
+  outline:none;
+  border-radius:12px;
+}
+.viewer-identity-card>button:not(.identity-dismiss){
+  min-height:40px;
+  padding:9px 15px!important;
+  border:1px solid #a78c52!important;
+  border-radius:6px!important;
+  background:#927847!important;
+  color:#fff4d8!important;
+  font-size:12px!important;
+  font-weight:650!important;
+  box-shadow:0 1px 2px #101b1426;
+}
+.viewer-identity-card>button:not(.identity-dismiss):hover:not(:disabled){
+  background:#a58a52!important;
+  border-color:#b99d61!important;
+}
+.viewer-identity-card>button:not(.identity-dismiss):focus-visible{
+  outline:2px solid #e4d3a5;
+  outline-offset:3px;
+}
+@media(max-width:600px){
+  .atlas-overview{padding-inline:8px}
+  .family-summary{padding:22px 18px 18px}
+}
