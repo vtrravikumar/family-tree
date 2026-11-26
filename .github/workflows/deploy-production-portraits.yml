@@ -47,6 +47,13 @@ jobs:
       - name: Validate production Worker configuration
         run: pnpm --filter @family-tree/api exec wrangler deploy --dry-run --outdir /tmp/vansvriksh-production-dry-run --env production
 
+      - name: Verify production portrait bucket remains private
+        run: |
+          pnpm --filter @family-tree/api exec wrangler r2 bucket dev-url get vansvriksh-person-photos-production | tee /tmp/production-r2-dev-url.txt
+          grep -F "Public access via the r2.dev URL is disabled." /tmp/production-r2-dev-url.txt
+          pnpm --filter @family-tree/api exec wrangler r2 bucket domain list vansvriksh-person-photos-production | tee /tmp/production-r2-domains.txt
+          grep -F "There are no custom domains connected to this bucket." /tmp/production-r2-domains.txt
+
       - name: Confirm only portrait migrations are pending
         shell: bash
         run: |
