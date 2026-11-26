@@ -220,3 +220,14 @@
 .create-family-form button{display:flex;align-items:center;gap:9px;white-space:nowrap;padding:10px 15px;background:#8c7445;color:#f7f0dd;border:1px solid #a58a52;border-radius:6px;font-size:12px}
 .main-panel{width:100%;min-width:0}
 @media(max-width:650px){.create-family-strip{align-items:stretch;flex-direction:column;gap:12px;padding:14px}.create-family-form{width:100%;max-width:none}.create-family-form button{padding:10px 11px}.create-family-heading strong{font-size:18px}}
+
+.avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.person-photo-manager{display:flex;align-items:center;gap:16px;padding:16px;margin:14px 0;border:1px solid var(--line);border-radius:12px;background:#f8f8f3}
+.person-photo-preview{width:88px;height:88px;flex:0 0 88px;display:grid;place-items:center;overflow:hidden;border-radius:50%;background:#e9eee8;color:var(--green);font:32px Georgia,serif}
+.person-photo-preview img{width:100%;height:100%;object-fit:cover}
+.person-photo-controls{display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px;min-width:0}
+.person-photo-controls strong,.person-photo-controls small{width:100%}
+.person-photo-controls small{font-size:11px;color:var(--muted)}
+.person-photo-choose{position:relative;overflow:hidden;cursor:pointer}
+.person-photo-choose input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+@media(max-width:520px){.person-photo-manager{align-items:flex-start;gap:12px}.person-photo-preview{width:64px;height:64px;flex-basis:64px}}

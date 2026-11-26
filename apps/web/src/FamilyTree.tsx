@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-type TreePerson = { id:string; display_name:string; gender?:string; life_status:string; birth_date_kind:string; birth_exact_date:string|null; birth_year:number|null; birth_range_start_year:number|null; birth_range_end_year:number|null; birth_original_text:string|null };
+type TreePerson = { id:string; display_name:string; gender?:string; life_status:string; birth_date_kind:string; birth_exact_date:string|null; birth_year:number|null; birth_range_start_year:number|null; birth_range_end_year:number|null; birth_original_text:string|null; family_photo_url?:string|null; google_photo_url?:string|null };
 type TreeRelationship = { id:string; from_person_id:string; to_person_id:string; relationship_type:string };
 type Node = { person:TreePerson; generation:number; x:number; y:number };
 type ViewMode = "generation" | "focus" | "ancestors" | "descendants";
+const API=import.meta.env.VITE_API_URL||"https://api-dev.vtrrk.in";
 const parentTypes=["biological_parent","adoptive_parent","step_parent"];
 function parentConnectorPath(a:Node,b:Node,nodes:Node[]):string {
   const sx=a.x+80, sy=a.y+104, tx=b.x+80, ty=b.y;
@@ -252,7 +253,8 @@ export default function FamilyTree({people,relationships,onSelectPerson}:{people
         <circle cx="80" cy="31" r={selected===node.person.id?36:29} fill="none" stroke={selected===node.person.id?"#d7bd79":node.person.life_status==="deceased"?(node.person.gender==="female"?"#c58da5":node.person.gender==="male"?"#83a9c2":"#a4a5a1"):highlightActive&&firstDegree.has(node.person.id)?"#b59a5c":"#8b9274"} strokeWidth={node.person.life_status==="deceased"?2.2:selected===node.person.id?2.5:1} opacity={selected===node.person.id?1:node.person.life_status==="deceased"?.9:.52}/>
         <circle cx="80" cy="31" r={selected===node.person.id?25:23} fill={node.person.life_status==="deceased"?(node.person.gender==="female"?"#75616d":node.person.gender==="male"?"#5b7180":"#666a6d"):node.person.gender==="female"?"#86566c":node.person.gender==="male"?"#315f80":"#68704e"} stroke={selected===node.person.id?"#f0d99b":"#b8ad7d"} strokeOpacity={selected===node.person.id?1:.35} strokeWidth="1.2"/>
         <circle cx="80" cy="31" r="18" fill="url(#atlas-node-glow)" opacity=".72"/>
-        <text x="80" y="36" textAnchor="middle" fontSize="17" fill={node.person.life_status==="deceased"?(node.person.gender==="female"?"#f0dce5":node.person.gender==="male"?"#d8e8f0":"#e0e0dc"):node.person.gender==="female"?"#f5d5e1":node.person.gender==="male"?"#c9e4f3":"#e4d5ad"} fontWeight="700">{node.person.gender==="female"?"♀":node.person.gender==="male"?"♂":node.person.display_name.charAt(0).toUpperCase()}</text>
+
+        <text x="80" y="36" textAnchor="middle" fontSize="17" fill={node.person.life_status==="deceased"?(node.person.gender==="female"?"#f0dce5":node.person.gender==="male"?"#d8e8f0":"#e0e0dc"):node.person.gender==="female"?"#f5d5e1":node.person.gender==="male"?"#c9e4f3":"#e4d5ad"} fontWeight="700">{node.person.gender==="female"?"♀":node.person.gender==="male"?"♂":node.person.display_name.charAt(0).toUpperCase()}</text>{(node.person.family_photo_url||node.person.google_photo_url)&&<><defs><clipPath id={`portrait-${node.person.id}`}><circle cx="80" cy="31" r="22"/></clipPath></defs><image href={node.person.family_photo_url?API+node.person.family_photo_url:node.person.google_photo_url||""} x="58" y="9" width="44" height="44" preserveAspectRatio="xMidYMid slice" clipPath={`url(#portrait-${node.person.id})`} crossOrigin="use-credentials" /></>}
         {node.person.life_status==="deceased"&&<g aria-hidden="true">
           <circle cx="80" cy="31" r="35" fill="none" stroke="#b99a60" strokeWidth="1.15" opacity=".82"/>
           {[[80,-4,"#e8dfc5"],[55,6,"#d4b76f"],[45,31,"#e8dfc5"],[55,56,"#bd8580"],[80,66,"#e8dfc5"],[105,56,"#d4b76f"],[115,31,"#e8dfc5"]].map(([x,y,color],index)=><g key={index} transform={`translate(${x} ${y})`} opacity=".94">

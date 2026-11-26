@@ -30,6 +30,10 @@ database_name = "vansvriksh-dev"
 database_id = "6a646ce7-f920-489a-a274-002ce158c9ae"
 migrations_dir = "migrations"
 
+[[env.dev.r2_buckets]]
+binding = "PERSON_PHOTOS"
+bucket_name = "vansvriksh-person-photos-dev"
+
 [env.dev.vars]
 APP_ENV = "development"
 PUBLIC_APP_URL = "https://dev.vansvriksh.vtrrk.in"
@@ -37,6 +41,9 @@ GOOGLE_CLIENT_ID = "569004813603-bgdrv8dmth1po7hvn84ke5jq9vmkkalt.apps.googleuse
 INITIAL_OWNER_EMAIL = "vtrravikumar@gmail.com"
 SUPER_ADMIN_EMAIL = "vtrravikumar@gmail.com"
 ALLOWED_ORIGINS = "https://vansvriksh-web-dev.pages.dev,https://dev.vansvriksh.vtrrk.in,https://vansvriksh.vtrrk.in,http://localhost:5173,http://127.0.0.1:5173"
+
+[env.dev.triggers]
+crons = ["17 2 * * *"]
 
 # This production database was created empty for the friends-and-family beta.
 # Keep production migrations and deployment manual until explicitly approved.
