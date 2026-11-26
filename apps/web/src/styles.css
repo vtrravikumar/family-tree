@@ -231,3 +231,58 @@
 .person-photo-choose{position:relative;overflow:hidden;cursor:pointer}
 .person-photo-choose input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
 @media(max-width:520px){.person-photo-manager{align-items:flex-start;gap:12px}.person-photo-preview{width:64px;height:64px;flex-basis:64px}}
+
+
+/* Vansvriksh family portrait editor — botanical archive styling */
+.person-photo-manager{
+  display:grid;gap:18px;margin:20px 0;padding:20px;
+  border:1px solid #d8d1bd;border-radius:10px;
+  background:linear-gradient(145deg,#fbfaf5,#f1efe5);
+  color:#26352d;box-shadow:0 3px 12px rgba(39,54,40,.045)
+}
+.person-photo-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:14px;border-bottom:1px solid #ded9c9}
+.person-photo-heading .eyebrow{margin:0 0 5px;color:#927747}
+.person-photo-heading h4{margin:0;color:#294333;font:22px Georgia,serif;font-weight:500}
+.person-photo-heading p:last-child{margin:5px 0 0;color:#747c72;font-size:12px}
+.person-photo-lock{flex:0 0 auto;padding:6px 9px;border:1px solid #d9cfb5;border-radius:20px;background:#f3efe2;color:#806b40;font-size:10px;letter-spacing:.03em}
+.person-photo-current{display:flex;align-items:center;gap:14px}
+.person-photo-preview{width:82px;height:82px;flex:0 0 82px;display:grid;place-items:center;overflow:hidden;border:2px solid #b59a62;border-radius:50%;background:#e4e8dc;color:#315b45;font:30px Georgia,serif}
+.person-photo-preview img{width:100%;height:100%;object-fit:cover}
+.person-photo-current-copy{display:grid;gap:4px;min-width:0}
+.person-photo-current-copy strong{color:#2e4636;font:17px Georgia,serif}
+.person-photo-current-copy small{color:#777e70;font-size:11px}
+.person-photo-editor{display:grid;gap:13px}
+.person-photo-drop{display:grid;justify-items:center;gap:8px;padding:25px 16px;border:1px dashed #b5a47c;border-radius:8px;background:#f7f5ec;text-align:center;cursor:pointer;transition:background .15s,border-color .15s}
+.person-photo-drop:hover{border-color:#8c7445;background:#f1eee1}
+.person-photo-drop-icon{display:grid;place-items:center;width:38px;height:38px;border:1px solid #c7b88f;border-radius:50%;color:#927747;font:25px Georgia,serif}
+.person-photo-drop strong{color:#304b39;font:17px Georgia,serif;font-weight:500}
+.person-photo-drop small{color:#777e70;font-size:11px}
+.person-photo-browse{position:relative;overflow:hidden;margin-top:3px;padding:9px 15px;border:1px solid #8c7445;border-radius:5px;background:#8c7445;color:#fff8e8;font-size:12px;font-weight:600}
+.person-photo-browse input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.person-photo-crop{display:grid;gap:13px;padding:15px;border:1px solid #ded8c7;border-radius:8px;background:#f7f5ed}
+.person-photo-crop-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.person-photo-crop-top>div{display:grid;gap:4px}
+.person-photo-crop-top strong{color:#304b39;font:17px Georgia,serif;font-weight:500}
+.person-photo-crop-top small{color:#777e70;font-size:11px}
+.person-photo-text-action{padding:5px 8px;border:0;background:transparent;color:#806b40;font-size:11px;text-decoration:underline}
+.person-photo-crop-stage{display:grid;place-items:center;padding:12px;border-radius:6px;background:#26372b}
+.person-photo-crop-stage canvas{display:block;width:min(100%,340px);aspect-ratio:1;object-fit:contain;border:2px solid #b59a62;border-radius:50%;background:#e6e0ce;cursor:grab;touch-action:none}
+.person-photo-crop-stage canvas:active{cursor:grabbing}
+.person-photo-zoom{display:grid;grid-template-columns:48px 1fr 42px;align-items:center;gap:10px;color:#526050;font-size:11px}
+.person-photo-zoom input{width:100%;accent-color:#8c7445}
+.person-photo-zoom output{text-align:right;color:#806b40;font-variant-numeric:tabular-nums}
+.person-photo-crop-actions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.person-photo-crop-actions button{min-height:38px;padding:9px 15px;border:1px solid #8c7445;border-radius:5px;background:#8c7445;color:#fff8e8;font-size:12px;font-weight:600}
+.person-photo-crop-actions button.button-secondary{background:transparent;color:#526050;border-color:#c9c3b1}
+.person-photo-crop-actions button:disabled,.person-photo-remove:disabled{opacity:.55;cursor:wait}
+.person-photo-optimization{color:#858675;font-size:10px;text-align:center}
+.person-photo-remove{justify-self:start;padding:5px 0;border:0;background:transparent;color:#8b5b4c;font-size:11px;text-decoration:underline}
+.person-photo-locked{margin:0;padding:11px 13px;border-left:3px solid #a88b50;background:#f1eee2;color:#666e60;font-size:12px;line-height:1.5}
+@media(max-width:520px){
+ .person-photo-manager{padding:15px;gap:14px}
+ .person-photo-heading{flex-direction:column;gap:8px}
+ .person-photo-lock{align-self:flex-start}
+ .person-photo-crop{padding:10px}
+ .person-photo-crop-actions{display:grid;grid-template-columns:1fr 1fr}
+ .person-photo-crop-actions button{padding:9px 8px}
+}
