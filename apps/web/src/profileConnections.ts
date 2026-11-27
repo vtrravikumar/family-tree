@@ -17,6 +17,7 @@ export function getProfileConnectionGroups(profile: ProfilePerson, relationships
   const peopleById = new Map(people.map((person) => [person.id, person]));
   const grouped: Record<ProfileConnectionGroup["title"], ProfileConnectionGroup["connections"]> = { Parents: [], Spouse: [], Siblings: [], Children: [] };
   for (const relationship of relationships) {
+    if (relationship.from_person_id !== profile.id && relationship.to_person_id !== profile.id) continue;
     const isFromPerson = relationship.from_person_id === profile.id;
     const relatedId = isFromPerson ? relationship.to_person_id : relationship.from_person_id;
     const related = peopleById.get(relatedId);
