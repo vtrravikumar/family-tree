@@ -473,3 +473,13 @@ html{scroll-behavior:smooth;scroll-padding-top:150px}
 
 /* UX-34: grouped, perspective-aware profile connections */
 .profile-connection-group{margin:12px 0 16px}.profile-connection-group h5{margin:0 0 7px;color:#657267;font-size:10px;font-weight:750;letter-spacing:.1em;text-transform:uppercase}.profile-connection-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #ebeae3;font-size:12px}.profile-connection-row small{color:var(--green);font-size:11px;text-align:right}.profile-connection-group:last-child .profile-connection-row:last-child{border-bottom:0}
+
+/* UX-01 recipient invitation inbox */
+.recipient-invitations{max-width:1120px;margin:18px auto;padding:20px 22px;background:var(--surface,#fffefa);border:1px solid var(--line,#dce2d7);border-radius:10px}
+.recipient-invitations-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+.recipient-invitations-heading .eyebrow{margin:0 0 4px}.recipient-invitations-heading h2{font:23px Georgia,serif;margin:0;color:var(--ink,#29382f)}
+.recipient-invitation-count{display:grid;place-items:center;min-width:28px;height:28px;padding:0 8px;border-radius:18px;background:#f4ead3;color:#755b2e;font-size:12px;font-weight:700}
+.recipient-invitation-list{display:grid;gap:9px}.recipient-invitation{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 14px;border:1px solid var(--line,#dce2d7);border-radius:8px;background:#fbfaf5}
+.recipient-invitation-copy{display:grid;gap:4px;min-width:0}.recipient-invitation-copy strong{font:18px Georgia,serif;color:var(--ink,#29382f)}.recipient-invitation-copy span,.recipient-invitation-copy small{font-size:12px;color:var(--muted,#68736a)}
+.recipient-invitation button{flex-shrink:0}.recipient-invitations-empty{font-size:13px;color:var(--muted,#68736a);margin:0}.recipient-invitations .message{margin:10px 0 0}
+@media(max-width:600px){.recipient-invitations{margin:12px 0;padding:16px}.recipient-invitation{align-items:stretch;flex-direction:column}.recipient-invitation button{width:100%}}
