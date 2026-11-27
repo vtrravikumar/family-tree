@@ -399,6 +399,19 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if(!changes)return fail(404,"invitation_unavailable","This pending invitation is no longer available.");
     return json({data:{id:invitationId,revoked:true}});
   }
+  if(url.pathname==="/v1/invitations"&&request.method==="GET"){
+    if(!session)return fail(401,"not_authenticated","Sign in with Google to view your invitations.");
+    const limited=await enforceRateLimit(request,env.DB,"invitation_inbox_user",60,60*60*1000,actorUserId);
+    if(limited)return limited;
+    const invitations=await env.DB.prepare(`SELECT i.id,i.invitee_email,i.offered_role,i.expires_at,i.created_at,
+      f.id AS family_id,f.name AS family_name,u.display_name AS inviter_name
+      FROM invitations i
+      JOIN families f ON f.id=i.family_id
+      JOIN users u ON u.id=i.inviter_user_id
+      WHERE lower(i.invitee_email)=lower(?) AND i.status='pending' AND i.expires_at>?
+      ORDER BY i.created_at DESC`).bind(session.email,now()).all();
+    return json({data:invitations.results});
+  }
   const invitationAcceptMatch=url.pathname.match(/^\/v1\/invitations\/([^/]+)\/accept$/);
   if(invitationAcceptMatch&&request.method==="POST"){
     const ipLimited=await enforceRateLimit(request,env.DB,"invitation_accept_ip",30,60*60*1000);
@@ -407,7 +420,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const userLimited=await enforceRateLimit(request,env.DB,"invitation_accept_user",20,60*60*1000,actorUserId);
     if(userLimited)return userLimited;
     const code=invitationAcceptMatch[1],hash=await sha256(code),timestamp=now();
-    const invitation=await env.DB.prepare("SELECT id,family_id,invitee_email,offered_role,status,expires_at FROM invitations WHERE invite_code_hash=?").bind(hash).first<{id:string;family_id:string;invitee_email:string|null;offered_role:string;status:string;expires_at:string}>();
+    const invitation=await env.DB.prepare("SELECT id,family_id,invitee_email,offered_role,status,expires_at FROM invitations WHERE invite_code_hash=? OR id=?").bind(hash,code).first<{id:string;family_id:string;invitee_email:string|null;offered_role:string;status:string;expires_at:string}>();
     if(!invitation||invitation.status!=="pending"||invitation.expires_at<=timestamp)return fail(404,"invitation_unavailable","This invitation is invalid, expired or no longer available.");
     if(invitation.invitee_email&&invitation.invitee_email.toLowerCase()!==session.email.toLowerCase())return fail(403,"invitation_email_mismatch","Sign in with the Google account that received this invitation.");
     const member=await env.DB.prepare("SELECT role FROM family_members WHERE family_id=? AND user_id=?").bind(invitation.family_id,actorUserId).first();
