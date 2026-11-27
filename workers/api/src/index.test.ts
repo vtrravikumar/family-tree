@@ -12,7 +12,7 @@ describe("open Google registration policy", () => {
   });
 });
 
-function makeEnv(role: string | null = "owner", session = false, batchChanges = 1, superAdmin = false, initialRateCount = 0, targetRole = "editor", expiredSession = false, personStatus = "alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString(), observedWrites?: Array<{sql:string;bound:unknown[]}>, claimRequesterUserId = "another-user", claimStatus = "pending"): Env {
+function makeEnv(role: string | null = "owner", session = false, batchChanges = 1, superAdmin = false, initialRateCount = 0, targetRole = "editor", expiredSession = false, personStatus = "alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString(), observedWrites?: Array<{sql:string;bound:unknown[]}>, claimRequesterUserId = "another-user", claimStatus = "pending", existingIdentityLink: {person_id:string;user_id:string;linked_at:string}|null = null, existingPendingClaim: {id:string;person_id:string;status:string;requested_at:string}|null = null): Env {
   let rateCount=initialRateCount;
   const db = {
     prepare(sql: string) {
@@ -44,8 +44,9 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
             if(bound[1]===(session?"user-1":"dev-owner"))return role?{role}:null;
             return bound[1]==="target-1"?{role:targetRole}:null;
           }
+          if(sql.includes("FROM person_identity_claims")&&sql.includes("status='pending'")&&sql.includes("requester_user_id=?"))return existingPendingClaim;
           if(sql.includes("FROM person_identity_claims"))return {id:"claim-1",person_id:"person-1",requester_user_id:claimRequesterUserId,status:claimStatus};
-          if(sql.includes("FROM person_identity_links"))return sql.includes("OR person_id")?null:{user_id:"linked-user"};
+          if(sql.includes("FROM person_identity_links"))return sql.includes("OR person_id")?existingIdentityLink:{user_id:"linked-user",person_id:"person-1",linked_at:"2026-11-27T09:00:00.000Z"};
           return null;
         },
         async all() {
@@ -67,12 +68,12 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
   return { APP_ENV: "development", DEV_API_TOKEN: "test-token", GOOGLE_CLIENT_ID:"test-client", DB: db };
 }
 
-async function request(path: string, role: string | null, method = "GET", payload?: unknown, session = false, batchChanges = 1, superAdmin = false, initialRateCount=0, targetRole="editor", expiredSession=false, personStatus="alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString(), observedWrites?: Array<{sql:string;bound:unknown[]}>, claimRequesterUserId = "another-user", claimStatus = "pending") {
+async function request(path: string, role: string | null, method = "GET", payload?: unknown, session = false, batchChanges = 1, superAdmin = false, initialRateCount=0, targetRole="editor", expiredSession=false, personStatus="alive", invitationEmail: string | null = "member@example.com", invitationExpiresAt = new Date(Date.now() + 60_000).toISOString(), observedWrites?: Array<{sql:string;bound:unknown[]}>, claimRequesterUserId = "another-user", claimStatus = "pending", existingIdentityLink: {person_id:string;user_id:string;linked_at:string}|null = null, existingPendingClaim: {id:string;person_id:string;status:string;requested_at:string}|null = null) {
   return worker.fetch(new Request("https://api.example.test" + path, {
     method,
     headers: { Authorization: "Bearer test-token", ...(session ? { Cookie: "vansvriksh_session=test-session" } : {}), ...(payload ? { "Content-Type": "application/json" } : {}) },
     ...(payload ? { body: JSON.stringify(payload) } : {}),
-  }), makeEnv(role, session, batchChanges, superAdmin, initialRateCount, targetRole, expiredSession, personStatus, invitationEmail, invitationExpiresAt, observedWrites, claimRequesterUserId, claimStatus));
+  }), makeEnv(role, session, batchChanges, superAdmin, initialRateCount, targetRole, expiredSession, personStatus, invitationEmail, invitationExpiresAt, observedWrites, claimRequesterUserId, claimStatus, existingIdentityLink, existingPendingClaim));
 }
 
 describe("server-side authorization", () => {
@@ -277,6 +278,28 @@ describe("server-side authorization", () => {
       expect(audit?.sql).toContain("WHERE changes()=1");
       expect((await request(person+suffix,"admin","POST",payload,false,0)).status).toBe(409);
     }
+  });
+
+  it("returns the existing pending identity claim on a repeated request without writing another audit event", async () => {
+    const writes:Array<{sql:string;bound:unknown[]}>=[],existing={id:"claim-existing",person_id:"person-1",status:"pending",requested_at:"2026-11-27T09:00:00.000Z"};
+    const response=await request("/v1/families/family-1/identity-claims","editor","POST",{personId:"person-1"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes,"another-user","pending",null,existing);
+    expect(response.status).toBe(200);
+    expect((await response.json() as {data:{id:string;reused:boolean;status:string}}).data).toMatchObject({id:"claim-existing",reused:true,status:"pending"});
+    expect(writes.filter(write=>/person_identity_(claims|links)|identity\\.claim_/.test(write.sql))).toHaveLength(0);
+  });
+
+  it("returns the existing exact identity link on a repeated Owner request", async () => {
+    const existing={person_id:"person-1",user_id:"dev-owner",linked_at:"2026-11-27T09:00:00.000Z"};
+    const response=await request("/v1/families/family-1/identity-claims","owner","POST",{personId:"person-1"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),undefined,"another-user","pending",existing);
+    expect(response.status).toBe(200);
+    expect((await response.json() as {data:{personId:string;reused:boolean;linkedAt:string}}).data).toMatchObject({personId:"person-1",reused:true,linkedAt:existing.linked_at});
+  });
+
+  it("keeps conflicting identity links as conflicts", async () => {
+    const existing={person_id:"person-2",user_id:"dev-owner",linked_at:"2026-11-27T09:00:00.000Z"};
+    const response=await request("/v1/families/family-1/identity-claims","owner","POST",{personId:"person-1"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),undefined,"another-user","pending",existing);
+    expect(response.status).toBe(409);
+    expect((await response.json() as {error:{code:string}}).error.code).toBe("identity_already_linked");
   });
 
   it("allows every family role to request claims while only Owners can claim directly", async () => {
