@@ -58,7 +58,7 @@ jobs:
           grep -F "There are no custom domains connected to this bucket." /tmp/vansvriksh-production-r2-domains.txt
 
   deploy-development:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/preview'
     needs: validate
     runs-on: ubuntu-latest
     env:
