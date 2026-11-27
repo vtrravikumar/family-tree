@@ -532,8 +532,11 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if(!personId)return fail(400,"person_required","Select an existing person record.");
     const person=await env.DB.prepare("SELECT id FROM persons WHERE id=? AND family_id=?").bind(personId,familyId).first();
     if(!person)return fail(404,"person_not_found","That person does not belong to this family.");
-    const linked=await env.DB.prepare("SELECT user_id FROM person_identity_links WHERE family_id=? AND (user_id=? OR person_id=?) LIMIT 1").bind(familyId,actorUserId,personId).first();
-    if(linked)return fail(409,"identity_already_linked","This account or person is already linked.");
+    const linked=await env.DB.prepare("SELECT person_id,user_id,linked_at FROM person_identity_links WHERE family_id=? AND (user_id=? OR person_id=?) LIMIT 1").bind(familyId,actorUserId,personId).first<{person_id:string;user_id:string;linked_at:string}>();
+    if(linked){
+      if(linked.person_id===personId&&linked.user_id===actorUserId)return json({data:{personId,status:"approved",linkedAt:linked.linked_at,reused:true}});
+      return fail(409,"identity_already_linked","This account or person is already linked to a different family profile.");
+    }
     const t=now();
     if(role==="owner"){
       try{
@@ -542,9 +545,15 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
           env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'identity.claimed_directly',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,personId,JSON.stringify({userId:actorUserId}),t)
         ]);
         if(!results[0]?.meta.changes)return fail(409,"claim_unavailable","Your family membership or the selected person changed before the identity could be linked.");
-      }catch{return fail(409,"identity_conflict","This person or account has already been linked.");}
+      }catch{
+        const existing=await env.DB.prepare("SELECT person_id,user_id,linked_at FROM person_identity_links WHERE family_id=? AND (user_id=? OR person_id=?) LIMIT 1").bind(familyId,actorUserId,personId).first<{person_id:string;user_id:string;linked_at:string}>();
+        if(existing?.person_id===personId&&existing.user_id===actorUserId)return json({data:{personId,status:"approved",linkedAt:existing.linked_at,reused:true}});
+        return fail(409,"identity_conflict","This person or account has already been linked.");
+      }
       return json({data:{personId,status:"approved",linkedAt:t}},{status:201});
     }
+    const existingClaim=await env.DB.prepare("SELECT id,person_id,status,requested_at FROM person_identity_claims WHERE family_id=? AND person_id=? AND requester_user_id=? AND status='pending'").bind(familyId,personId,actorUserId).first<{id:string;person_id:string;status:string;requested_at:string}>();
+    if(existingClaim)return json({data:{id:existingClaim.id,personId:existingClaim.person_id,status:"pending",requestedAt:existingClaim.requested_at,reused:true}});
     const claimId=id();
     try{
       const results=await env.DB.batch([
@@ -552,7 +561,11 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
         env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'identity.claim_requested',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,personId,JSON.stringify({claimId}),t)
       ]);
       if(!results[0]?.meta.changes)return fail(409,"claim_unavailable","Your family membership or the selected person changed before the claim could be created.");
-    }catch{return fail(409,"claim_already_pending","A pending claim already exists or an identity association is already in place.");}
+    }catch{
+      const racedClaim=await env.DB.prepare("SELECT id,person_id,status,requested_at FROM person_identity_claims WHERE family_id=? AND person_id=? AND requester_user_id=? AND status='pending'").bind(familyId,personId,actorUserId).first<{id:string;person_id:string;status:string;requested_at:string}>();
+      if(racedClaim)return json({data:{id:racedClaim.id,personId:racedClaim.person_id,status:"pending",requestedAt:racedClaim.requested_at,reused:true}});
+      return fail(409,"claim_already_pending","A pending claim already exists or an identity association is already in place.");
+    }
     return json({data:{id:claimId,personId,status:"pending",requestedAt:t}},{status:201});
   }
   const claimReview=url.pathname.match(/^\/v1\/families\/([^/]+)\/identity-claims\/([^/]+)\/review$/);
