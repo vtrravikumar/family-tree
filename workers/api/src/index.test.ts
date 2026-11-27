@@ -432,6 +432,20 @@ describe("server-side authorization", () => {
     expect((await request("/v1/families/family-1/invitations/invite-1", role, "DELETE")).status).toBe(403);
   });
 
+  it("requires authentication and lists only the signed-in recipient's pending invitations", async () => {
+    expect((await request("/v1/invitations",null)).status).toBe(401);
+    const response=await request("/v1/invitations",null,"GET",undefined,true);
+    expect(response.status).toBe(200);
+  });
+
+  it("allows a recipient to accept an invitation from the authenticated inbox using its invitation id", async () => {
+    const response=await request("/v1/invitations/invite-1/accept",null,"POST",{},true,1);
+    expect(response.status).toBe(200);
+    const result=await response.json() as {data:{accepted:boolean;familyId:string}};
+    expect(result.data.accepted).toBe(true);
+    expect(result.data.familyId).toBe("family-1");
+  });
+
   it("requires a Google session before accepting an invitation", async () => {
     expect((await request("/v1/invitations/opaque-code/accept", "owner", "POST", {})).status).toBe(401);
   });
