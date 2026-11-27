@@ -1,6 +1,6 @@
 # Vansvriksh Friends & Family Beta — Participant Notes
 
-**Status: Owner-approved staged beta plan and participant privacy/lifecycle wording. Participant distribution is held until Control 17 is closed.**  
+**Status: Owner-approved staged beta plan and participant privacy/lifecycle wording. Production Worker deployment is complete; participant distribution remains held until the first scheduled cleanup execution is verified and Control 17 is closed.**  
 **Audience:** Close family, siblings and selected relatives, invited gradually by the owner. Initial role: Viewer for every participant.
 
 ## What this beta is for
@@ -60,7 +60,7 @@ Before invitations are sent, the owner must:
 - [x] Confirmed initial cohort: close family, siblings and selected relatives; all initially Viewer-only.
 - [x] Support route approved: WhatsApp with the owner; email fallback vtr.ravikumar@gmail.com.
 - [x] Owner approved participant-facing privacy/lifecycle wording on 2026-11-26.
-- [ ] Verify Control 17's first scheduled cleanup execution before sending invitations.
+- [ ] Verify Control 17's first scheduled cleanup execution before sending invitations. Production Worker deployment succeeded on 2026-11-27 ([run 46004637576](https://github.com/vtrravikumar/family-tree/actions/runs/46004637576)); no D1 migrations were pending or applied. The first post-deployment cron execution is expected 2026-11-28 at 07:47 IST.
 - [x] Conditional GO approved for a manually managed, gradual invitation sequence after Control 17 closes. The owner will send invitations personally; no automated or bulk invitation campaign.
 
 **Current release state:** Staged beta plan approved; invitations are not yet authorized. The owner will send invitations manually and gradually only after Control 17 is closed. This document does not authorize automated invitations or bulk rollout.
@@ -81,4 +81,4 @@ The owner approved the following participant-facing disclosures for the bounded 
 - Important family records should not be kept only in Vansvriksh. Participants should retain their own appropriate copies.
 - Backup and disaster-recovery arrangements are not represented as a complete production-grade service for this beta.
 
-This approval covers the participant-facing wording only. It does not close Control 17 or authorize invitations. Control 17 remains open until the first scheduled production cleanup execution is observed and recorded.
+This approval covers the participant-facing wording only. The migration-free production Worker deployment completed successfully on 2026-11-27 ([run 46004637576](https://github.com/vtrravikumar/family-tree/actions/runs/46004637576)); the remote D1 check reported no migrations to apply and production API health reported the database connected. This does not close Control 17 or authorize invitations. Control 17 remains open until the first scheduled production cleanup execution is observed and recorded. The first post-deployment cron execution is expected 2026-11-28 at 07:47 IST.
