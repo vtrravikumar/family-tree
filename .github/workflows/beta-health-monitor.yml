@@ -2,7 +2,7 @@ name: Beta API health monitor
 
 on:
   push:
-    branches: [main]
+    branches: [preview]
     paths:
       - ".github/workflows/beta-health-monitor.yml"
   schedule:
