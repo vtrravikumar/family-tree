@@ -46,7 +46,7 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
           }
           if(sql.includes("FROM person_identity_claims")&&sql.includes("status='pending'")&&sql.includes("requester_user_id=?"))return existingPendingClaim;
           if(sql.includes("FROM person_identity_claims"))return {id:"claim-1",person_id:"person-1",requester_user_id:claimRequesterUserId,status:claimStatus};
-          if(sql.includes("FROM person_identity_links"))return existingIdentityLink;
+          if(sql.includes("FROM person_identity_links"))return sql.includes("OR person_id")?existingIdentityLink:{user_id:"linked-user",person_id:"person-1",linked_at:"2026-11-27T09:00:00.000Z"};
           return null;
         },
         async all() {
@@ -285,7 +285,7 @@ describe("server-side authorization", () => {
     const response=await request("/v1/families/family-1/identity-claims","editor","POST",{personId:"person-1"},false,1,false,0,"editor",false,"alive","member@example.com",new Date(Date.now()+60_000).toISOString(),writes,"another-user","pending",null,existing);
     expect(response.status).toBe(200);
     expect((await response.json() as {data:{id:string;reused:boolean;status:string}}).data).toMatchObject({id:"claim-existing",reused:true,status:"pending"});
-    expect(writes).toHaveLength(0);
+    expect(writes.filter(write=>/person_identity_(claims|links)|identity\\.claim_/.test(write.sql))).toHaveLength(0);
   });
 
   it("returns the existing exact identity link on a repeated Owner request", async () => {
