@@ -246,11 +246,10 @@ export function identityNamesMatch(accountName:string,profileName:string,policy:
   if(!account.length||!profile.length)return false;
   const shorter=account.length<=profile.length?account:profile,longer=account.length<=profile.length?profile:account;
   if(shorter.length<policy.minMatchingTokens)return false;
-  if(!policy.allowPartial&&shorter.length!==longer.length)return false;
-  const a=policy.allowTokenOrderVariations?new Set(account):account;
-  const b=policy.allowTokenOrderVariations?new Set(profile):profile;
-  if(policy.allowTokenOrderVariations)return [...a].every(token=>b.has(token))&&a.size===b.size?true:policy.allowPartial&&[...shorter].every(token=>new Set(longer).has(token));
-  return policy.allowPartial?shorter.every((token,index)=>longer.includes(token)):account.join(" ")===profile.join(" ");
+  if((!policy.allowPartial||!policy.allowMissingMiddle)&&shorter.length!==longer.length)return false;
+  if(policy.allowTokenOrderVariations)return shorter.every(token=>longer.includes(token));
+  let last=-1;
+  return shorter.every(token=>{const index=longer.indexOf(token,last+1);if(index<0)return false;last=index;return true;});
 }
 async function getIdentityMatchingPolicy(db:D1Database):Promise<IdentityMatchingPolicy>{
   const row=await db.prepare("SELECT value_json FROM platform_settings WHERE key='identity_name_matching_policy'").first<{value_json:string}>();
