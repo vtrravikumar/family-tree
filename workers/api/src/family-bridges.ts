@@ -78,9 +78,15 @@ export async function handleFamilyBridgeRoute(request: Request, env: BridgeEnv, 
       JOIN persons ab ON ab.id=b.anchor_b_person_id
       JOIN persons ca ON ca.id=b.connector_a_person_id
       JOIN persons cb ON cb.id=b.connector_b_person_id
-      WHERE (b.family_a_id=? OR b.family_b_id=?) AND (b.status='active' OR (b.status='pending' AND (b.initiated_by_user_id=? OR EXISTS (SELECT 1 FROM family_members owner_member WHERE owner_member.family_id=CASE WHEN b.family_a_id=? THEN b.family_b_id ELSE b.family_a_id END AND owner_member.user_id=? AND owner_member.role='owner')))
+      WHERE (b.family_a_id=? OR b.family_b_id=?) AND (
+        (b.status='active' AND (
+          EXISTS (SELECT 1 FROM family_members direct_member WHERE direct_member.family_id=? AND direct_member.user_id=?)
+          OR EXISTS (SELECT 1 FROM family_members source_member WHERE source_member.family_id=CASE WHEN b.family_a_id=? THEN b.family_b_id ELSE b.family_a_id END AND source_member.user_id=?)
+        ))
+        OR (b.status='pending' AND (b.initiated_by_user_id=? OR EXISTS (SELECT 1 FROM family_members owner_member WHERE owner_member.family_id=CASE WHEN b.family_a_id=? THEN b.family_b_id ELSE b.family_a_id END AND owner_member.user_id=? AND owner_member.role='owner')))
+      )
       ORDER BY b.created_at DESC
-    `).bind(familyId, familyId, actorUserId, familyId, actorUserId).all();
+    `).bind(familyId, familyId, familyId, actorUserId, familyId, actorUserId, actorUserId, familyId, actorUserId).all();
     return json({ data: result.results, accessSource: access.source, effectiveRole: access.role });
   }
 
