@@ -70,11 +70,7 @@ export default function FamilyBridges({ familyId, role, accessSource = "direct",
   }, [destinationFamilyId, request]);
 
   const directFamilies = families.filter(family => family.id !== familyId && family.accessSource !== "bridge");
-  const selectedBridges = selectedPersonId ? bridges.filter(bridge => bridge.status === "active" && (
-    (bridge.family_a_id === familyId && bridge.anchor_a_person_id === selectedPersonId) ||
-    (bridge.family_b_id === familyId && bridge.anchor_b_person_id === selectedPersonId)
-  )) : [];
-  const canManage = role === "owner" && accessSource !== "bridge";
+
 
   return <section className="family-bridges-panel" aria-label="Connected families">
     <div className="family-bridges-heading">
@@ -154,4 +150,37 @@ export default function FamilyBridges({ familyId, role, accessSource = "direct",
     })}
     {!bridges.some(bridge => bridge.status === "active" || bridge.status === "pending") && !showRequestForm && <p className="empty-hint">No family bridges yet.</p>}
   </section>;
+}
+
+export function FamilyBridgeBubbles({ familyId, personId, request, onNavigate }: {
+  familyId: string;
+  personId: string;
+  request: RequestFn;
+  onNavigate: (familyId: string) => void;
+}) {
+  const [bridges, setBridges] = useState<Bridge[]>([]);
+  useEffect(() => {
+    let active = true;
+    request("/v1/families/" + familyId + "/bridges").then((result: unknown) => {
+      if (active) setBridges((result as { data: Bridge[] }).data ?? []);
+    }).catch(() => { if (active) setBridges([]); });
+    return () => { active = false; };
+  }, [familyId, request]);
+  const links = bridges.filter(bridge => bridge.status === "active" && (
+    (bridge.family_a_id === familyId && bridge.anchor_a_person_id === personId) ||
+    (bridge.family_b_id === familyId && bridge.anchor_b_person_id === personId)
+  ));
+  if (!links.length) return null;
+  return <div className="profile-family-bridge-list" aria-label="Connected family workspaces">
+    {links.map(bridge => {
+      const isA = bridge.family_a_id === familyId;
+      const destinationId = isA ? bridge.family_b_id : bridge.family_a_id;
+      const destinationName = isA ? bridge.family_b_name : bridge.family_a_name;
+      return <div className="profile-family-bridge" key={bridge.id}>
+        <span className="profile-bridge-label">CONNECTED FAMILY</span>
+        <button type="button" onClick={() => onNavigate(destinationId)}>{destinationName} ↗</button>
+        <small>Marriage connection · {isA ? bridge.connector_a_name : bridge.connector_b_name}</small>
+      </div>;
+    })}
+  </div>;
 }
