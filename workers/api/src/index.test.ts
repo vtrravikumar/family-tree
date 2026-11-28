@@ -30,12 +30,13 @@ function makeEnv(role: string | null = "owner", session = false, batchChanges = 
             ? { id: "user-1", email: "member@example.com", display_name: "Member", session_id: "session-1" }
             : null;
           if (sql.includes("FROM platform_super_admins")) return superAdmin ? { allowed: 1 } : null;
+          if (sql.includes("SELECT display_name FROM users")) return { display_name: "Asha" };
           if (sql.includes("FROM families WHERE id=?")) return { id: "family-1", name: "Family" };
           if (sql.includes("FROM invitations WHERE invite_code_hash")) return {
             id: "invite-1", family_id: "family-1", invitee_email: invitationEmail, offered_role: "editor",
             status: "pending", expires_at: invitationExpiresAt,
           };
-          if(sql.includes("FROM persons WHERE id=? AND family_id=?"))return bound[0]==="person-1"&&bound[1]==="family-1"?{id:"person-1",display_name:"Asha",life_status:personStatus}:null;
+          if(sql.includes("FROM persons WHERE id=? AND family_id=?"))return bound[0]==="person-1"&&bound[1]==="family-1"?{id:"person-1",given_name:"Asha",middle_name:null,family_name:null,display_name:"Asha",life_status:personStatus}:null;
           if(sql.includes("SELECT life_status FROM persons"))return {life_status:personStatus};
           if(sql.includes("FROM relationships WHERE id=? AND family_id=?"))return {id:"relationship-1",from_person_id:"person-1",to_person_id:"person-2",relationship_type:"sibling"};
           if (sql.includes("FROM family_members")) {
