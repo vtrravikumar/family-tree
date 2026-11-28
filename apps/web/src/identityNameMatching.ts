@@ -33,12 +33,13 @@ export function identityNamesMatch(accountName: string, profileName: string, pol
   const shorter = account.length <= profile.length ? account : profile;
   const longer = account.length <= profile.length ? profile : account;
   if (shorter.length < policy.minMatchingTokens) return false;
-  if (!policy.allowPartial && shorter.length !== longer.length) return false;
-  if (policy.allowTokenOrderVariations) {
-    const longSet = new Set(longer);
-    return shorter.every(token => longSet.has(token)) &&
-      (policy.allowPartial || new Set(account).size === new Set(profile).size);
-  }
-  if (policy.allowPartial) return shorter.every(token => longer.includes(token));
-  return account.join(" ") === profile.join(" ");
+  if ((!policy.allowPartial || !policy.allowMissingMiddle) && shorter.length !== longer.length) return false;
+  if (policy.allowTokenOrderVariations) return shorter.every(token => longer.includes(token));
+  let last = -1;
+  return shorter.every(token => {
+    const index = longer.indexOf(token, last + 1);
+    if (index < 0) return false;
+    last = index;
+    return true;
+  });
 }
