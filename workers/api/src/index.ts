@@ -612,7 +612,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const claimId=id();
     try{
       const results=await env.DB.batch([
-        env.DB.prepare("INSERT INTO person_identity_claims(id,family_id,person_id,requester_user_id,status,requested_at) SELECT ?,?,?,?,'pending',? WHERE EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=?) AND EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=?)").bind(claimId,familyId,personId,actorUserId,t,familyId,actorUserId,personId,familyId),
+        env.DB.prepare("INSERT INTO person_identity_claims(id,family_id,person_id,requester_user_id,status,requested_at) SELECT ?,?,?,?,'pending',? WHERE EXISTS (SELECT 1 FROM family_members actor WHERE actor.family_id=? AND actor.user_id=?) AND EXISTS (SELECT 1 FROM persons p WHERE p.id=? AND p.family_id=?) AND NOT EXISTS (SELECT 1 FROM person_identity_claims pending WHERE pending.family_id=? AND pending.requester_user_id=? AND pending.status='pending')").bind(claimId,familyId,personId,actorUserId,t,familyId,actorUserId,personId,familyId,familyId,actorUserId),
         env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) SELECT ?,?,?, 'person',?,'identity.claim_requested',?,? WHERE changes()=1").bind(id(),familyId,actorUserId,personId,JSON.stringify({claimId}),t)
       ]);
       if(!results[0]?.meta.changes)return fail(409,"claim_unavailable","Your family membership or the selected person changed before the claim could be created.");
