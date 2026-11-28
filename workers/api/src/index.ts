@@ -1,5 +1,6 @@
 import { sendInvitationEmail } from "./invitation-email";
 import { cleanupQueuedPersonPhotoObjects, handlePersonPhoto } from "./person-photos";
+import { effectiveFamilyReadAccess, handleFamilyBridgeRoute } from "./family-bridges";
 
 export interface Env {
   APP_ENV: string;
@@ -266,6 +267,9 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   const actorUserId=session?.id??"dev-owner";
   const superAdmin=!!session&&await isSuperAdmin(env.DB,session.id);
 
+  const bridgeResponse=await handleFamilyBridgeRoute(request,env,url,actorUserId);
+  if(bridgeResponse)return bridgeResponse;
+
   if(url.pathname==="/v1/onboarding/sample-access"&&request.method==="POST"){
     const attached=await ensureSampleAccess(env.DB,actorUserId);
     const familyId=attached?await sampleFamilyId(env.DB):null;
@@ -365,7 +369,27 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   }
 
   if (url.pathname === "/v1/families" && request.method === "GET") {
-    const result = await env.DB.prepare("SELECT f.id,f.name,f.created_at,f.updated_at,fm.role,f.is_sample FROM families f JOIN family_members fm ON fm.family_id=f.id WHERE fm.user_id=? ORDER BY f.created_at DESC").bind(actorUserId).all();
+    const result = await env.DB.prepare(`
+      SELECT f.id,f.name,f.created_at,f.updated_at,fm.role,f.is_sample,
+        'direct' AS accessSource,fm.role AS effectiveRole,NULL AS bridgeId
+      FROM families f JOIN family_members fm ON fm.family_id=f.id
+      WHERE fm.user_id=?
+      UNION ALL
+      SELECT f.id,f.name,f.created_at,f.updated_at,'viewer' AS role,f.is_sample,
+        'bridge' AS accessSource,'viewer' AS effectiveRole,
+        (SELECT group_concat(b2.id, ',') FROM family_bridges b2
+          WHERE b2.status='active' AND (b2.family_a_id=f.id OR b2.family_b_id=f.id)) AS bridgeId
+      FROM families f
+      WHERE EXISTS (
+        SELECT 1 FROM family_bridges b
+        JOIN family_members source_member
+          ON source_member.family_id=CASE WHEN b.family_a_id=f.id THEN b.family_b_id ELSE b.family_a_id END
+         AND source_member.user_id=?
+        WHERE b.status='active' AND (b.family_a_id=f.id OR b.family_b_id=f.id)
+      )
+      AND NOT EXISTS (SELECT 1 FROM family_members direct_member WHERE direct_member.family_id=f.id AND direct_member.user_id=?)
+      ORDER BY created_at DESC
+    `).bind(actorUserId,actorUserId,actorUserId).all();
     return json({data:result.results});
   }
   if (url.pathname === "/v1/families" && request.method === "POST") {
@@ -677,12 +701,17 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   const photoMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/photo(\/content)?$/);
   if(photoMatch){
-    return handlePersonPhoto(request,env,photoMatch[1],photoMatch[2],actorUserId,await roleFor(env.DB,photoMatch[1],actorUserId));
+    const directRole=await roleFor(env.DB,photoMatch[1],actorUserId);
+    const readRole=request.method==="GET"
+      ? (await effectiveFamilyReadAccess(env.DB,photoMatch[1],actorUserId)).role
+      : directRole;
+    return handlePersonPhoto(request,env,photoMatch[1],photoMatch[2],actorUserId,readRole);
   }
 
   const peopleMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people$/);
   if (peopleMatch) {
-    const familyId=peopleMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
+    const familyId=peopleMatch[1], directRole=await roleFor(env.DB,familyId,actorUserId);
+    const role=request.method==="GET" ? (await effectiveFamilyReadAccess(env.DB,familyId,actorUserId)).role : directRole;
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (request.method === "GET") {
       const result=await env.DB.prepare(`SELECT p.id,p.family_id,p.given_name,p.middle_name,p.family_name,p.display_name,p.gender,p.life_status,
@@ -1094,7 +1123,8 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   const relationshipsMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/relationships$/);
   if (relationshipsMatch) {
-    const familyId=relationshipsMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
+    const familyId=relationshipsMatch[1], directRole=await roleFor(env.DB,familyId,actorUserId);
+    const role=request.method==="GET" ? (await effectiveFamilyReadAccess(env.DB,familyId,actorUserId)).role : directRole;
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (request.method === "GET") {
       const result=await env.DB.prepare(`SELECT r.id,r.from_person_id,r.to_person_id,r.relationship_type,r.metadata_json,r.created_at,
