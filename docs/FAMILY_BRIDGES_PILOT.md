@@ -146,3 +146,58 @@ Never rely on frontend visibility for authorization. Every read and write endpoi
 5. Implement frontend bridge management, anchor bubbles and connected-family navigation.
 6. Run CI and negative authorization tests; verify manually with Raman/Komal pilot accounts on development.
 7. Only after explicit beta approval, plan a guarded production migration and deployment. Do not deploy this feature to production as part of the pilot implementation PR.
+
+## 12. Preview API authorization audit
+
+Reviewed `workers/api/src/index.ts` and `workers/api/src/person-photos.ts` on `preview`.
+
+### Existing family-scoped routes
+
+| Route | Current authorization | Bridge decision |
+|---|---|---|
+| `GET /v1/families` | Direct `family_members` join | Extend response to include separately identified connected-family entries; do not represent them as memberships |
+| `GET /v1/families/:id/people` | `roleFor()` direct membership | Use effective read access |
+| `GET /v1/families/:id/relationships` | `roleFor()` direct membership | Use effective read access |
+| `GET /v1/families/:id/people/:personId/photo` | `roleFor()` direct membership | Use effective read access |
+| `GET /v1/families/:id/people/:personId/photo/content` | `roleFor()` direct membership | Use effective read access; continue validating family/person/media association |
+| `GET /v1/families/:id/members` | Direct membership; direct Viewer blocked | Keep direct-only; inherited Viewer must not see roster |
+| `GET /v1/families/:id/invitations` | Direct Owner/Admin | Keep direct-only |
+| `GET /v1/families/:id/identity` | Direct membership | Keep direct-only; includes identity claims/link metadata |
+| `GET /v1/invitations` | Signed-in user's email inbox | Unrelated to bridge access; unchanged |
+
+### Existing write/admin routes — remain direct-membership only
+
+- Family creation/deletion and sample-family onboarding/dismissal.
+- Member role changes and member removal.
+- Invitation creation, acceptance and revocation.
+- Identity claim creation/review, identity linking and unlinking.
+- Person creation/update/deletion, restore and deceased-state changes.
+- Relationship creation/update/deletion.
+- Portrait upload/replacement/removal.
+- Family import.
+- Platform support-access and platform export remain Super Admin-only and are not bridge read paths.
+
+### Authorization implementation findings
+
+1. `roleFor(db, familyId, userId)` is a direct `family_members` lookup. Preserve it unchanged.
+2. Introduce a separate resolver for effective *read* access. It must verify an active bridge and current direct membership in the source family on every request; no inherited membership rows or cached grants.
+3. Use effective access only on the four family data read routes listed above and the connected-family listing/navigation response.
+4. Photo content is a protected data read, not a public asset. The handler can accept effective Viewer for GET while its existing database-level Owner/Admin/Editor checks continue to protect POST and DELETE.
+5. Existing mutation SQL independently checks `family_members`. Preserve those checks as defence in depth.
+6. Keep identity endpoints direct-only: they expose claims, linked-account metadata and controls beyond the agreed inherited read scope.
+7. The route audit found no existing generic family-detail GET endpoint; the family list and the people/relationships/photo routes are the current navigation/data read surface.
+
+### Required negative tests
+
+- An inherited-only user can list/open the connected family and read people, relationships and portrait metadata/content.
+- The same user receives no access to member roster, invitations, identity claims/links, import/export, or platform support endpoints.
+- The same user cannot create/update/delete people or relationships, change life status, or upload/replace/delete portraits.
+- A direct Viewer/Editor/Admin/Owner role in the destination always takes precedence over inherited Viewer.
+- Removing source membership or revoking the last active bridge denies subsequent reads immediately.
+- Multiple active bridges provide inherited Viewer until the last qualifying path is removed.
+- No inherited user is inserted into `family_members`; existing direct membership counts and role-management results remain unchanged.
+
+### Product decision still required
+
+Destination-Owner approval remains the proposed lifecycle rule in this design, but has not yet been explicitly confirmed. Keep bridge creation/activation semantics out of implementation until this is confirmed. The API authorization resolver and read-only access tests can be implemented independently of that decision.
+
