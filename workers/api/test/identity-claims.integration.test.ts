@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { env, SELF } from "cloudflare:test";
-import { isGoogleRegistrationAllowed } from "../src/index";
+import { identityNamesMatch, isGoogleRegistrationAllowed } from "../src/index";
 
 const FAMILY_ID = "family-test";
 const OWNER_ID = "dev-owner";
@@ -327,6 +327,22 @@ describe("identity claim review against local D1", () => {
     await run("DELETE FROM users WHERE id != ?", [OWNER_ID]);
     await seedClaim();
   });
+  it("matches exact name tokens flexibly without accepting substrings or spelling guesses", () => {
+    expect(identityNamesMatch("Ravi", "Ravi Kumar")).toBe(true);
+    expect(identityNamesMatch("Ravi Kumar", "Ravi Venkata Ramana Kumar")).toBe(true);
+    expect(identityNamesMatch("RAVI-KUMAR", "Ravi Kumar")).toBe(true);
+    expect(identityNamesMatch("Rav", "Ravi Kumar")).toBe(false);
+    expect(identityNamesMatch("Ravi Kumaar", "Ravi Kumar")).toBe(false);
+    expect(identityNamesMatch("", "Ravi Kumar")).toBe(false);
+  });
+
+  it("respects stricter global matching policy settings", () => {
+    const strict = { enabled:true, allowPartial:false, minMatchingTokens:1, ignoreCase:true, ignorePunctuation:true, allowMissingMiddle:false, allowTokenOrderVariations:false };
+    expect(identityNamesMatch("Ravi", "Ravi Kumar", strict)).toBe(false);
+    expect(identityNamesMatch("Ravi Kumar", "Kumar Ravi", strict)).toBe(false);
+    expect(identityNamesMatch("Ravi Kumar", "Ravi Kumar", strict)).toBe(true);
+  });
+
   it("allows registration for any non-empty email after Google credential verification", () => {
     expect(isGoogleRegistrationAllowed("outsider@example.test")).toBe(true);
     expect(isGoogleRegistrationAllowed("ALLOWLISTED@example.test")).toBe(true);
