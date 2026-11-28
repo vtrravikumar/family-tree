@@ -27,14 +27,13 @@ type Props = {
   accessSource?: "direct" | "bridge";
   families: Family[];
   people: Person[];
-  selectedPersonId?: string | null;
   request: RequestFn;
   run: (fn: () => Promise<void>) => void;
   onNavigate: (familyId: string) => void;
   onChanged: () => Promise<void>;
 };
 
-export default function FamilyBridges({ familyId, role, accessSource = "direct", families, people, selectedPersonId, request, run, onNavigate, onChanged }: Props) {
+export default function FamilyBridges({ familyId, role, accessSource = "direct", families, people, request, run, onNavigate, onChanged }: Props) {
   const [bridges, setBridges] = useState<Bridge[]>([]);
   const [destinationFamilyId, setDestinationFamilyId] = useState("");
   const [anchorPersonId, setAnchorPersonId] = useState("");
@@ -70,23 +69,13 @@ export default function FamilyBridges({ familyId, role, accessSource = "direct",
   }, [destinationFamilyId, request]);
 
   const directFamilies = families.filter(family => family.id !== familyId && family.accessSource !== "bridge");
-
+  const canManage = role === "owner" && accessSource !== "bridge";
 
   return <section className="family-bridges-panel" aria-label="Connected families">
     <div className="family-bridges-heading">
       <div><p className="eyebrow">FAMILY BRIDGES</p><h3>Connected families</h3><p>Visit another family tree without merging the two family workspaces.</p></div>
       {canManage && <button type="button" className="button-secondary" onClick={() => setShowRequestForm(value => !value)}>{showRequestForm ? "Close request" : "＋ Connect a family"}</button>}
     </div>
-    {selectedBridges.map(bridge => {
-      const isA = bridge.family_a_id === familyId;
-      const destinationId = isA ? bridge.family_b_id : bridge.family_a_id;
-      const destinationName = isA ? bridge.family_b_name : bridge.family_a_name;
-      return <div className="profile-family-bridge" key={bridge.id}>
-        <span className="profile-bridge-label">CONNECTED FAMILY</span>
-        <button type="button" onClick={() => onNavigate(destinationId)}>{destinationName} ↗</button>
-        <small>Open this family's tree in a separate workspace</small>
-      </div>;
-    })}
     {showRequestForm && canManage && <form className="family-bridge-request" onSubmit={event => {
       event.preventDefault();
       run(async () => {
