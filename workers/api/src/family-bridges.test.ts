@@ -73,6 +73,7 @@ describe("family bridge lifecycle authorization", () => {
       prepare(sql: string) {
         let values: unknown[] = [];
         const statement = {
+          __sql: sql,
           bind(...args: unknown[]) { values = args; return statement; },
           async first() {
             if (sql.includes("SELECT role FROM family_members")) return roles[String(values[0]) + ":" + String(values[1])] ? { role: roles[String(values[0]) + ":" + String(values[1])] } : null;
@@ -85,8 +86,8 @@ describe("family bridge lifecycle authorization", () => {
         };
         return statement;
       },
-      async batch(statements: Array<unknown>) {
-        writes.push("BATCH:" + statements.length);
+      async batch(statements: Array<{__sql?:string}>) {
+        writes.push(...statements.map(statement => statement.__sql ?? "BATCH:unknown"));
         return statements.map(() => ({ meta: { changes: 1 } }));
       },
     };
