@@ -378,6 +378,8 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       SELECT f.id,f.name,f.created_at,f.updated_at,'viewer' AS role,f.is_sample,
         'bridge' AS accessSource,'viewer' AS effectiveRole,
         (SELECT group_concat(b2.id, ',') FROM family_bridges b2
+          JOIN family_members source2 ON source2.family_id=CASE WHEN b2.family_a_id=f.id THEN b2.family_b_id ELSE b2.family_a_id END
+            AND source2.user_id=?
           WHERE b2.status='active' AND (b2.family_a_id=f.id OR b2.family_b_id=f.id)) AS bridgeId
       FROM families f
       WHERE EXISTS (
@@ -389,7 +391,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       )
       AND NOT EXISTS (SELECT 1 FROM family_members direct_member WHERE direct_member.family_id=f.id AND direct_member.user_id=?)
       ORDER BY created_at DESC
-    `).bind(actorUserId,actorUserId,actorUserId).all();
+    `).bind(actorUserId,actorUserId,actorUserId,actorUserId).all();
     return json({data:result.results});
   }
   if (url.pathname === "/v1/families" && request.method === "POST") {
