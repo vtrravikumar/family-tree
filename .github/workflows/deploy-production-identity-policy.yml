@@ -1,0 +1,100 @@
+name: Production Identity Policy Migration and Worker Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval_phrase:
+        description: "Type DEPLOY-IDENTITY-MATCHING to authorize migration 0013 and the production Worker deployment"
+        required: true
+        type: string
+
+concurrency:
+  group: vansvriksh-production-worker-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-production:
+    if: github.ref == 'refs/heads/main' && inputs.approval_phrase == 'DEPLOY-IDENTITY-MATCHING'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout validated main
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Require Cloudflare credentials
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Validate production Worker configuration
+        run: pnpm --filter @family-tree/api exec wrangler deploy --dry-run --outdir /tmp/vansvriksh-production-dry-run --env production
+
+      - name: Verify production portrait bucket remains private
+        run: |
+          pnpm --filter @family-tree/api exec wrangler r2 bucket dev-url get vansvriksh-person-photos-production | tee /tmp/production-r2-dev-url.txt
+          grep -F "Public access via the r2.dev URL is disabled." /tmp/production-r2-dev-url.txt
+          pnpm --filter @family-tree/api exec wrangler r2 bucket domain list vansvriksh-person-photos-production | tee /tmp/production-r2-domains.txt
+          grep -F "There are no custom domains connected to this bucket." /tmp/production-r2-domains.txt
+
+      - name: Confirm only identity policy migration is pending
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --filter @family-tree/api exec wrangler d1 migrations list vansvriksh-production --remote --env production | tee /tmp/production-migrations.txt
+          pending="$(sed -n '/Migrations to be applied:/,$p' /tmp/production-migrations.txt | grep -oE '[0-9]{4}_[[:alnum:]_]+\.sql' | sort || true)"
+          expected='0013_global_identity_matching_policy.sql'
+          if [ "$pending" != "$expected" ]; then
+            echo "Refusing production migration: pending migrations differ from the reviewed identity policy migration."
+            printf 'Expected:\n%s\nActual:\n%s\n' "$expected" "$pending"
+            exit 1
+          fi
+
+      - name: Apply identity policy migration to production D1
+        run: pnpm --filter @family-tree/api exec wrangler d1 migrations apply vansvriksh-production --remote --env production
+
+      - name: Verify production migrations are fully applied
+        run: |
+          pnpm --filter @family-tree/api exec wrangler d1 migrations list vansvriksh-production --remote --env production | tee /tmp/production-migrations-after.txt
+          pending="$(sed -n '/Migrations to be applied:/,$p' /tmp/production-migrations-after.txt | grep -oE '[0-9]{4}_[[:alnum:]_]+\.sql' || true)"
+          if [ -n "$pending" ]; then
+            echo "Production D1 still reports pending migrations."
+            printf '%s\n' "$pending"
+            exit 1
+          fi
+
+      - name: Deploy production Worker
+        run: pnpm --filter @family-tree/api exec wrangler deploy --env production
+
+      - name: Verify production API health
+        run: |
+          response="$(curl --fail --silent --show-error https://api.vansvriksh.vtrrk.in/health)"
+          printf '%s\n' "$response"
+          printf '%s' "$response" | grep -F '"environment":"production"'
+          printf '%s' "$response" | grep -F '"database":"connected"'
