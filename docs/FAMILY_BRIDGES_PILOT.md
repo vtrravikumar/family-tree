@@ -31,7 +31,7 @@ The marriage pair and the ancestral anchor pair are separate fields. A person ca
 - Approval is a deliberate, visible authorization by the destination family—not a recurring access prompt or an approval for every member.
 - Activation is reciprocal: one approved active bridge enables traversal in both directions.
 - A request must identify both family workspaces, both anchor people and both people in the marriage relationship.
-- All referenced people must belong to the corresponding family. The marriage pair must be represented by a spouse relationship in the relevant family record(s), with validation rules documented during implementation.
+- All referenced people must belong to the corresponding family. The connector person in Family A and the connector person in Family B represent the cross-family marriage link; do not require a spouse relationship row joining records across separate family workspaces.
 - Duplicate active/pending bridge records for the same two family/anchor/marriage combination must be prevented. Different marriages/anchor pairs between the same two families are allowed.
 
 ## 4. Effective access
@@ -100,7 +100,7 @@ Proposed fields:
 
 Add a bridge audit/event table only if existing `audit_logs` cannot cleanly represent events for both family scopes. Each bridge event must be auditable from both affected family contexts without leaking private information to unauthorized users.
 
-Foreign keys and validation must guarantee each anchor and connector person belongs to its stated family. Because ordinary SQLite foreign keys cannot express cross-row family equality, enforce this in API transactions and add integrity tests.
+Person foreign keys prevent dangling person references. Because ordinary SQLite foreign keys cannot express that a referenced person belongs to the bridge's corresponding family, enforce each anchor/connector-to-family association in API transactions and add integrity tests. The cross-family marriage link is asserted by the bridge itself, not by a spouse row spanning two family IDs.
 
 ## 8. API direction
 
@@ -140,13 +140,12 @@ Never rely on frontend visibility for authorization. Every read and write endpoi
 
 ## 11. Delivery sequence
 
-1. Finalize and review this design against all read/write API routes.
-2. Add migration and backend access-resolution unit tests.
-3. Implement bridge lifecycle API and audit events.
-4. Apply migration only to the isolated development D1 database.
-5. Implement frontend bridge management, anchor bubbles and connected-family navigation.
-6. Run CI and negative authorization tests; verify manually with Raman/Komal pilot accounts on development.
-7. Only after explicit beta approval, plan a guarded production migration and deployment. Do not deploy this feature to production as part of the pilot implementation PR.
+1. API authorization route audit completed.
+2. Add migration, bridge lifecycle API and backend access-resolution tests.
+3. Apply migration only to the isolated development D1 database.
+4. Implement frontend bridge management, anchor bubbles and connected-family navigation.
+5. Run CI and negative authorization tests; verify manually with Raman/Komal pilot accounts on development.
+6. Only after explicit beta approval, plan a guarded production migration and deployment. Do not deploy this feature to production as part of the pilot implementation PR.
 
 ## 12. Preview API authorization audit
 
