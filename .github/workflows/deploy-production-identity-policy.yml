@@ -82,8 +82,10 @@ jobs:
       - name: Verify production migrations are fully applied
         run: |
           pnpm --filter @family-tree/api exec wrangler d1 migrations list vansvriksh-production --remote --env production | tee /tmp/production-migrations-after.txt
-          if grep -qE 'Migrations to be applied:|001[0-9]_[[:alnum:]_]+\.sql' /tmp/production-migrations-after.txt; then
+          pending="$(sed -n '/Migrations to be applied:/,$p' /tmp/production-migrations-after.txt | grep -oE '[0-9]{4}_[[:alnum:]_]+\.sql' || true)"
+          if [ -n "$pending" ]; then
             echo "Production D1 still reports pending migrations."
+            printf '%s\n' "$pending"
             exit 1
           fi
 
