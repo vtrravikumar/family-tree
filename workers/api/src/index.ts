@@ -563,12 +563,13 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   if(identityMatch&&request.method==="GET"){
     const familyId=identityMatch[1],role=await roleFor(env.DB,familyId,actorUserId);
     if(!role)return fail(404,"family_not_found","Family not found.");
-    const [link,claims,pending]=await Promise.all([
+    const [link,claims,pending,linkedPeople]=await Promise.all([
       env.DB.prepare("SELECT l.person_id,p.display_name,l.linked_at FROM person_identity_links l JOIN persons p ON p.id=l.person_id WHERE l.family_id=? AND l.user_id=?").bind(familyId,actorUserId).first(),
       env.DB.prepare("SELECT c.id,c.person_id,p.display_name,c.status,c.requested_at,c.reviewed_at,c.review_reason FROM person_identity_claims c JOIN persons p ON p.id=c.person_id WHERE c.family_id=? AND c.requester_user_id=? ORDER BY c.requested_at DESC").bind(familyId,actorUserId).all(),
-      role==="owner"||role==="admin" ? env.DB.prepare("SELECT c.id,c.person_id,p.display_name,c.requester_user_id,u.display_name AS requester_name,u.email AS requester_email,c.requested_at FROM person_identity_claims c JOIN persons p ON p.id=c.person_id JOIN users u ON u.id=c.requester_user_id WHERE c.family_id=? AND c.status='pending' ORDER BY c.requested_at").bind(familyId).all() : Promise.resolve({results:[]})
+      role==="owner"||role==="admin" ? env.DB.prepare("SELECT c.id,c.person_id,p.display_name,c.requester_user_id,u.display_name AS requester_name,u.email AS requester_email,c.requested_at FROM person_identity_claims c JOIN persons p ON p.id=c.person_id JOIN users u ON u.id=c.requester_user_id WHERE c.family_id=? AND c.status='pending' ORDER BY c.requested_at").bind(familyId).all() : Promise.resolve({results:[]}),
+      env.DB.prepare("SELECT person_id FROM person_identity_links WHERE family_id=?").bind(familyId).all<{person_id:string}>()
     ]);
-    return json({data:{link:link??null,claims:claims.results,pendingClaims:pending.results,canReview:role==="owner"||role==="admin",canDirectClaim:role==="owner",matchingPolicy:await getIdentityMatchingPolicy(env.DB)}});
+    return json({data:{link:link??null,claims:claims.results,pendingClaims:pending.results,linkedPersonIds:linkedPeople.results.map(row=>row.person_id),canReview:role==="owner"||role==="admin",canDirectClaim:role==="owner",matchingPolicy:await getIdentityMatchingPolicy(env.DB)}});
   }
   const claimCollection=url.pathname.match(/^\/v1\/families\/([^/]+)\/identity-claims$/);
   if(claimCollection&&request.method==="POST"){
