@@ -225,6 +225,38 @@ const yearOrNull = (v: unknown) => Number.isInteger(v) && Number(v) >= 1 && Numb
 const parentTypes = ["biological_parent", "adoptive_parent", "step_parent"];
 const relationshipTypes = [...parentTypes, "spouse", "partner", "sibling"];
 
+type IdentityMatchingPolicy = { enabled:boolean; allowPartial:boolean; minMatchingTokens:number; ignoreCase:boolean; ignorePunctuation:boolean; allowMissingMiddle:boolean; allowTokenOrderVariations:boolean };
+const DEFAULT_IDENTITY_MATCHING_POLICY: IdentityMatchingPolicy = { enabled:true, allowPartial:true, minMatchingTokens:1, ignoreCase:true, ignorePunctuation:true, allowMissingMiddle:true, allowTokenOrderVariations:true };
+function parseIdentityMatchingPolicy(value: unknown): IdentityMatchingPolicy | null {
+  if(!isObject(value))return null;
+  const {enabled,allowPartial,minMatchingTokens,ignoreCase,ignorePunctuation,allowMissingMiddle,allowTokenOrderVariations}=value;
+  if(typeof enabled!=="boolean"||typeof allowPartial!=="boolean"||!Number.isInteger(minMatchingTokens)||Number(minMatchingTokens)<1||Number(minMatchingTokens)>8||
+    typeof ignoreCase!=="boolean"||typeof ignorePunctuation!=="boolean"||typeof allowMissingMiddle!=="boolean"||typeof allowTokenOrderVariations!=="boolean")return null;
+  return {enabled,allowPartial,minMatchingTokens:Number(minMatchingTokens),ignoreCase,ignorePunctuation,allowMissingMiddle,allowTokenOrderVariations};
+}
+function identityNameTokens(value:string,policy:IdentityMatchingPolicy):string[]{
+  let normalized=value.normalize("NFKC").trim();
+  if(policy.ignoreCase)normalized=normalized.toLocaleLowerCase();
+  if(policy.ignorePunctuation)normalized=normalized.replace(/[\\p{P}\\p{S}]+/gu," ");
+  return normalized.split(/\\s+/u).filter(Boolean);
+}
+export function identityNamesMatch(accountName:string,profileName:string,policy:IdentityMatchingPolicy=DEFAULT_IDENTITY_MATCHING_POLICY):boolean{
+  if(!policy.enabled)return true;
+  const account=identityNameTokens(accountName,policy),profile=identityNameTokens(profileName,policy);
+  if(!account.length||!profile.length)return false;
+  const shorter=account.length<=profile.length?account:profile,longer=account.length<=profile.length?profile:account;
+  if(shorter.length<policy.minMatchingTokens)return false;
+  if(!policy.allowPartial&&shorter.length!==longer.length)return false;
+  const a=policy.allowTokenOrderVariations?new Set(account):account;
+  const b=policy.allowTokenOrderVariations?new Set(profile):profile;
+  if(policy.allowTokenOrderVariations)return [...a].every(token=>b.has(token))&&a.size===b.size?true:policy.allowPartial&&[...shorter].every(token=>new Set(longer).has(token));
+  return policy.allowPartial?shorter.every((token,index)=>longer.includes(token)):account.join(" ")===profile.join(" ");
+}
+async function getIdentityMatchingPolicy(db:D1Database):Promise<IdentityMatchingPolicy>{
+  const row=await db.prepare("SELECT value_json FROM platform_settings WHERE key='identity_name_matching_policy'").first<{value_json:string}>();
+  if(!row)return DEFAULT_IDENTITY_MATCHING_POLICY;
+  try{return parseIdentityMatchingPolicy(JSON.parse(row.value_json))??DEFAULT_IDENTITY_MATCHING_POLICY;}catch{return DEFAULT_IDENTITY_MATCHING_POLICY;}
+}
 async function api(request: Request, env: Env, url: URL): Promise<Response> {
   const authResponse=await authRoute(request,env,url);if(authResponse)return authResponse;
   const denied = await authorize(request, env);
@@ -253,6 +285,20 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   if(url.pathname==="/v1/platform/me"&&request.method==="GET"){
     return json({data:{isSuperAdmin:superAdmin,user:session?{id:session.id,email:session.email,displayName:session.displayName}:null}});
+  }
+  if(url.pathname==="/v1/platform/identity-matching-policy"&&(request.method==="GET"||request.method==="PUT")){
+    if(!superAdmin)return fail(403,"platform_admin_required","Super Admin access is required.");
+    if(request.method==="GET")return json({data:await getIdentityMatchingPolicy(env.DB)});
+    const input=await body(request),policy=parseIdentityMatchingPolicy(input?.policy);
+    if(!policy)return fail(400,"invalid_identity_matching_policy","Provide valid global identity matching settings. Minimum matching tokens must be between 1 and 8.");
+    const previous=await getIdentityMatchingPolicy(env.DB),timestamp=now();
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO platform_settings(key,value_json,updated_by_user_id,updated_at) VALUES('identity_name_matching_policy',?,?,?) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,updated_by_user_id=excluded.updated_by_user_id,updated_at=excluded.updated_at")
+        .bind(JSON.stringify(policy),actorUserId,timestamp),
+      env.DB.prepare("INSERT INTO platform_audit_logs(id,actor_user_id,action,target_type,target_id,reason,metadata,created_at) VALUES(?,?,?,?,?,?,?,?)")
+        .bind(id(),actorUserId,"identity.matching_policy_updated","platform_setting","identity_name_matching_policy","Updated global identity name-matching policy",JSON.stringify({before:previous,after:policy}),timestamp)
+    ]);
+    return json({data:policy});
   }
   if(url.pathname==="/v1/platform/overview"&&request.method==="GET"){
     if(!superAdmin)return fail(403,"platform_admin_required","Super Admin access is required.");
@@ -522,7 +568,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       env.DB.prepare("SELECT c.id,c.person_id,p.display_name,c.status,c.requested_at,c.reviewed_at,c.review_reason FROM person_identity_claims c JOIN persons p ON p.id=c.person_id WHERE c.family_id=? AND c.requester_user_id=? ORDER BY c.requested_at DESC").bind(familyId,actorUserId).all(),
       role==="owner"||role==="admin" ? env.DB.prepare("SELECT c.id,c.person_id,p.display_name,c.requester_user_id,u.display_name AS requester_name,u.email AS requester_email,c.requested_at FROM person_identity_claims c JOIN persons p ON p.id=c.person_id JOIN users u ON u.id=c.requester_user_id WHERE c.family_id=? AND c.status='pending' ORDER BY c.requested_at").bind(familyId).all() : Promise.resolve({results:[]})
     ]);
-    return json({data:{link:link??null,claims:claims.results,pendingClaims:pending.results,canReview:role==="owner"||role==="admin",canDirectClaim:role==="owner"}});
+    return json({data:{link:link??null,claims:claims.results,pendingClaims:pending.results,canReview:role==="owner"||role==="admin",canDirectClaim:role==="owner",matchingPolicy:await getIdentityMatchingPolicy(env.DB)}});
   }
   const claimCollection=url.pathname.match(/^\/v1\/families\/([^/]+)\/identity-claims$/);
   if(claimCollection&&request.method==="POST"){
@@ -530,7 +576,7 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     if(!role)return fail(404,"family_not_found","Family not found.");
     const input=await body(request),personId=textOrNull(input?.personId);
     if(!personId)return fail(400,"person_required","Select an existing person record.");
-    const person=await env.DB.prepare("SELECT id FROM persons WHERE id=? AND family_id=?").bind(personId,familyId).first();
+    const person=await env.DB.prepare("SELECT id,given_name,middle_name,family_name,display_name FROM persons WHERE id=? AND family_id=?").bind(personId,familyId).first<{id:string;given_name:string;middle_name:string|null;family_name:string|null;display_name:string|null}>();
     if(!person)return fail(404,"person_not_found","That person does not belong to this family.");
     const linked=await env.DB.prepare("SELECT person_id,user_id,linked_at FROM person_identity_links WHERE family_id=? AND (user_id=? OR person_id=?) LIMIT 1").bind(familyId,actorUserId,personId).first<{person_id:string;user_id:string;linked_at:string}>();
     if(linked){
@@ -552,6 +598,15 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
       }
       return json({data:{personId,status:"approved",linkedAt:t}},{status:201});
     }
+    const matchingPolicy=await getIdentityMatchingPolicy(env.DB);
+    const requester=await env.DB.prepare("SELECT display_name FROM users WHERE id=?").bind(actorUserId).first<{display_name:string}>();
+    const profileName=[person.given_name,person.middle_name,person.family_name].filter(Boolean).join(" ")||person.display_name||"";
+    if(matchingPolicy.enabled&&!identityNamesMatch(requester?.display_name??"",profileName,matchingPolicy))
+      return fail(403,"identity_name_mismatch","Your Google account name does not match this profile closely enough to request a claim.");
+    const otherPending=await env.DB.prepare("SELECT id,person_id FROM person_identity_claims WHERE family_id=? AND requester_user_id=? AND status='pending' LIMIT 1")
+      .bind(familyId,actorUserId).first<{id:string;person_id:string}>();
+    if(otherPending&&otherPending.person_id!==personId)
+      return fail(409,"identity_claim_already_pending","You already have a pending claim for another profile in this family.");
     const existingClaim=await env.DB.prepare("SELECT id,person_id,status,requested_at FROM person_identity_claims WHERE family_id=? AND person_id=? AND requester_user_id=? AND status='pending'").bind(familyId,personId,actorUserId).first<{id:string;person_id:string;status:string;requested_at:string}>();
     if(existingClaim)return json({data:{id:existingClaim.id,personId:existingClaim.person_id,status:"pending",requestedAt:existingClaim.requested_at,reused:true}});
     const claimId=id();
