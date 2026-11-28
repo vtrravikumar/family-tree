@@ -122,23 +122,25 @@ export async function handleFamilyBridgeRoute(request: Request, env: BridgeEnv, 
     const connectorB = familyPair.swapped ? connectorInitiating : connectorDestination;
     const bridgeId = newId(), t = timestamp();
     try {
-      const result = await env.DB.prepare(`INSERT INTO family_bridges(
-        id,family_a_id,family_b_id,anchor_a_person_id,anchor_b_person_id,
-        connector_a_person_id,connector_b_person_id,relationship_type,status,
-        initiated_by_user_id,initiating_family_id,created_at,updated_at
-      ) SELECT ?,?,?,?,?,?,?,'marriage','pending',?,?,?,?
-      WHERE EXISTS (SELECT 1 FROM family_members WHERE family_id=? AND user_id=? AND role='owner')
-        AND EXISTS (SELECT 1 FROM family_members WHERE family_id=? AND user_id=?)
-    `).bind(bridgeId,familyPair.first,familyPair.second,anchorA,anchorB,connectorA,connectorB,actorUserId,initiatingFamilyId,t,t,
-      initiatingFamilyId,actorUserId,destinationFamilyId,actorUserId).run();
-      if ((result.meta?.changes ?? 0) !== 1)
-        return error(409, "bridge_create_unavailable", "Your family memberships changed. Refresh and try again.");
-      await env.DB.batch([
-        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'family_bridge',?,'family_bridge.requested',?,?)")
+      const results = await env.DB.batch([
+        env.DB.prepare(`INSERT INTO family_bridges(
+          id,family_a_id,family_b_id,anchor_a_person_id,anchor_b_person_id,
+          connector_a_person_id,connector_b_person_id,relationship_type,status,
+          initiated_by_user_id,initiating_family_id,created_at,updated_at
+        ) SELECT ?,?,?,?,?,?,?,'marriage','pending',?,?,?,?
+        WHERE EXISTS (SELECT 1 FROM family_members WHERE family_id=? AND user_id=? AND role='owner')
+          AND EXISTS (SELECT 1 FROM family_members WHERE family_id=? AND user_id=?)
+      `).bind(bridgeId,familyPair.first,familyPair.second,anchorA,anchorB,connectorA,connectorB,actorUserId,initiatingFamilyId,t,t,
+        initiatingFamilyId,actorUserId,destinationFamilyId,actorUserId),
+        env.DB.prepare(`INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at)
+          SELECT ?,?,?, 'family_bridge',?,'family_bridge.requested',?,? WHERE changes()=1`)
           .bind(newId(), initiatingFamilyId, actorUserId, bridgeId, JSON.stringify({ destinationFamilyId }), t),
-        env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'family_bridge',?,'family_bridge.request_received',?,?)")
+        env.DB.prepare(`INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at)
+          SELECT ?,?,?, 'family_bridge',?,'family_bridge.request_received',?,? WHERE changes()=1`)
           .bind(newId(), destinationFamilyId, actorUserId, bridgeId, JSON.stringify({ initiatingFamilyId }), t)
       ]);
+      if ((results[0]?.meta?.changes ?? 0) !== 1)
+        return error(409, "bridge_create_unavailable", "Your family memberships changed. Refresh and try again.");
       return json({ data: { id: bridgeId, status: "pending", initiatingFamilyId, destinationFamilyId, createdAt: t } }, 201);
     } catch {
       return error(409, "duplicate_or_invalid_bridge", "This family connection already exists or could not be created.");
@@ -158,17 +160,20 @@ export async function handleFamilyBridgeRoute(request: Request, env: BridgeEnv, 
     const input = await readBody(request);
     const reason = clean(input?.reason);
     const approved = action === "approve";
-    const result = await env.DB.prepare(`UPDATE family_bridges SET status=?,approved_by_user_id=?,approved_at=?,
-      rejected_by_user_id=?,rejected_at=?,rejection_reason=?,updated_at=?
-      WHERE id=? AND status='pending'
-        AND EXISTS (SELECT 1 FROM family_members WHERE family_id=? AND user_id=? AND role='owner')
-    `).bind(approved ? "active" : "rejected", approved ? actorUserId : null, approved ? t : null,
-      approved ? null : actorUserId, approved ? null : t, approved ? null : reason, t, bridgeId, destinationFamilyId, actorUserId).run();
-    if ((result.meta?.changes ?? 0) !== 1) return error(409, "bridge_decision_unavailable", "This request was already decided or your Owner access changed.");
-    await env.DB.batch([bridge.family_a_id, bridge.family_b_id].map(familyId =>
-      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'family_bridge',?,?,?,?)")
-        .bind(newId(), familyId, actorUserId, bridgeId, approved ? "family_bridge.approved" : "family_bridge.rejected", JSON.stringify({ reason }), t)
-    ));
+    const results = await env.DB.batch([
+      env.DB.prepare(`UPDATE family_bridges SET status=?,approved_by_user_id=?,approved_at=?,
+        rejected_by_user_id=?,rejected_at=?,rejection_reason=?,updated_at=?
+        WHERE id=? AND status='pending'
+          AND EXISTS (SELECT 1 FROM family_members WHERE family_id=? AND user_id=? AND role='owner')
+      `).bind(approved ? "active" : "rejected", approved ? actorUserId : null, approved ? t : null,
+        approved ? null : actorUserId, approved ? null : t, approved ? null : reason, t, bridgeId, destinationFamilyId, actorUserId),
+      ...[bridge.family_a_id, bridge.family_b_id].map(familyId =>
+        env.DB.prepare(`INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at)
+          SELECT ?,?,?, 'family_bridge',?,?,?,? WHERE changes()=1`)
+          .bind(newId(), familyId, actorUserId, bridgeId, approved ? "family_bridge.approved" : "family_bridge.rejected", JSON.stringify({ reason }), t)
+      )
+    ]);
+    if ((results[0]?.meta?.changes ?? 0) !== 1) return error(409, "bridge_decision_unavailable", "This request was already decided or your Owner access changed.");
     return json({ data: { id: bridgeId, status: approved ? "active" : "rejected", decidedAt: t } });
   }
 
@@ -182,16 +187,19 @@ export async function handleFamilyBridgeRoute(request: Request, env: BridgeEnv, 
     const ownerB = await familyOwner(env.DB, bridge.family_b_id, actorUserId);
     if (!ownerA && !ownerB) return error(403, "bridge_owner_required", "An Owner of either connected family can revoke this connection.");
     const input = await readBody(request), t = timestamp(), reason = clean(input?.reason);
-    const result = await env.DB.prepare(`UPDATE family_bridges SET status='revoked',revoked_by_user_id=?,revoked_at=?,
-      revocation_reason=?,updated_at=? WHERE id=? AND status='active'
-      AND (EXISTS (SELECT 1 FROM family_members WHERE family_id=? AND user_id=? AND role='owner')
-        OR EXISTS (SELECT 1 FROM family_members WHERE family_id=? AND user_id=? AND role='owner'))`)
-      .bind(actorUserId,t,reason,t,bridgeId,bridge.family_a_id,actorUserId,bridge.family_b_id,actorUserId).run();
-    if ((result.meta?.changes ?? 0) !== 1) return error(409, "bridge_revoke_unavailable", "This connection changed or your Owner access was removed.");
-    await env.DB.batch([bridge.family_a_id, bridge.family_b_id].map(familyId =>
-      env.DB.prepare("INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at) VALUES(?,?,?,'family_bridge',?,'family_bridge.revoked',?,?)")
-        .bind(newId(), familyId, actorUserId, bridgeId, JSON.stringify({ reason }), t)
-    ));
+    const results = await env.DB.batch([
+      env.DB.prepare(`UPDATE family_bridges SET status='revoked',revoked_by_user_id=?,revoked_at=?,
+        revocation_reason=?,updated_at=? WHERE id=? AND status='active'
+        AND (EXISTS (SELECT 1 FROM family_members WHERE family_id=? AND user_id=? AND role='owner')
+          OR EXISTS (SELECT 1 FROM family_members WHERE family_id=? AND user_id=? AND role='owner'))`)
+        .bind(actorUserId,t,reason,t,bridgeId,bridge.family_a_id,actorUserId,bridge.family_b_id,actorUserId),
+      ...[bridge.family_a_id, bridge.family_b_id].map(familyId =>
+        env.DB.prepare(`INSERT INTO audit_logs(id,family_id,actor_user_id,entity_type,entity_id,action,change_summary,created_at)
+          SELECT ?,?,?, 'family_bridge',?,'family_bridge.revoked',?,? WHERE changes()=1`)
+          .bind(newId(), familyId, actorUserId, bridgeId, JSON.stringify({ reason }), t)
+      )
+    ]);
+    if ((results[0]?.meta?.changes ?? 0) !== 1) return error(409, "bridge_revoke_unavailable", "This connection changed or your Owner access was removed.");
     return json({ data: { id: bridgeId, status: "revoked", revokedAt: t } });
   }
   return null;
