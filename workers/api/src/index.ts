@@ -1,5 +1,6 @@
 import { sendInvitationEmail } from "./invitation-email";
 import { cleanupQueuedPersonPhotoObjects, handlePersonPhoto } from "./person-photos";
+import { effectiveFamilyReadAccess, handleFamilyBridgeRoute } from "./family-bridges";
 
 export interface Env {
   APP_ENV: string;
@@ -266,6 +267,9 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   const actorUserId=session?.id??"dev-owner";
   const superAdmin=!!session&&await isSuperAdmin(env.DB,session.id);
 
+  const bridgeResponse=await handleFamilyBridgeRoute(request,env,url,actorUserId);
+  if(bridgeResponse)return bridgeResponse;
+
   if(url.pathname==="/v1/onboarding/sample-access"&&request.method==="POST"){
     const attached=await ensureSampleAccess(env.DB,actorUserId);
     const familyId=attached?await sampleFamilyId(env.DB):null;
@@ -365,7 +369,29 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
   }
 
   if (url.pathname === "/v1/families" && request.method === "GET") {
-    const result = await env.DB.prepare("SELECT f.id,f.name,f.created_at,f.updated_at,fm.role,f.is_sample FROM families f JOIN family_members fm ON fm.family_id=f.id WHERE fm.user_id=? ORDER BY f.created_at DESC").bind(actorUserId).all();
+    const result = await env.DB.prepare(`
+      SELECT f.id,f.name,f.created_at,f.updated_at,fm.role,f.is_sample,
+        'direct' AS accessSource,fm.role AS effectiveRole,NULL AS bridgeId
+      FROM families f JOIN family_members fm ON fm.family_id=f.id
+      WHERE fm.user_id=?
+      UNION ALL
+      SELECT f.id,f.name,f.created_at,f.updated_at,'viewer' AS role,f.is_sample,
+        'bridge' AS accessSource,'viewer' AS effectiveRole,
+        (SELECT group_concat(b2.id, ',') FROM family_bridges b2
+          JOIN family_members source2 ON source2.family_id=CASE WHEN b2.family_a_id=f.id THEN b2.family_b_id ELSE b2.family_a_id END
+            AND source2.user_id=?
+          WHERE b2.status='active' AND (b2.family_a_id=f.id OR b2.family_b_id=f.id)) AS bridgeId
+      FROM families f
+      WHERE EXISTS (
+        SELECT 1 FROM family_bridges b
+        JOIN family_members source_member
+          ON source_member.family_id=CASE WHEN b.family_a_id=f.id THEN b.family_b_id ELSE b.family_a_id END
+         AND source_member.user_id=?
+        WHERE b.status='active' AND (b.family_a_id=f.id OR b.family_b_id=f.id)
+      )
+      AND NOT EXISTS (SELECT 1 FROM family_members direct_member WHERE direct_member.family_id=f.id AND direct_member.user_id=?)
+      ORDER BY created_at DESC
+    `).bind(actorUserId,actorUserId,actorUserId,actorUserId).all();
     return json({data:result.results});
   }
   if (url.pathname === "/v1/families" && request.method === "POST") {
@@ -677,12 +703,17 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   const photoMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people\/([^/]+)\/photo(\/content)?$/);
   if(photoMatch){
-    return handlePersonPhoto(request,env,photoMatch[1],photoMatch[2],actorUserId,await roleFor(env.DB,photoMatch[1],actorUserId));
+    const directRole=await roleFor(env.DB,photoMatch[1],actorUserId);
+    const readRole=request.method==="GET"
+      ? (await effectiveFamilyReadAccess(env.DB,photoMatch[1],actorUserId)).role
+      : directRole;
+    return handlePersonPhoto(request,env,photoMatch[1],photoMatch[2],actorUserId,readRole);
   }
 
   const peopleMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/people$/);
   if (peopleMatch) {
-    const familyId=peopleMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
+    const familyId=peopleMatch[1], directRole=await roleFor(env.DB,familyId,actorUserId);
+    const role=request.method==="GET" ? (await effectiveFamilyReadAccess(env.DB,familyId,actorUserId)).role : directRole;
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (request.method === "GET") {
       const result=await env.DB.prepare(`SELECT p.id,p.family_id,p.given_name,p.middle_name,p.family_name,p.display_name,p.gender,p.life_status,
@@ -983,8 +1014,8 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
     const current=await env.DB.prepare("SELECT display_name,life_status FROM persons WHERE id=? AND family_id=?").bind(personId,familyId).first<{display_name:string|null,life_status:string}>();
     if (!current) return fail(404,"person_not_found","Family member not found.");
     if (current.life_status === "deceased") return fail(409,"person_immutable","Deceased profiles cannot be deleted.");
-    const dependencies=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM media WHERE person_id=? AND family_id=? AND media_type<>'person_portrait') AS media_count,(SELECT COUNT(*) FROM tree_layouts WHERE focus_person_id=? AND family_id=?) AS layout_count,(SELECT COUNT(*) FROM share_links WHERE focus_person_id=? AND family_id=?) AS share_count").bind(personId,familyId,personId,familyId,personId,familyId).first<{media_count:number,layout_count:number,share_count:number}>();
-    if (dependencies && (dependencies.media_count||dependencies.layout_count||dependencies.share_count)) return fail(409,"person_has_dependencies","This person is referenced by other media, saved layouts, or branch share links. Remove or reassign those items before deleting the person.");
+    const dependencies=await env.DB.prepare("SELECT (SELECT COUNT(*) FROM media WHERE person_id=? AND family_id=? AND media_type<>'person_portrait') AS media_count,(SELECT COUNT(*) FROM tree_layouts WHERE focus_person_id=? AND family_id=?) AS layout_count,(SELECT COUNT(*) FROM share_links WHERE focus_person_id=? AND family_id=?) AS share_count,(SELECT COUNT(*) FROM family_bridges WHERE (family_a_id=? AND (anchor_a_person_id=? OR connector_a_person_id=?)) OR (family_b_id=? AND (anchor_b_person_id=? OR connector_b_person_id=?))) AS bridge_count").bind(personId,familyId,personId,familyId,personId,familyId,familyId,personId,personId,familyId,personId,personId).first<{media_count:number,layout_count:number,share_count:number,bridge_count:number}>();
+    if (dependencies && (dependencies.media_count||dependencies.layout_count||dependencies.share_count||dependencies.bridge_count)) return fail(409,"person_has_dependencies","This person is referenced by other media, saved layouts, branch share links or a family bridge. A person referenced by a retained family bridge cannot be deleted, so the connection history remains intact.");
     const portraits=await env.DB.prepare("SELECT object_key FROM media WHERE person_id=? AND family_id=? AND media_type='person_portrait'").bind(personId,familyId).all<{object_key:string}>();
     const t=now();
     try {
@@ -1094,7 +1125,8 @@ async function api(request: Request, env: Env, url: URL): Promise<Response> {
 
   const relationshipsMatch=url.pathname.match(/^\/v1\/families\/([^/]+)\/relationships$/);
   if (relationshipsMatch) {
-    const familyId=relationshipsMatch[1], role=await roleFor(env.DB,familyId,actorUserId);
+    const familyId=relationshipsMatch[1], directRole=await roleFor(env.DB,familyId,actorUserId);
+    const role=request.method==="GET" ? (await effectiveFamilyReadAccess(env.DB,familyId,actorUserId)).role : directRole;
     if (!role) return fail(404,"family_not_found","Family not found.");
     if (request.method === "GET") {
       const result=await env.DB.prepare(`SELECT r.id,r.from_person_id,r.to_person_id,r.relationship_type,r.metadata_json,r.created_at,
