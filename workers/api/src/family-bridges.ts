@@ -85,9 +85,9 @@ export async function handleFamilyBridgeRoute(request: Request, env: BridgeEnv, 
       JOIN persons ab ON ab.id=b.anchor_b_person_id
       JOIN persons ca ON ca.id=b.connector_a_person_id
       JOIN persons cb ON cb.id=b.connector_b_person_id
-      WHERE (b.family_a_id=? OR b.family_b_id=?) AND b.status IN ('pending','active')
+      WHERE (b.family_a_id=? OR b.family_b_id=?) AND (b.status='active' OR (b.status='pending' AND (b.initiated_by_user_id=? OR EXISTS (SELECT 1 FROM family_members owner_member WHERE owner_member.family_id=CASE WHEN b.family_a_id=? THEN b.family_b_id ELSE b.family_a_id END AND owner_member.user_id=? AND owner_member.role='owner')))
       ORDER BY b.created_at DESC
-    `).bind(familyId, familyId).all();
+    `).bind(familyId, familyId, actorUserId, familyId, actorUserId).all();
     return json({ data: result.results, accessSource: access.source, effectiveRole: access.role });
   }
 
@@ -117,10 +117,10 @@ export async function handleFamilyBridgeRoute(request: Request, env: BridgeEnv, 
         return error(400, "person_not_in_family", "Each anchor and connector person must belong to its specified family.");
     }
     if (!(await spousePairExists(env.DB, initiatingFamilyId, anchorInitiating, connectorInitiating)) &&
-        !(await spousePairExists(env.DB, initiatingFamilyId, connectorInitiating, anchorInitiating)))
+        !(await spousePairExists(env.DB, initiatingFamilyId, connectorInitiating, connectorInitiating)))
       return error(400, "marriage_relationship_required", "The initiating family must contain a spouse relationship between its connector people.");
-    if (!(await spousePairExists(env.DB, destinationFamilyId, anchorDestination, connectorDestination)) &&
-        !(await spousePairExists(env.DB, destinationFamilyId, connectorDestination, anchorDestination)))
+    if (!(await spousePairExists(env.DB, destinationFamilyId, connectorDestination, connectorDestination)) &&
+        !(await spousePairExists(env.DB, destinationFamilyId, connectorDestination, connectorDestination)))
       return error(400, "destination_marriage_relationship_required", "The destination family must contain a spouse relationship between its connector people.");
     const familyPair = orderedPair(initiatingFamilyId, destinationFamilyId);
     const anchorA = familyPair.swapped ? anchorDestination : anchorInitiating;
