@@ -57,13 +57,6 @@ async function personBelongsToFamily(db: D1Database, familyId: string, personId:
     .bind(personId, familyId).first();
   return !!row;
 }
-async function spousePairExists(db: D1Database, familyId: string, personA: string, personB: string): Promise<boolean> {
-  const row = await db.prepare(`SELECT 1 AS found FROM relationships
-    WHERE family_id=? AND relationship_type='spouse'
-      AND ((from_person_id=? AND to_person_id=?) OR (from_person_id=? AND to_person_id=?))
-    LIMIT 1`).bind(familyId, personA, personB, personB, personA).first();
-  return !!row;
-}
 function orderedPair(a: string, b: string) {
   return a < b ? { first: a, second: b, swapped: false } : { first: b, second: a, swapped: true };
 }
@@ -116,12 +109,6 @@ export async function handleFamilyBridgeRoute(request: Request, env: BridgeEnv, 
       if (!(await personBelongsToFamily(env.DB, familyId, personId)))
         return error(400, "person_not_in_family", "Each anchor and connector person must belong to its specified family.");
     }
-    if (!(await spousePairExists(env.DB, initiatingFamilyId, anchorInitiating, connectorInitiating)) &&
-        !(await spousePairExists(env.DB, initiatingFamilyId, connectorInitiating, connectorInitiating)))
-      return error(400, "marriage_relationship_required", "The initiating family must contain a spouse relationship between its connector people.");
-    if (!(await spousePairExists(env.DB, destinationFamilyId, connectorDestination, connectorDestination)) &&
-        !(await spousePairExists(env.DB, destinationFamilyId, connectorDestination, connectorDestination)))
-      return error(400, "destination_marriage_relationship_required", "The destination family must contain a spouse relationship between its connector people.");
     const familyPair = orderedPair(initiatingFamilyId, destinationFamilyId);
     const anchorA = familyPair.swapped ? anchorDestination : anchorInitiating;
     const anchorB = familyPair.swapped ? anchorInitiating : anchorDestination;
