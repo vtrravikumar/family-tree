@@ -21,17 +21,18 @@ A bridge records three distinct relationships. They must not be conflated:
 
 The marriage pair and the ancestral anchor pair are separate fields. A person can be a bridge connector without being the ancestral anchor.
 
-## 3. Initiation and activation
+## 3. Initiation and one-time approval
 
 - A Family Owner may initiate a bridge from a family they own to another family only when the initiating Owner has **direct membership** in the other family.
 - Eligible direct roles in the other family: Owner, Admin, Editor or Viewer.
 - Inherited access through another bridge is not sufficient to initiate another bridge.
-- A bridge becomes active immediately after successful creation; destination-Owner approval is not required.
-- This avoids turning routine family connections into an approval queue. The initiator already has direct access to both families, and inherited access remains strictly read-only.
-- Activation is reciprocal: one active bridge enables traversal in both directions.
+- The bridge request requires approval from the destination family's Owner **once**, when the connection is established.
+- The bridge remains pending until that Owner approves it. Once approved, it becomes active and access is available to eligible members without further per-user or per-visit approval.
+- Approval is a deliberate, visible authorization by the destination family—not a recurring access prompt or an approval for every member.
+- Activation is reciprocal: one approved active bridge enables traversal in both directions.
 - A request must identify both family workspaces, both anchor people and both people in the marriage relationship.
 - All referenced people must belong to the corresponding family. The marriage pair must be represented by a spouse relationship in the relevant family record(s), with validation rules documented during implementation.
-- Duplicate active bridge records for the same two family/anchor/marriage combination must be prevented. Different marriages/anchor pairs between the same two families are allowed.
+- Duplicate active/pending bridge records for the same two family/anchor/marriage combination must be prevented. Different marriages/anchor pairs between the same two families are allowed.
 
 ## 4. Effective access
 
@@ -71,10 +72,11 @@ Existing direct Viewer permissions remain governed by current product behavior. 
 
 ## 6. Lifecycle
 
-States: `active` and `revoked` for the pilot. A pending/approval workflow is deliberately out of scope.
+States: `pending`, `active`, `rejected` and `revoked`.
 
-- Creation validates the initiator's direct membership in both families and activates the bridge in the same transaction.
-- Record the initiating user and creation time.
+- Creation validates the initiator's direct membership in both families and records the request as pending.
+- The destination Owner approves or rejects the request once. Approval records the approving Owner and time; rejection records the rejecting Owner and decision time/reason.
+- After approval, no further approval is required for individual members or subsequent visits.
 - Revocation records actor, time and reason.
 - When the marriage tie represented by the bridge is ended, an authorized family Owner must end/revoke the corresponding bridge. This revokes access derived from that bridge but preserves the marriage/relationship history and the bridge audit record.
 - Ending one bridge must not affect another bridge between the same families.
@@ -90,8 +92,9 @@ Proposed fields:
 - `anchor_a_person_id`, `anchor_b_person_id`
 - `connector_a_person_id`, `connector_b_person_id` (married people)
 - `relationship_type` (pilot: `marriage`)
-- `status` (`active`, `revoked`)
+- `status` (`pending`, `active`, `rejected`, `revoked`)
 - `initiated_by_user_id`, `initiating_family_id`
+- `approved_by_user_id`, `approved_at`
 - `revoked_by_user_id`, `revoked_at`, `revocation_reason`
 - `created_at`, `updated_at`
 
@@ -103,7 +106,8 @@ Foreign keys and validation must guarantee each anchor and connector person belo
 
 Expected endpoints (final naming to follow existing route conventions):
 - List bridges visible/manageable from a family.
-- Create and immediately activate a bridge (initiating family Owner; direct membership in other family required).
+- Create a pending bridge (initiating family Owner; direct membership in other family required).
+- Approve or reject a pending bridge once (destination family Owner only).
 - Revoke an active bridge (authorized Owner on either connected family; require confirmation/reason).
 - Read-only access resolver used by all family tree/profile read endpoints.
 - A family listing response that distinguishes direct memberships from connected-family access and reports `accessSource`, `effectiveRole` and bridge IDs.
@@ -116,15 +120,15 @@ Never rely on frontend visibility for authorization. Every read and write endpoi
 - Show the marriage connector people and the anchor person clearly in the bridge details.
 - Clicking the bubble opens the connected family in read-only mode, with an obvious “Connected via Raman ↔ Komal” context and a return-to-origin action.
 - The connected family appears separately from direct memberships in the family switcher; do not label it as a direct membership.
-- Show active/revoked bridge state and bridge management controls only to authorized Owners.
+- Show pending/active/rejected/revoked bridge state and bridge management controls only to authorized Owners.
 - No automatic scrolling or forced centering on person selection.
 
 ## 10. Pilot acceptance and security tests
 
 1. Raman Owner with direct Viewer access to Komal can initiate a bridge.
 2. Raman Owner without direct Komal membership cannot initiate one, even if they can view Komal through another bridge.
-3. A bridge is active immediately after valid creation; no destination-Owner approval step exists.
-4. Raman members without direct Komal membership get read-only Viewer access to Komal, and Komal members without direct Raman membership get read-only Viewer access to Raman.
+3. Destination Owner approval is required once per bridge; non-Owners cannot approve. No approval is required for subsequent member access or visits.
+4. After approval, Raman members without direct Komal membership get read-only Viewer access to Komal, and Komal members without direct Raman membership get read-only Viewer access to Raman.
 5. Users with direct destination memberships retain their direct roles.
 6. Inherited Viewer cannot write, invite, manage roles, import/export, view member roster, manage settings, or approve identity claims.
 7. Removing a source-family membership removes that user's inherited access.
@@ -196,5 +200,5 @@ Reviewed `workers/api/src/index.ts` and `workers/api/src/person-photos.ts` on `p
 
 ### Product decision — resolved
 
-Destination-Owner approval is not required. A bridge is activated immediately when an Owner of the initiating family creates it and that user has direct membership in the destination family. This is a deliberate product choice to avoid an administrative bottleneck. Inherited access remains Viewer-only and cannot be used to initiate another bridge.
+Destination-Owner approval is required **once per bridge**, at connection establishment. The request remains pending until the destination Owner approves it. After approval, all eligible members can access the connected family without additional approvals for individual users or visits. The initiating Owner must have direct membership in both families; inherited access cannot be used to initiate another bridge.
 
