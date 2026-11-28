@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effectiveFamilyReadAccess } from "./family-bridges";
+import { effectiveFamilyReadAccess, handleFamilyBridgeRoute } from "./family-bridges";
 
 type QueryResult = { role?: string; bridge_id?: string; source_family_id?: string };
 function mockDb(directRole: string | null, inherited: Array<{bridge_id:string;source_family_id:string}> = []) {
