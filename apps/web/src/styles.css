@@ -514,3 +514,6 @@ html{scroll-behavior:smooth;scroll-padding-top:150px}
   .toast-notification{top:88px;right:12px;width:calc(100vw - 24px);padding:13px 14px}
 }
 @media(prefers-reduced-motion:reduce){.toast-notification{animation:none}}
+
+/* UX-37: role-change confirmation */
+.role-change-dialog p:not(.eyebrow){line-height:1.65}.role-change-dialog p strong{color:#315b45}.role-change-dialog .death-actions button{min-width:125px}
