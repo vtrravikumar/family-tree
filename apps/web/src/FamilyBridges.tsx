@@ -69,12 +69,10 @@ export default function FamilyBridges({ familyId, role, accessSource = "direct",
   }, [destinationFamilyId, request]);
 
   const directFamilies = families.filter(family => family.id !== familyId && family.accessSource !== "bridge");
-  const selectedBridge = selectedPersonId ? bridges.filter(bridge => bridge.status === "active").find(bridge =>
+  const selectedBridges = selectedPersonId ? bridges.filter(bridge => bridge.status === "active" && (
     (bridge.family_a_id === familyId && bridge.anchor_a_person_id === selectedPersonId) ||
     (bridge.family_b_id === familyId && bridge.anchor_b_person_id === selectedPersonId)
-  ) : undefined;
-  const selectedDestinationId = selectedBridge ? (selectedBridge.family_a_id === familyId ? selectedBridge.family_b_id : selectedBridge.family_a_id) : "";
-  const selectedDestinationName = selectedBridge ? (selectedBridge.family_a_id === familyId ? selectedBridge.family_b_name : selectedBridge.family_a_name) : "";
+  )) : [];
   const canManage = role === "owner" && accessSource !== "bridge";
 
   return <section className="family-bridges-panel" aria-label="Connected families">
@@ -82,11 +80,16 @@ export default function FamilyBridges({ familyId, role, accessSource = "direct",
       <div><p className="eyebrow">FAMILY BRIDGES</p><h3>Connected families</h3><p>Visit another family tree without merging the two family workspaces.</p></div>
       {canManage && <button type="button" className="button-secondary" onClick={() => setShowRequestForm(value => !value)}>{showRequestForm ? "Close request" : "＋ Connect a family"}</button>}
     </div>
-    {selectedBridge && <div className="profile-family-bridge">
-      <span className="profile-bridge-label">CONNECTED FAMILY</span>
-      <button type="button" onClick={() => onNavigate(selectedDestinationId)}>{selectedDestinationName} ↗</button>
-      <small>Open this family's tree in a separate workspace</small>
-    </div>}
+    {selectedBridges.map(bridge => {
+      const isA = bridge.family_a_id === familyId;
+      const destinationId = isA ? bridge.family_b_id : bridge.family_a_id;
+      const destinationName = isA ? bridge.family_b_name : bridge.family_a_name;
+      return <div className="profile-family-bridge" key={bridge.id}>
+        <span className="profile-bridge-label">CONNECTED FAMILY</span>
+        <button type="button" onClick={() => onNavigate(destinationId)}>{destinationName} ↗</button>
+        <small>Open this family's tree in a separate workspace</small>
+      </div>;
+    })}
     {showRequestForm && canManage && <form className="family-bridge-request" onSubmit={event => {
       event.preventDefault();
       run(async () => {
