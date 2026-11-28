@@ -21,8 +21,8 @@ export const DEFAULT_IDENTITY_MATCHING_POLICY: IdentityMatchingPolicy = {
 function tokens(value: string, policy: IdentityMatchingPolicy): string[] {
   let normalized = value.normalize("NFKC").trim();
   if (policy.ignoreCase) normalized = normalized.toLocaleLowerCase();
-  if (policy.ignorePunctuation) normalized = normalized.replace(/[\\p{P}\\p{S}]+/gu, " ");
-  return normalized.split(/\\s+/u).filter(Boolean);
+  if (policy.ignorePunctuation) normalized = normalized.replace(/[\p{P}\p{S}]+/gu, " ");
+  return normalized.split(/\s+/u).filter(Boolean);
 }
 
 export function identityNamesMatch(accountName: string, profileName: string, policy = DEFAULT_IDENTITY_MATCHING_POLICY): boolean {
