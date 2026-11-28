@@ -56,3 +56,85 @@ describe("family bridge effective read access", () => {
     });
   });
 });
+
+
+describe("family bridge lifecycle authorization", () => {
+  const bridge = {
+    id: "bridge-1",
+    family_a_id: "family-a",
+    family_b_id: "family-b",
+    initiating_family_id: "family-a",
+    initiated_by_user_id: "owner-a",
+  };
+  function routeDb(roles: Record<string,string>, bridgeRow: Record<string,string> | null = null) {
+    const writes: string[] = [];
+    const db = {
+      writes,
+      prepare(sql: string) {
+        let values: unknown[] = [];
+        const statement = {
+          bind(...args: unknown[]) { values = args; return statement; },
+          async first() {
+            if (sql.includes("SELECT role FROM family_members")) return roles[String(values[0]) + ":" + String(values[1])] ? { role: roles[String(values[0]) + ":" + String(values[1])] } : null;
+            if (sql.includes("SELECT 1 AS found FROM persons")) return { found: 1 };
+            if (sql.includes("SELECT * FROM family_bridges")) return bridgeRow;
+            return null;
+          },
+          async all() { return { results: [] }; },
+          async run() { writes.push(sql); return { meta: { changes: 1 } }; },
+        };
+        return statement;
+      },
+      async batch(statements: Array<unknown>) {
+        writes.push("BATCH:" + statements.length);
+        return statements.map(() => ({ meta: { changes: 1 } }));
+      },
+    };
+    return db as unknown as D1Database & { writes: string[] };
+  }
+  const invoke = (db: D1Database, path: string, method: string, actor: string, payload?: unknown) =>
+    handleFamilyBridgeRoute(new Request("https://api.example.test" + path, {
+      method,
+      ...(payload ? { headers: { "content-type": "application/json" }, body: JSON.stringify(payload) } : {}),
+    }), { DB: db }, new URL("https://api.example.test" + path), actor);
+
+  it("allows only the initiating Owner with direct destination membership to create a pending request", async () => {
+    const db = routeDb({ "family-a:owner-a": "owner", "family-b:owner-a": "viewer" });
+    const response = await invoke(db, "/v1/families/family-a/bridges", "POST", "owner-a", {
+      destinationFamilyId: "family-b",
+      anchorPersonId: "a-anchor",
+      connectorPersonId: "a-connector",
+      destinationAnchorPersonId: "b-anchor",
+      destinationConnectorPersonId: "b-connector",
+    });
+    expect(response?.status).toBe(201);
+    expect(db.writes.some(sql => sql.includes("INSERT INTO family_bridges"))).toBe(true);
+  });
+
+  it("does not allow an inherited-only or non-Owner initiator to create a bridge", async () => {
+    const db = routeDb({ "family-a:user-1": "editor" });
+    const response = await invoke(db, "/v1/families/family-a/bridges", "POST", "user-1", {
+      destinationFamilyId: "family-b",
+      anchorPersonId: "a-anchor",
+      connectorPersonId: "a-connector",
+      destinationAnchorPersonId: "b-anchor",
+      destinationConnectorPersonId: "b-connector",
+    });
+    expect(response?.status).toBe(403);
+    expect(db.writes).toHaveLength(0);
+  });
+
+  it("requires the destination Owner for the one-time approval", async () => {
+    const db = routeDb({ "family-b:user-1": "viewer" }, bridge);
+    const response = await invoke(db, "/v1/bridges/bridge-1/approve", "POST", "user-1", {});
+    expect(response?.status).toBe(403);
+    expect(db.writes).toHaveLength(0);
+  });
+
+  it("allows the destination Owner to approve a pending bridge", async () => {
+    const db = routeDb({ "family-b:owner-b": "owner" }, bridge);
+    const response = await invoke(db, "/v1/bridges/bridge-1/approve", "POST", "owner-b", {});
+    expect(response?.status).toBe(200);
+    expect(db.writes.some(sql => sql.includes("UPDATE family_bridges SET status=?"))).toBe(true);
+  });
+});
