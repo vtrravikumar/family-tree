@@ -31,9 +31,10 @@ type Props = {
   request: RequestFn;
   run: (fn: () => Promise<void>) => void;
   onNavigate: (familyId: string) => void;
+  onChanged: () => Promise<void>;
 };
 
-export default function FamilyBridges({ familyId, role, accessSource = "direct", families, people, selectedPersonId, request, run, onNavigate }: Props) {
+export default function FamilyBridges({ familyId, role, accessSource = "direct", families, people, selectedPersonId, request, run, onNavigate, onChanged }: Props) {
   const [bridges, setBridges] = useState<Bridge[]>([]);
   const [destinationFamilyId, setDestinationFamilyId] = useState("");
   const [anchorPersonId, setAnchorPersonId] = useState("");
@@ -103,6 +104,7 @@ export default function FamilyBridges({ familyId, role, accessSource = "direct",
         setDestinationAnchorPersonId("");
         setDestinationConnectorPersonId("");
         await refresh();
+        await onChanged();
       });
     }}>
       <p className="helper-text">The destination Owner will approve this connection once. After approval, eligible members can visit without further approval.</p>
@@ -127,8 +129,8 @@ export default function FamilyBridges({ familyId, role, accessSource = "direct",
       return <article className="family-bridge-row pending" key={bridge.id}>
         <div><strong>{familyName}</strong><small>{destination ? "Incoming connection request" : "Awaiting destination Owner approval"}</small></div>
         {destination && canManage && <div className="family-bridge-actions">
-          <button type="button" disabled={false} onClick={() => run(async () => { await request("/v1/bridges/" + bridge.id + "/approve", "POST", {}); await refresh(); })}>Approve</button>
-          <button type="button" className="button-secondary" onClick={() => run(async () => { await request("/v1/bridges/" + bridge.id + "/reject", "POST", {}); await refresh(); })}>Reject</button>
+          <button type="button" disabled={false} onClick={() => run(async () => { await request("/v1/bridges/" + bridge.id + "/approve", "POST", {}); await refresh(); await onChanged(); })}>Approve</button>
+          <button type="button" className="button-secondary" onClick={() => run(async () => { await request("/v1/bridges/" + bridge.id + "/reject", "POST", {}); await refresh(); await onChanged(); })}>Reject</button>
         </div>}
       </article>;
     })}
@@ -145,6 +147,7 @@ export default function FamilyBridges({ familyId, role, accessSource = "direct",
             if (!window.confirm("Revoke the connection to " + destinationName + "? Members relying only on this bridge will lose access.")) return;
             await request("/v1/bridges/" + bridge.id, "DELETE", { reason: "Revoked by family Owner" });
             await refresh();
+            await onChanged();
           })}>Revoke</button>}
         </div>
       </article>;
