@@ -127,7 +127,7 @@ export default function FamilyBridges({ familyId, role, accessSource = "direct",
       const destination = bridge.initiating_family_id !== familyId;
       const familyName = bridge.family_a_id === familyId ? bridge.family_b_name : bridge.family_a_name;
       return <article className="family-bridge-row pending" key={bridge.id}>
-        <div><strong>{familyName}</strong><small>{destination ? "Incoming connection request" : "Awaiting destination Owner approval"}</small></div>
+        <div><strong>{familyName}</strong><small>{destination ? "Incoming connection request" : "Awaiting destination Owner approval"} · {bridge.anchor_a_name} ↔ {bridge.anchor_b_name}</small></div>
         {destination && canManage && <div className="family-bridge-actions">
           <button type="button" disabled={false} onClick={() => run(async () => { await request("/v1/bridges/" + bridge.id + "/approve", "POST", {}); await refresh(); await onChanged(); })}>Approve</button>
           <button type="button" className="button-secondary" onClick={() => run(async () => { await request("/v1/bridges/" + bridge.id + "/reject", "POST", {}); await refresh(); await onChanged(); })}>Reject</button>
@@ -140,7 +140,7 @@ export default function FamilyBridges({ familyId, role, accessSource = "direct",
       const destinationName = isA ? bridge.family_b_name : bridge.family_a_name;
       const anchorName = isA ? bridge.anchor_a_name : bridge.anchor_b_name;
       return <article className="family-bridge-row" key={bridge.id}>
-        <div><strong>{destinationName}</strong><small>Via {anchorName} · Marriage connection</small></div>
+        <div><strong>{destinationName}</strong><small>Via {anchorName} · Marriage: {bridge.connector_a_name} ↔ {bridge.connector_b_name}</small></div>
         <div className="family-bridge-actions">
           <button type="button" className="button-secondary" onClick={() => onNavigate(destinationId)}>Open family ↗</button>
           {canManage && <button type="button" className="button-secondary" onClick={() => run(async () => {
